@@ -1,0 +1,501 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.15">
+  <POU Name="FB_DryingSectionLubrificationControl_V1" Id="{c31463b0-ba8a-4b47-9158-8519f236c32a}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_DryingSectionLubrificationControl_V1
+VAR_INPUT
+    //==============================================================
+    // COMMANDS / INTERLOCKS
+    //==============================================================
+    startCmd               : BOOL;    // EN: Manual start command / PT: Comando de partida manual
+    stopCmd                : BOOL;    // EN: Manual stop command / PT: Comando de parada manual
+    machineRunningFeedback : BOOL;    // EN: Machine running feedback / PT: Sinal de máquina em operação
+    pumpSelector           : BOOL;    // EN: Pump selector (FALSE = Pump1 / TRUE = Pump2) / PT: Seletor de bomba (FALSE = B1 / TRUE = B2)
+
+	pump1Fault				: BOOL;
+	pump2Fault				: BOOL;	
+
+	minPressureFeedback		: BOOL;
+	maxPressureFeedback		: BOOL;		
+	
+    //==============================================================
+    // TEMPERATURE MEASUREMENT
+    //==============================================================
+    tankTemperature        : REAL;    // EN: Lubrication oil tank temperature [°C] / PT: Temperatura do tanque de óleo [°C]
+    circuitTemperature     : REAL;    // EN: Lubrication circuit temperature [°C] / PT: Temperatura do circuito de lubrificação [°C]
+
+	
+    tankMaxTemperature        : REAL := 60.0;    // EN: Lubrication oil tank temperature [°C] / PT: Temperatura do tanque de óleo [°C]
+    circuitMaxTemperature     : REAL := 65.0;    // EN: Lubrication circuit temperature [°C] / PT: Temperatura do circuito de lubrificação [°C]
+	
+	
+    //==============================================================
+    // AUTOMATIC OPERATION
+    //==============================================================
+    automaticMode          : BOOL;    // EN: Automatic mode enable / PT: Habilita modo automático
+    autoStopDelay          : TIME := T#1M;  // EN: Delay to stop pumps after machine stops / PT: Atraso para parar bombas após parada da máquina
+END_VAR
+
+
+VAR_OUTPUT
+    //==============================================================
+    // COMMANDS TO FIELD DEVICES
+    //==============================================================
+    pump1Run               : BOOL;    // EN: Run command for Pump 1 / PT: Comando de acionamento da Bomba 1
+    pump2Run               : BOOL;    // EN: Run command for Pump 2 / PT: Comando de acionamento da Bomba 2
+
+    //==============================================================
+    // STATUS / FAULTS
+    //==============================================================
+    fault                  : BOOL;    // EN: General fault detected / PT: Falha geral detectada
+    runningStatus          : BOOL;    // EN: TRUE if any pump is running / PT: TRUE se alguma bomba estiver ligada
+    activePumpNumber       : INT;     // EN: 1 = Pump1, 2 = Pump2, 0 = None / PT: 1 = Bomba1, 2 = Bomba2, 0 = Nenhuma
+
+    //==============================================================
+    // STATE FEEDBACKS (FOR HMI DISPLAY)
+    //==============================================================
+    pump1State             : INT;     // EN: 0=Stopped, 1=Running, 3=Fault / PT: 0=Parada, 1=Rodando, 3 =Falha
+    pump2State             : INT;     // EN: 0=Stopped, 1=Running, 3=Fault / PT: 0=Parada, 1=Rodando, 3 =Falha
+	
+    //==============================================================
+    // FILTERED TEMPERATURE DISPLAY (FOR HMI)
+    //==============================================================
+    tankTemperatureFilteredDisplay    : REAL;  // EN: Filtered tank temperature [°C] / PT: Temperatura do tanque filtrada [°C]
+    circuitTemperatureFilteredDisplay : REAL;  // EN: Filtered circuit temperature [°C] / PT: Temperatura do circuito filtrada [°C]
+	
+	
+END_VAR
+
+
+VAR
+    //==============================================================
+    // INTERNAL TIMERS / LOGIC FLAGS
+    //==============================================================
+    instTON_AutoStopDelay  : TON;     // EN: Timer to delay stop in automatic mode / PT: Temporizador de atraso de parada no modo automático
+    autoRunRequest         : BOOL;    // EN: Internal flag for auto-start request / PT: Flag interna de solicitação de partida automática
+    manualRunRequest       : BOOL;    // EN: Internal flag for manual start / PT: Flag interna de partida manual
+    stopRequest            : BOOL;    // EN: Internal flag for stop request / PT: Flag interna de parada
+    temperatureFault       : BOOL;    // EN: TRUE if abnormal temperature detected / PT: TRUE se temperatura anormal detectada
+
+    //==============================================================
+    // INTERNAL STATE CONTROL
+    //==============================================================
+    pump1StateInternal     : INT;     // EN: Internal logic state for Pump 1 / PT: Estado interno da Bomba 1
+    pump2StateInternal     : INT;     // EN: Internal logic state for Pump 2 / PT: Estado interno da Bomba 2
+    pump1RunCmd            : BOOL;    // EN: Command signal for Pump 1 / PT: Comando interno para Bomba 1
+    pump2RunCmd            : BOOL;    // EN: Command signal for Pump 2 / PT: Comando interno para Bomba 2
+	
+    hmiAlarms                   : PaperMachine_TypeHmiAlarms; // Alarm structure / Estrutura de alarmes
+	
+    // EN: Delay to detect low pressure after pump start
+    // PT: Atraso para detectar baixa pressão após partida da bomba
+    tonLowPressure : TON;
+
+    // EN: Delay to detect high pressure
+    // PT: Atraso para detectar alta pressão
+    tonHighPressure : TON;	
+	
+    //==============================================================
+    // INTERNAL — FILTER INSTANCES
+    //==============================================================
+    instPT1_TankTemperatureDisplay    : FT_PT1;  // EN: Filter for tank temperature / PT: Filtro para temperatura do tanque
+    instPT1_CircuitTemperatureDisplay : FT_PT1;  // EN: Filter for circuit temperature / PT: Filtro para temperatura do circuito
+	
+	startCmdOld : BOOL;  // EN: previous scan of startCmd / PT: estado anterior do startCmd
+    rStartCmd   : BOOL;  // EN: rising edge of startCmd / PT: borda de subida do startCmd
+    autoHoldAfterStop  : BOOL;   // EN: keep pump ON while delay is counting / PT: mantém bomba LIGADA enquanto o atraso conta
+	
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[_PumpControl();
+_FeedbackDisplay();
+_alarmsDisplay();]]></ST>
+    </Implementation>
+    <Method Name="_alarmsDisplay" Id="{5775dfca-83ae-4e8d-96ea-6459e2a6cb18}">
+      <Declaration><![CDATA[METHOD _alarmsDisplay
+VAR_INPUT
+END_VAR
+VAR
+
+
+    // EN: TRUE when any pump is commanded to run
+    // PT: TRUE quando qualquer bomba estiver comandada
+    anyPumpEnabled : BOOL;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[
+
+//==============================================================
+// 1) ANY PUMP RUNNING?
+//==============================================================
+// EN: Consider enabled when we are actually commanding the pump outputs
+// PT: Considera habilitada quando estamos realmente comandando as bombas
+anyPumpEnabled := pump1Run OR pump2Run;
+
+
+//==============================================================
+// 2) LOW PRESSURE ALARM
+//    EN: If any pump is enabled, we start a timer. If after the time
+//        the minPressureFeedback is STILL FALSE, we raise the alarm.
+//    PT: Se qualquer bomba estiver ligada, inicia o tempo. Se após o
+//        tempo o minPressureFeedback continuar FALSE, disparamos o alarme.
+//==============================================================
+IF anyPumpEnabled THEN
+    tonLowPressure(IN := NOT minPressureFeedback, PT := T#10S);
+ELSE
+    tonLowPressure(IN := FALSE);
+END_IF;
+
+IF tonLowPressure.Q THEN
+    // EN: Low pressure after pump start → alarm
+    // PT: Baixa pressão após partida da bomba → alarme
+    hmiAlarms.lubricationMinPressureFaultAlarm := TRUE;
+
+END_IF;
+
+
+//==============================================================
+// 3) HIGH / MAX PRESSURE ALARM
+//    EN: We also wait a small time before setting max pressure alarm,
+//        to avoid spikes at start.
+//    PT: Também aguardamos um pequeno tempo antes de acusar alta pressão,
+//        para evitar picos na partida.
+//==============================================================
+IF maxPressureFeedback THEN
+    tonHighPressure(IN := TRUE, PT := T#30S);
+ELSE
+    tonHighPressure(IN := FALSE);
+END_IF;
+
+IF tonHighPressure.Q THEN
+    hmiAlarms.lubricationMaxPressureFaultAlarm := TRUE;
+
+END_IF;
+
+
+//==============================================================
+// TEMPERATURE ALARMS — LUBRIFICATION UNIT
+// EN: Compares actual temperatures with configured max values
+// PT: Compara as temperaturas medidas com os valores máximos configurados
+//==============================================================
+
+//------------------------------------
+// 1) TANK TEMPERATURE ALARM
+//------------------------------------
+// EN: Alarm if tank temperature > tankMaxTemperature
+// PT: Alarme se temperatura do tanque > tankMaxTemperature
+IF tankTemperature > tankMaxTemperature THEN
+    hmiAlarms.lubricationTankHighTemperatureAlarm := TRUE;     // EN: Tank temperature high / PT: Temperatura alta no tanque
+END_IF;
+
+
+//------------------------------------
+// 2) CIRCUIT TEMPERATURE ALARM
+//------------------------------------
+// EN: Alarm if circuit temperature > circuitMaxTemperature
+// PT: Alarme se temperatura do circuito > circuitMaxTemperature
+IF circuitTemperature > circuitMaxTemperature THEN
+    hmiAlarms.lubricationCircuitHighTemperatureAlarm := TRUE;  // EN: Circuit temperature high / PT: Temperatura alta no circuito
+END_IF;
+
+
+//==============================================================
+// 4) PUMP FAULT MIRROR
+//    EN: Just mirror field faults into HMI alarms
+//    PT: Apenas reflete as falhas de campo para os alarmes da HMI
+//==============================================================
+hmiAlarms.lubricationPump1FaultAlarm := pump1Fault;   // EN: Pump 1 fault / PT: Falha bomba 1
+hmiAlarms.lubricationPump2FaultAlarm := pump2Fault;   // EN: Pump 2 fault / PT: Falha bomba 2
+
+fault  := hmiAlarms.lubricationMaxPressureFaultAlarm OR
+		  hmiAlarms.lubricationMinPressureFaultAlarm OR 
+		  (pump1Fault AND pump2Fault);
+		]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_FeedbackDisplay" Id="{2fe152f8-f55a-4e94-8af9-3d729c7e7bf2}">
+      <Declaration><![CDATA[METHOD _FeedbackDisplay
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[//==============================================================
+// TEMPERATURE FILTER LOGIC
+// EN: Apply PT1 filtering for stable HMI visualization
+// PT: Aplica filtro PT1 para visualização estável no supervisório
+//==============================================================
+
+instPT1_TankTemperatureDisplay(
+    in  := tankTemperature,
+    T   := T#10S,
+    K   := 1.0,
+    out => tankTemperatureFilteredDisplay
+);
+
+instPT1_CircuitTemperatureDisplay(
+    IN := circuitTemperature,
+    T   := T#10S,
+    K   := 1.0,
+    out => circuitTemperatureFilteredDisplay
+);
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_PumpControl" Id="{67f8c89b-ffb9-44ee-84f4-7f619d4332dd}">
+      <Declaration><![CDATA[METHOD _PumpControl
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[
+
+//------------------------------------
+// 0) EDGE DETECTION FOR MANUAL START
+//------------------------------------
+// EN: manual start must work as a pulse → detect rising edge
+// PT: partida manual deve funcionar por pulso → detecta borda de subida
+rStartCmd   := (startCmd = TRUE) AND (startCmdOld = FALSE);
+startCmdOld := startCmd;
+
+
+//------------------------------------
+// 1) BUILD RUN / STOP REQUESTS
+//------------------------------------
+// EN: manual run request is LATCHED until stopCmd (only in manual)
+// PT: pedido de partida manual fica TRAVADO até stopCmd (apenas no manual)
+IF rStartCmd THEN
+    manualRunRequest := TRUE;
+END_IF;
+
+IF stopCmd AND (NOT automaticMode) THEN
+    // EN: in manual we can stop
+    // PT: em manual podemos parar
+    manualRunRequest := FALSE;
+END_IF;
+
+// EN: defaults
+// PT: valores padrão
+autoRunRequest := FALSE;
+stopRequest    := FALSE;
+
+IF automaticMode THEN
+    // EN: in automatic we do NOT allow stopCmd to stop pumps
+    // PT: no automático NÃO deixamos o stopCmd desligar as bombas
+    // (stopRequest stays FALSE)
+
+    IF machineRunningFeedback THEN
+        //======================================================
+        // MACHINE RUNNING → RUN PUMP
+        //======================================================
+        autoRunRequest    := TRUE;
+        autoHoldAfterStop := TRUE;                  // remember we were running
+        instTON_AutoStopDelay(IN := FALSE);
+    ELSE
+        //======================================================
+        // MACHINE STOPPED → START DELAY TO STOP
+        //======================================================
+        instTON_AutoStopDelay(IN := TRUE, PT := autoStopDelay);
+
+        // EN: while delay is counting AND we were running before → keep running
+        // PT: enquanto o atraso estiver contando E já estávamos rodando → mantém ligado
+        IF (NOT instTON_AutoStopDelay.Q) AND autoHoldAfterStop THEN
+            autoRunRequest := TRUE;
+        ELSE
+            autoRunRequest    := FALSE;
+            autoHoldAfterStop := FALSE;             // release hold after delay
+        END_IF;
+    END_IF;
+
+ELSE
+    //----------------------------------------------------------
+    // MANUAL MODE
+    //----------------------------------------------------------
+    stopRequest := FALSE;
+    instTON_AutoStopDelay(IN := FALSE);
+    autoHoldAfterStop := FALSE;
+END_IF;
+
+
+//------------------------------------
+// 2) INITIAL SELECTION (OPERATOR)
+//------------------------------------
+// EN: FALSE → Pump 1, TRUE → Pump 2
+// PT: FALSE → Bomba 1, TRUE → Bomba 2
+IF pumpSelector = FALSE THEN
+    activePumpNumber := 1;
+ELSE
+    activePumpNumber := 2;
+END_IF;
+
+
+//------------------------------------
+// 3) MAIN START/STOP (single pump running)
+//    EN: Run when (manualRunRequest OR autoRunRequest)
+//    PT: Liga quando (manualRunRequest OU autoRunRequest)
+//------------------------------------
+IF (manualRunRequest OR autoRunRequest) THEN
+
+    CASE activePumpNumber OF
+
+        //======================================================
+        // PUMP 1 SELECTED
+        //======================================================
+        1:
+            IF NOT pump1Fault THEN
+                // EN: selected pump OK → run pump 1
+                // PT: bomba selecionada OK → liga bomba 1
+                pump1RunCmd        := TRUE;
+                pump1StateInternal := 1;   // running
+                pump2RunCmd        := FALSE;
+                IF NOT pump2Fault THEN
+                    pump2StateInternal := 0;   // stopped
+                END_IF;
+            ELSE
+                //==================================================
+                // SELECTED PUMP FAULTED → TRY THE OTHER (AUTO ONLY)
+                //==================================================
+                // EN: Only in auto we are allowed to start the standby pump
+                // PT: Somente no automático podemos acionar a bomba reserva
+                IF NOT pump2Fault AND (autoRunRequest OR automaticMode) THEN
+                    pump1RunCmd        := FALSE;
+                    pump1StateInternal := 3;   // fault
+                    pump2RunCmd        := TRUE;
+                    pump2StateInternal := 1;   // running
+                    activePumpNumber   := 2;   // update active pump for HMI
+                ELSE
+                    // EN: both faulted or we are in manual → stop outputs
+                    // PT: ambas falhadas ou estamos no manual → desliga saídas
+                    pump1RunCmd        := FALSE;
+                    pump2RunCmd        := FALSE;
+                    pump1StateInternal := 3;   // keep fault
+                    IF pump2Fault THEN
+                        pump2StateInternal := 3;
+                    ELSE
+                        pump2StateInternal := 0;
+                    END_IF;
+                END_IF;
+            END_IF;
+
+        //======================================================
+        // PUMP 2 SELECTED
+        //======================================================
+        2:
+            IF NOT pump2Fault THEN
+                pump2RunCmd        := TRUE;
+                pump2StateInternal := 1;   // running
+                pump1RunCmd        := FALSE;
+                IF NOT pump1Fault THEN
+                    pump1StateInternal := 0;   // stopped
+                END_IF;
+            ELSE
+                // selected pump (2) in fault → try pump 1 (auto only)
+                IF NOT pump1Fault AND (autoRunRequest OR automaticMode) THEN
+                    pump2RunCmd        := FALSE;
+                    pump2StateInternal := 3;   // fault
+                    pump1RunCmd        := TRUE;
+                    pump1StateInternal := 1;   // running
+                    activePumpNumber   := 1;   // update active pump for HMI
+                ELSE
+                    pump1RunCmd        := FALSE;
+                    pump2RunCmd        := FALSE;
+                    pump2StateInternal := 3;
+                    IF pump1Fault THEN
+                        pump1StateInternal := 3;
+                    ELSE
+                        pump1StateInternal := 0;
+                    END_IF;
+                END_IF;
+            END_IF;
+
+    ELSE
+        //======================================================
+        // INVALID SELECTION → STOP BOTH
+        //======================================================
+        pump1RunCmd        := FALSE;
+        pump2RunCmd        := FALSE;
+        IF pump1Fault THEN
+            pump1StateInternal := 3;
+        ELSE
+            pump1StateInternal := 0;
+        END_IF;
+        IF pump2Fault THEN
+            pump2StateInternal := 3;
+        ELSE
+            pump2StateInternal := 0;
+        END_IF;
+    END_CASE;
+
+ELSE
+    //==========================================================
+    // NO RUN REQUEST → STOP BOTH (except keep fault states)
+    // PT: Sem pedido de partida → desliga (mantendo falha)
+    //==========================================================
+    pump1RunCmd := FALSE;
+    pump2RunCmd := FALSE;
+
+    IF pump1Fault THEN
+        pump1StateInternal := 3;
+    ELSE
+        pump1StateInternal := 0;
+    END_IF;
+
+    IF pump2Fault THEN
+        pump2StateInternal := 3;
+    ELSE
+        pump2StateInternal := 0;
+    END_IF;
+END_IF;
+
+
+//------------------------------------
+// 4) MAP INTERNAL TO OUTPUTS
+//------------------------------------
+pump1Run   := pump1RunCmd;
+pump2Run   := pump2RunCmd;
+
+pump1State := pump1StateInternal;   // 0=Stopped,1=Running,3=Fault
+pump2State := pump2StateInternal;   // 0=Stopped,1=Running,3=Fault
+
+
+//------------------------------------
+// 5) GLOBAL STATUS
+//------------------------------------
+runningStatus := pump1Run OR pump2Run;
+]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_DryingSectionLubrificationControl_V1">
+      <LineId Id="9" Count="0" />
+      <LineId Id="283" Count="1" />
+    </LineIds>
+    <LineIds Name="FB_DryingSectionLubrificationControl_V1._alarmsDisplay">
+      <LineId Id="24" Count="26" />
+      <LineId Id="52" Count="18" />
+      <LineId Id="72" Count="1" />
+      <LineId Id="116" Count="14" />
+      <LineId Id="133" Count="9" />
+      <LineId Id="145" Count="0" />
+      <LineId Id="74" Count="8" />
+      <LineId Id="113" Count="0" />
+      <LineId Id="5" Count="0" />
+      <LineId Id="115" Count="0" />
+      <LineId Id="146" Count="0" />
+      <LineId Id="114" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_DryingSectionLubrificationControl_V1._FeedbackDisplay">
+      <LineId Id="84" Count="6" />
+      <LineId Id="101" Count="2" />
+      <LineId Id="93" Count="1" />
+      <LineId Id="112" Count="0" />
+      <LineId Id="114" Count="1" />
+      <LineId Id="118" Count="1" />
+      <LineId Id="117" Count="0" />
+      <LineId Id="113" Count="0" />
+      <LineId Id="106" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_DryingSectionLubrificationControl_V1._PumpControl">
+      <LineId Id="868" Count="213" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

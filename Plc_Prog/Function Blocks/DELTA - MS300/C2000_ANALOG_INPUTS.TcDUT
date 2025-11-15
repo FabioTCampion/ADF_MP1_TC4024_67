@@ -1,0 +1,14 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.15">
+  <DUT Name="C2000_ANALOG_INPUTS" Id="{2507b9aa-72c5-001d-368d-b293dc4be9a4}">
+    <Declaration><![CDATA[TYPE C2000_ANALOG_INPUTS :
+STRUCT
+	
+	AVI : REAL;
+	ACI : REAL;
+
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

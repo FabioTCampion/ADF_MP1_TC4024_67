@@ -1,0 +1,53 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.15">
+  <POU Name="FB_EL3204" Id="{b499e1a9-8e7b-42c4-bf17-a8fa2fc38c4f}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_EL3204
+VAR_INPUT PERSISTENT
+
+	deviceConfig    : EL3204_DEV_CONFIG; // Configuration settings for the CT121F device
+	
+END_VAR
+VAR_OUTPUT
+		
+	Channel1  : REAL;
+	Channel2  : REAL;
+	Channel3  : REAL;
+	Channel4  : REAL;
+
+END_VAR
+VAR
+	    PDOS : EL3204_PDOS; // Process Data Objects for RWPT01D communication
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[
+_AnalogInputs();]]></ST>
+    </Implementation>
+    <Method Name="_AnalogInputs" Id="{c3f8e88c-5841-4024-92a2-62afd39e6f2e}">
+      <Declaration><![CDATA[METHOD PRIVATE _AnalogInputs
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// Calculate the actual temperature
+Channel1 := PDOS.HwToPLC.Channel1.Value * deviceConfig.factor;
+Channel2 := PDOS.HwToPLC.Channel2.Value * deviceConfig.factor;
+Channel3 := PDOS.HwToPLC.Channel3.Value * deviceConfig.factor;
+Channel4 := PDOS.HwToPLC.Channel4.Value * deviceConfig.factor;
+
+]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_EL3204">
+      <LineId Id="3" Count="0" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_EL3204._AnalogInputs">
+      <LineId Id="19" Count="0" />
+      <LineId Id="15" Count="0" />
+      <LineId Id="60" Count="2" />
+      <LineId Id="59" Count="0" />
+      <LineId Id="47" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

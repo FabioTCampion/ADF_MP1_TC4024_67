@@ -1,0 +1,37 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.15">
+  <DUT Name="C2000_STATUSWORD" Id="{dad8d4ab-7f05-0ed4-3c87-ebca2ace32bc}">
+    <Declaration><![CDATA[(*TYPE C2000_STATUSWORD :
+    STRUCT
+        notRunning      : BOOL; // Indicates if the drive is not running
+        running         : BOOL; // Indicates if the drive is running
+        jogging         : BOOL; // Indicates if the drive is in jogging mode
+        runningForward  : BOOL; // Indicates if the drive is running forward
+        runningReverse  : BOOL; // Indicates if the drive is running in reverse
+        fault           : BOOL; // Indicates if there is a fault in the drive
+    END_STRUCT
+END_TYPE
+*)
+TYPE C2000_STATUSWORD :
+STRUCT
+    readyToSwitchOn     : BOOL; // Bit 0 - Drive is ready to switch on
+    switchedOn          : BOOL; // Bit 1 - Drive is switched on
+    operationEnabled    : BOOL; // Bit 2 - Operation enabled
+    fault               : BOOL; // Bit 3 - Fault present
+    voltageEnabled      : BOOL; // Bit 4 - DC bus / power voltage enabled
+    quickStop           : BOOL; // Bit 5 - Quick stop active
+    switchOnDisabled    : BOOL; // Bit 6 - Switch on disabled
+
+    warning             : BOOL; // Bit 7 - Warning, servo remains on
+    reserved1           : BOOL; // Bit 8 - Reserved
+    remote              : BOOL; // Bit 9 - Drive in remote (fieldbus) mode
+    targetReached       : BOOL; // Bit 10 - Target position reached
+    internalLimitActive : BOOL; // Bit 11 - Software limit active
+    operationModeSpec   : WORD; // Bit 12–13 - Operation mode specific (2 bits wide)
+    externalLimitActive : BOOL; // Bit 14 - Hardware limit active
+    reserved2           : BOOL; // Bit 15 - Reserved
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

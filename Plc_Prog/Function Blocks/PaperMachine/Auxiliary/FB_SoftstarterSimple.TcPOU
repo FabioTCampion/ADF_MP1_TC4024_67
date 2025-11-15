@@ -1,0 +1,180 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.15">
+  <POU Name="FB_SoftstarterSimple" Id="{cd9ad32a-8508-4234-ad69-1b079dfed68a}" SpecialFunc="None">
+    <Declaration><![CDATA[(*
+  FUNCTION_BLOCK FB_SoftstarterSimple
+  Purpose:
+    - Simplified softstarter sequencing with only Start/Stop.
+    - No line/bypass contactor or overlap timing.
+  Behavior:
+    - Start when: startCommand=TRUE, softstarter OK, and all interlocks OK.
+    - Optional: current proof (disabled by default).
+    - Stop is immediate and safe (de-energize START).
+  Notes:
+    - Interface aligned with previous style for easy migration.
+*)
+
+FUNCTION_BLOCK FB_SoftstarterSimple
+VAR_INPUT
+    // Commands & interlocks
+    startCommand         : BOOL;      // Start command
+    stopCommand          : BOOL;      // Stop command
+    sofstarterOK         : BOOL;      // Softstarter healthy/ready
+
+    interlock1           : BOOL := TRUE; // External interlock 1
+    interlock2           : BOOL := TRUE; // External interlock 2
+    interlock3           : BOOL := TRUE; // External interlock 3
+    interlock4           : BOOL := TRUE; // External interlock 4
+
+    // Optional current proof (disabled if currentProofEnabled=FALSE)
+    currentProofEnabled  : BOOL := FALSE;
+    motorCurrentFeedback : REAL;      // Measured motor current
+    minCurrentThreshold  : REAL := 30.0;    // Threshold for proof
+    currentProofTime     : TIME := T#20S;   // Time above threshold
+END_VAR
+
+VAR_OUTPUT
+    faultActive          : BOOL;      // Latched fault (clears when Start/Stop released)
+    running              : BOOL;      // TRUE while RUNNING
+    softstarterStart     : BOOL;      // START signal to softstarter
+    deviceState          : STRING(80);// Human-readable state
+END_VAR
+
+VAR
+    // State & edges
+    step                 : INT;       // 0=IDLE, 10=STARTING, 20=PROVING, 30=RUN
+    startCommandOld      : BOOL;
+    rStart               : BOOL;
+
+    // Timers
+    tonCurrentProof      : TON;
+
+    // Helpers
+    allInterlocksOK      : BOOL;
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[// ============================ Edges, interlocks, defaults ============================
+rStart := startCommand AND NOT startCommandOld;
+startCommandOld := startCommand;
+
+allInterlocksOK := interlock1 AND interlock2 AND interlock3 AND interlock4;
+
+// Default state text
+deviceState := 'Idle';
+
+// Clear latched fault when both commands are released
+IF NOT startCommand AND NOT stopCommand THEN
+    faultActive := FALSE;
+END_IF
+
+// Immediate safe stop
+IF stopCommand THEN
+    softstarterStart := FALSE;
+    running          := FALSE;
+    tonCurrentProof(IN := FALSE);
+    step := 0;
+    deviceState := 'Stopped';
+END_IF
+
+// If a fault is active, hold safe idle
+IF faultActive THEN
+    softstarterStart := FALSE;
+    running          := FALSE;
+    tonCurrentProof(IN := FALSE);
+    step := 0;
+END_IF
+
+
+// ================================= State machine ===================================
+IF startCommand AND NOT stopCommand AND NOT faultActive THEN
+
+    // Check preconditions (only at/into sequence)
+    IF (NOT sofstarterOK) OR (NOT allInterlocksOK) THEN
+        faultActive := TRUE;
+        deviceState := 'Fault: interlock/softstarter not OK';
+        softstarterStart := FALSE;
+        running := FALSE;
+        tonCurrentProof(IN := FALSE);
+        step := 0;
+
+    ELSE
+        CASE step OF
+            0:  // IDLE -> STARTING
+                deviceState      := 'Starting';
+                softstarterStart := TRUE;      // Command softstarter to start
+                running          := FALSE;
+
+                // Reset current proof
+                tonCurrentProof(IN := FALSE);
+                step := 10;
+
+            10: // STARTING -> either PROVING or RUN (if proof disabled)
+                deviceState := 'Starting';
+                IF currentProofEnabled AND (currentProofTime > T#0s) THEN
+                    step := 20;
+                ELSE
+                    // No proof required -> go straight to RUN
+                    step := 30;
+                END_IF
+
+            20: // PROVING current above threshold
+                deviceState := 'Proving current';
+                IF ABS(motorCurrentFeedback) >= minCurrentThreshold THEN
+                    tonCurrentProof(IN := TRUE, PT := currentProofTime);
+                ELSE
+                    tonCurrentProof(IN := FALSE);
+                END_IF
+
+                IF tonCurrentProof.Q THEN
+                    tonCurrentProof(IN := FALSE);
+                    step := 30;
+                END_IF
+
+            30: // RUN
+                deviceState := 'Running';
+                running := TRUE;
+
+                // Monitor health while running
+                IF (NOT sofstarterOK) OR (NOT allInterlocksOK) THEN
+                    faultActive := TRUE;
+                    deviceState := 'Fault during run';
+                    softstarterStart := FALSE;
+                    running := FALSE;
+                    step := 0;
+                END_IF
+
+                // Leave RUN when start released
+                IF NOT startCommand THEN
+                    softstarterStart := FALSE;
+                    running := FALSE;
+                    deviceState := 'Idle';
+                    step := 0;
+                END_IF
+
+            ELSE
+                deviceState := 'Idle';
+                softstarterStart := FALSE;
+                running := FALSE;
+                step := 0;
+        END_CASE
+    END_IF
+
+ELSE
+    // No start or inhibited: safe idle
+    softstarterStart := FALSE;
+    running := FALSE;
+    tonCurrentProof(IN := FALSE);
+    IF NOT stopCommand THEN
+        deviceState := 'Idle';
+        step := 0;
+    END_IF
+END_IF
+
+]]></ST>
+    </Implementation>
+    <LineIds Name="FB_SoftstarterSimple">
+      <LineId Id="63" Count="116" />
+      <LineId Id="9" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

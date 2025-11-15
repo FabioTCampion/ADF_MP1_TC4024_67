@@ -1,0 +1,20 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.15">
+  <DUT Name="EL3154_DEV_STATUS" Id="{1f8db801-e332-4b88-b303-9973aa22433d}">
+    <Declaration><![CDATA[TYPE EL3154_DEV_STATUS :
+    STRUCT
+      
+		Underrange : BOOL;
+		Overrange : BOOL;
+		Limit1 : BOOL;
+		Limit2 : BOOL;
+		Error : BOOL;
+		TxPDOState : BOOL;
+		TxPDOToggle : BOOL;
+	
+    END_STRUCT
+END_TYPE
+
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

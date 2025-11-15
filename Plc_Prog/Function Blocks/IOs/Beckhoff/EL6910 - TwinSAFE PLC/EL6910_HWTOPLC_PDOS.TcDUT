@@ -1,0 +1,23 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.15">
+  <DUT Name="EL6910_HWTOPLC_PDOS" Id="{45dc21d0-d38b-4a1c-bc4a-b0d9d897e514}">
+    <Declaration><![CDATA[TYPE EL6910_HWTOPLC_PDOS :
+	STRUCT
+			
+	EStop1State AT %I* : USINT;
+	EStop1Diag 	AT %I* : UINT;
+	
+	EStop2State AT %I* : USINT;
+	EStop2Diag 	AT %I* : UINT;
+
+	EStop3State AT %I* : USINT;
+	EStop3Diag 	AT %I* : UINT;
+
+	EStop4State AT %I* : USINT;
+	EStop4Diag 	AT %I* : UINT;	
+	
+	END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

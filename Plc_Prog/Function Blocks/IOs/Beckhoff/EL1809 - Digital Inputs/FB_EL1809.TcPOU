@@ -1,0 +1,76 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.15">
+  <POU Name="FB_EL1809" Id="{210d3044-5864-499f-9d89-cc21dc414d4a}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_EL1809
+VAR_INPUT
+
+	deviceConfig    : EL1809_DEV_CONFIG; // Configuration settings for the CT121F device
+	
+END_VAR
+VAR_OUTPUT
+		
+	digitalInput_01  : BOOL;
+	digitalInput_02  : BOOL;
+	digitalInput_03  : BOOL;
+	digitalInput_04  : BOOL;
+	digitalInput_05  : BOOL;
+	digitalInput_06  : BOOL;
+	digitalInput_07  : BOOL;
+	digitalInput_08  : BOOL;
+	digitalInput_09  : BOOL;
+	digitalInput_10  : BOOL;
+	digitalInput_11  : BOOL;
+	digitalInput_12  : BOOL;
+	digitalInput_13  : BOOL;
+	digitalInput_14  : BOOL;
+	digitalInput_15  : BOOL;
+	digitalInput_16  : BOOL;
+
+
+END_VAR
+VAR
+	    PDOS : EL1809_HWTOPLC_PDOS; // Process Data Objects for RWPT01D communication
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[
+inputState();]]></ST>
+    </Implementation>
+    <Method Name="inputState" Id="{80fe0487-9eb3-4897-bfbe-8ef00e5a5091}">
+      <Declaration><![CDATA[METHOD PRIVATE inputState
+
+
+
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// Inputs Mapping Configuration
+
+digitalInput_01 		:= PDOS.digitalInput_01 OR (deviceConfig.enableForce AND deviceConfig.forceDigitalInput_00);
+digitalInput_02 		:= PDOS.digitalInput_02 OR (deviceConfig.enableForce AND deviceConfig.forceDigitalInput_01);
+digitalInput_03 		:= PDOS.digitalInput_03 OR (deviceConfig.enableForce AND deviceConfig.forceDigitalInput_02);
+digitalInput_04 		:= PDOS.digitalInput_04 OR (deviceConfig.enableForce AND deviceConfig.forceDigitalInput_03);
+digitalInput_05 		:= PDOS.digitalInput_05 OR (deviceConfig.enableForce AND deviceConfig.forceDigitalInput_04);
+digitalInput_06 		:= PDOS.digitalInput_06 OR (deviceConfig.enableForce AND deviceConfig.forceDigitalInput_05);
+digitalInput_07	 		:= PDOS.digitalInput_07 OR (deviceConfig.enableForce AND deviceConfig.forceDigitalInput_06);
+digitalInput_08 		:= PDOS.digitalInput_08 OR (deviceConfig.enableForce AND deviceConfig.forceDigitalInput_07);
+digitalInput_09 		:= PDOS.digitalInput_09 OR (deviceConfig.enableForce AND deviceConfig.forceDigitalInput_08);
+digitalInput_10 		:= PDOS.digitalInput_10 OR (deviceConfig.enableForce AND deviceConfig.forceDigitalInput_09);
+digitalInput_11 		:= PDOS.digitalInput_11 OR (deviceConfig.enableForce AND deviceConfig.forceDigitalInput_10);
+digitalInput_12 		:= PDOS.digitalInput_12 OR (deviceConfig.enableForce AND deviceConfig.forceDigitalInput_11);
+digitalInput_13 		:= PDOS.digitalInput_13 OR (deviceConfig.enableForce AND deviceConfig.forceDigitalInput_12);
+digitalInput_14 		:= PDOS.digitalInput_14 OR (deviceConfig.enableForce AND deviceConfig.forceDigitalInput_13);
+digitalInput_15 		:= PDOS.digitalInput_15 OR (deviceConfig.enableForce AND deviceConfig.forceDigitalInput_14);
+digitalInput_16 		:= PDOS.digitalInput_16 OR (deviceConfig.enableForce AND deviceConfig.forceDigitalInput_15);
+]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_EL1809">
+      <LineId Id="3" Count="0" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_EL1809.inputState">
+      <LineId Id="3" Count="17" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

@@ -1,0 +1,16 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.15">
+  <DUT Name="C2000_CONTROLWORD" Id="{e98f1676-a7ef-0a53-33d7-9493b473ee3f}">
+    <Declaration><![CDATA[TYPE C2000_CONTROLWORD :
+STRUCT
+	
+    enableDrive     : BOOL;   // request to run (Enable Operation)
+    stopRequest     : BOOL;   // keep voltage on but do not enable operation
+    quickStop       : BOOL;   // immediate controlled stop (bit2 = 0)
+    halt            : BOOL;   // CiA-402 halt (bit8 = 1)
+    faultResetCmd   : BOOL;   // pulse fault reset
+		
+END_STRUCT
+END_TYPE]]></Declaration>
+  </DUT>
+</TcPlcObject>

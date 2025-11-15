@@ -1,0 +1,153 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.15">
+  <POU Name="FB_SpeedDroopControl" Id="{318e8264-a29c-4911-9bb8-64b3b65ac131}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_SpeedDroopControl
+VAR_INPUT
+
+	bManualSpeedCommand : BOOL; (*This comand acts manual speed in the output*)
+	fMasterReferenceRPM : REAL;
+	fMasterMinRPM : REAL;
+	fMasterMaxRPM : REAL;
+	fMasterMinMPM  : REAL;
+	fMasterMaxMPM  : REAL;
+	fSlaveFeedbackRPM : REAL;
+	fSlaveMinRPM : REAL;
+	fSlaveMaxRPM : REAL;
+	fSlaveMinMPM  : REAL;
+	fSlaveMaxMPM  : REAL;
+	fSlaveGearRatio : REAL;
+	fSlaveManSpeedMPM  : REAL;
+	fSlaveSpeedDifPct: REAL;
+
+END_VAR
+
+VAR_OUTPUT
+(*Slave setpoint variables*)
+	fSlaveSetpointRPM  : REAL;	(*Speed reference to the drive*)
+	fSlaveSetpointPct  : REAL;	(*Speed reference to the drive*)
+(*Slave feedback variables*)
+
+	fSlaveFeedbackMPM  : REAL;
+	fSlaveFeedbackPct  : REAL;
+
+	fMasterFeedbackMPM  : REAL;	(*Display speed feedback in PCT*)
+
+	fMasterFeedbackPCT  : REAL;	(*Display speed feedback in PCT*)
+
+END_VAR
+
+VAR
+END_VAR
+
+VAR_TEMP
+	fSlaveSyncSpeedRPM: REAL;
+	fSlaveManSpeedRPM : REAL;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[(*Calculate the master reference in MPM*)
+(*fMasterFeedbackMPM :=LIMIT(-fMasterMinMPM, F_SCALE_R(fMasterReferenceRPM, fMasterMinRPM,fMasterMaxRPM,fMasterMinMPM, fMasterMaxMPM), fMasterMaxMPM);*)
+fMasterFeedbackMPM :=_Scale(fMasterReferenceRPM, fMasterMinRPM,fMasterMaxRPM,fMasterMinMPM, fMasterMaxMPM);
+
+
+(*Calculate the master reference in percentage*)
+fMasterFeedbackPct :=LIMIT(0.0, _Scale(fMasterReferenceRPM, fMasterMinRPM,fMasterMaxRPM,0.0, 100.0), 100.0);
+
+(*Calculate slave speed setpoint in percentage*)
+fSlaveSetpointPct := (fMasterFeedbackPCT +  (fMasterFeedbackPCT * (fSlaveSpeedDifPct * 0.01))) * fSlaveGearRatio;
+
+(*Calculate slave speed in meters per minute*)
+fSlaveFeedbackMPM :=	_Scale(fSlaveFeedbackRPM, fSlaveMinRPM ,fSlaveMaxRPM, fSlaveMinMPM , fSlaveMaxMPM );
+
+(*Calculate slave output speed in percentage*)
+fSlaveFeedbackPCT :=	_Scale(fSlaveFeedbackRPM, fSlaveMinRPM ,fSlaveMaxRPM,0  ,100  );
+
+(*Calculate speed setpoint in sync mode*)
+fSlaveSyncSpeedRPM := _Scale(fSlaveSetpointPCT,0.0,100.0,fSlaveMinRPM,fSlaveMaxRPM);
+
+(*Calculate speed setpoint in manual mode*)
+fSlaveManSpeedRPM := _Scale(fSlaveManSpeedMPM,fSlaveMinMPM,fSlaveMaxMPM,fSlaveMinRPM,fSlaveMaxRPM);
+
+
+
+(*
+IF #Start THEN
+(* assure range of inputs*)
+    #Speed_In_Pct := MAX(IN1 := 0.0, IN2 := #Speed_In_Pct);
+ELSE
+    #Speed_In_Pct := 0.0;
+END_IF;
+
+(*Realiza calculo da velocidade [Velocidade de entrada (0-100%)+Offset de velocidade * 
+Fator de realação mecanica*)
+(*#Speed_Out_Pct := (#Speed_In_Pct + (#Speed_In_Pct * (#Speed_Out_Offset_Pct * 0.01)))*#Factor;*)
+ 
+ 
+(*Mostra velocidade em RPM*)
+IF #Speed_In_Pct_Max = #Speed_In_Pct_Min THEN
+    #Speed_Out_RPM := #Speed_Out_RPM_Min;
+    
+ELSE
+    #Speed_Out_RPM := (#Speed_Out_RPM_Max - #Speed_Out_RPM_Min) / ((#Speed_In_Pct_Max) - (#Speed_In_Pct_Min))
+    * LIMIT(MN := (#Speed_In_Pct_Min),IN := (#Speed_Out_Pct), MX := (#Speed_In_Pct_Max));
+END_IF;
+
+
+(*Controle do incremento do passe +/-25%
+SU - Slow UP
+SD - Slow Down*)
+#FB220_TUNE2(SU:= #Offset_Plus,
+             SD:= #Offset_Minus,
+             Y=>#Speed_Out_Offset_Pct);
+(*
+#FB217_SRAMP(X:=#Speed_Out_Pct,
+             A_UP:= 1.0,
+             A_DN := -1.0,
+             LIMIT_HIGH:=1000.0,
+             LIMIT_LOW:=0.0,
+             Y=>#Speed_Out_Pct_RMP); *)
+
+
+#FB218_RAMP_GEN(SetPoint:=#Speed_Out_Pct,
+                Out=>#Speed_Out_Pct_RMP);
+
+*)
+
+]]></ST>
+    </Implementation>
+    <Method Name="_Scale" Id="{0bb41394-00f1-4365-a253-214d5c3bfb69}">
+      <Declaration><![CDATA[METHOD PRIVATE _Scale : REAL
+VAR_INPUT
+	
+	X : REAL;
+	I_LO : REAL;
+	I_HI : REAL;
+	O_LO : REAL;
+	O_HI : REAL;
+	
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF I_LO = I_HI THEN
+	_Scale := O_LO;
+ELSE
+	_Scale := (O_HI - O_LO) / (I_HI - I_LO) * (LIMIT(I_LO, X, I_HI) - I_LO) + O_LO;
+END_IF;
+]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_SpeedDroopControl">
+      <LineId Id="67" Count="9" />
+      <LineId Id="78" Count="5" />
+      <LineId Id="87" Count="5" />
+      <LineId Id="156" Count="0" />
+      <LineId Id="242" Count="42" />
+      <LineId Id="157" Count="0" />
+      <LineId Id="103" Count="0" />
+      <LineId Id="9" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_SpeedDroopControl._Scale">
+      <LineId Id="1" Count="5" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

@@ -1,0 +1,225 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.15">
+  <DUT Name="PaperMachine_TypeHmiCommands" Id="{e96fae28-f753-07c6-1b63-6e33c45474db}">
+    <Declaration><![CDATA[TYPE PaperMachine_TypeHmiCommands :
+STRUCT
+
+    // ─────────────── GENERAL MACHINE COMMANDS ───────────────
+    machineReset : BOOL; // General machine reset (Reset geral da máquina)
+
+	
+    // ─────────────── FORMING BOARD ───────────────
+    formingBoardStart          : BOOL;  // Start forming board (Ligar mesa formadora)
+    formingBoardStop           : BOOL;  // Stop forming board (Parar mesa formadora)
+    formingBoardAutoMan           : BOOL;  // Auto mode select (Modo automático)
+    formingBoardSetpointMan    : REAL;  // Manual speed/flow setpoint (Setpoint manual)
+    formingBoardProductionSpeed: REAL;  // Select production (fast) speed (Selecionar velocidade de produção - rápida)
+    formingBoardRollUpCmd      : BOOL;  // Command to raise/roll up forming board (Comando para subir mesa formadora)
+    formingBoardRollDownCmd    : BOOL;  // Command to lower/roll down forming board (Comando para descer mesa formadora)
+
+	// Automatic positioning (for auto mode)
+	headboxLipsTargetSetpoint_mm       : REAL;          // Desired lips opening [mm]
+	headboxLipsAutoAdjustCmd           : BOOL;          // Pulse to start auto adjustment
+	// Manual jog commands (for manual mode)
+	headboxLipsManualOpenCmd           : BOOL;          // Jog open while pressed
+	headboxLipsManualCloseCmd          : BOOL;          // Jog close while pressed		
+	
+	// ─────────────── PRESS SECTION ───────────────
+	// Start/stop and speed control commands for the press section.
+	pressSectionStart            : BOOL;  // Start Press Section (Ligar Prensa)
+	pressSectionStop             : BOOL;  // Stop Press Section (Parar Prensa)
+	pressSectionAutoMan          : BOOL;  // 1 = Auto / 0 = Manual mode (Modo automático/manual)
+	pressSectionManualSetpoint   : REAL;  // Manual speed setpoint [m/min] (Setpoint manual)
+	pressSectionSpeedInc         : BOOL;  // Increase speed manually (Aumentar velocidade)
+	pressSectionSpeedDec         : BOOL;  // Decrease speed manually (Diminuir velocidade)
+	pressSectionRecoverSpeedCmd  : BOOL;  // Temporarily recover speed (Recuperar velocidade)
+	pressSectionRecoverIncrement : REAL;  // Recovery speed increment [m/min or %] (Incremento de recuperação)
+
+	
+	// ─────────────── DRYING SECTION — GROUP 1 ───────────────
+	// Start/stop and speed control commands for the drying section (Group 1).
+	dryingSectionGroup1Start            : BOOL;  // Start Drying Section Group 1 (Ligar Secagem Grupo 1)
+	dryingSectionGroup1Stop             : BOOL;  // Stop Drying Section Group 1 (Parar Secagem Grupo 1)
+	dryingSectionGroup1FastStop             : BOOL;  // Stop Drying Section Group 1 (Parar Secagem Grupo 1)
+
+	dryingSectionGroup1AutoMan          : BOOL;  // 1 = Auto / 0 = Manual mode for Group 1 (Modo automático/manual Grupo 1)
+	dryingSectionGroup1ManualSetpoint   : REAL;  // Manual speed setpoint [m/min] (Setpoint manual Grupo 1)
+	dryingSectionGroup1SpeedInc         : BOOL;  // Increase Group 1 speed manually (Aumentar velocidade Grupo 1)
+	dryingSectionGroup1SpeedDec         : BOOL;  // Decrease Group 1 speed manually (Diminuir velocidade Grupo 1)
+	dryingSectionGroup1RecoverSpeedCmd  : BOOL;  // Temporarily recover speed (Recuperar velocidade Grupo 1)
+	Group1RecoverIncrement : REAL;  // Recovery speed increment [m/min or %] (Incremento de recuperação Grupo 1)
+	dryingSectionGroup1SteamPressureAutoMan : BOOL;  // Recovery speed increment [m/min or %] (Incremento de recuperação Grupo 1)
+	dryingSectionGroup1SteamPressureAutoSetpoint : REAL;  // Recovery speed increment [m/min or %] (Incremento de recuperação Grupo 1)
+	dryingSectionGroup1SteamPressureManualSetpoint : REAL;  // Recovery speed increment [m/min or %] (Incremento de recuperação Grupo 1)
+	
+	// ─────────────── DRYING SECTION — GROUP 2 ───────────────
+	// Start/stop and speed control commands for the drying section (Group 2).
+	dryingSectionGroup2Start            : BOOL;  // Start Drying Section Group 2 (Ligar Secagem Grupo 2)
+	dryingSectionGroup2Stop             : BOOL;  // Stop Drying Section Group 2 (Parar Secagem Grupo 2)
+	dryingSectionGroup2FastStop             : BOOL;  // Stop Drying Section Group 1 (Parar Secagem Grupo 1)
+
+	dryingSectionGroup2AutoMan          : BOOL;  // 1 = Auto / 0 = Manual mode for Group 2 (Modo automático/manual Grupo 2)
+
+	dryingSectionGroup2ManualSetpoint   : REAL;  // Manual speed setpoint [m/min] (Setpoint manual Grupo 2)
+	dryingSectionGroup2SpeedInc         : BOOL;  // Increase Group 2 speed manually (Aumentar velocidade Grupo 2)
+	dryingSectionGroup2SpeedDec         : BOOL;  // Decrease Group 2 speed manually (Diminuir velocidade Grupo 2)
+	dryingSectionGroup2RecoverSpeedCmd  : BOOL;  // Temporarily recover speed (Recuperar velocidade Grupo 2)
+	dryingSectionGroup2RecoverIncrement : REAL;  // Recovery speed increment [m/min or %] (Incremento de recuperação Grupo 2)
+	dryingSectionGroup2SteamPressureAutoMan : BOOL;  // Recovery speed increment [m/min or %] (Incremento de recuperação Grupo 1)
+	dryingSectionGroup2SteamPressureAutoSetpoint : REAL;  // Recovery speed increment [m/min or %] (Incremento de recuperação Grupo 1)
+	dryingSectionGroup2SteamPressureManualSetpoint : REAL;  // Recovery speed increment [m/min or %] (Incremento de recuperação Grupo 1)
+	
+	// ─────────────── DRYING SECTION — GROUP 3 ───────────────
+	// Start/stop and speed control commands for the drying section (Group 2).
+	dryingSectionGroup3Start            : BOOL;  // Start Drying Section Group 2 (Ligar Secagem Grupo 2)
+	dryingSectionGroup3Stop             : BOOL;  // Stop Drying Section Group 2 (Parar Secagem Grupo 2)
+	dryingSectionGroup3FastStop             : BOOL;  // Stop Drying Section Group 1 (Parar Secagem Grupo 1)
+
+	dryingSectionGroup3AutoMan          : BOOL;  // 1 = Auto / 0 = Manual mode for Group 2 (Modo automático/manual Grupo 2)
+	dryingSectionGroup3ManualSetpoint   : REAL;  // Manual speed setpoint [m/min] (Setpoint manual Grupo 2)
+	dryingSectionGroup3SpeedInc         : BOOL;  // Increase Group 2 speed manually (Aumentar velocidade Grupo 2)
+	dryingSectionGroup3SpeedDec         : BOOL;  // Decrease Group 2 speed manually (Diminuir velocidade Grupo 2)
+	dryingSectionGroup3RecoverSpeedCmd  : BOOL;  // Temporarily recover speed (Recuperar velocidade Grupo 2)
+	dryingSectionGroup3RecoverIncrement : REAL;  // Recovery speed increment [m/min or %] (Incremento de recuperação Grupo 2)
+	dryingSectionGroup3SteamPressureAutoMan : BOOL;  // Recovery speed increment [m/min or %] (Incremento de recuperação Grupo 1)
+	dryingSectionGroup3SteamPressureAutoSetpoint : REAL;  // Recovery speed increment [m/min or %] (Incremento de recuperação Grupo 1)
+	dryingSectionGroup3SteamPressureManualSetpoint : REAL;  // Recovery speed increment [m/min or %] (Incremento de recuperação Grupo 1)
+	
+    // ─────────────── DRYING SECTION - LUBRIFICATION UNIT ───────────────
+    dryingSectionLubricationPumpStart      : BOOL;  // EN: Start command for lubrication unit (HMI → FB) / PT: Comando de PARTIDA da unidade de lubrificação (IHM → FB)
+    dryingSectionLubricationPumpStop       : BOOL;  // EN: Stop command for lubrication unit (HMI → FB) / PT: Comando de PARADA da unidade de lubrificação (IHM → FB)
+    dryingSectionLubricationPumpSelector   : BOOL;  // EN: Pump selector (FALSE = Pump 1, TRUE = Pump 2) / PT: Seletor de bomba (FALSE = Bomba 1, TRUE = Bomba 2)
+    dryingSectionLubricationPumpAutoMan    : BOOL;  // EN: Mode selection (FALSE = Manual, TRUE = Automatic) / PT: Seleção de modo (FALSE = Manual, TRUE = Automático)
+
+	// ─────────────── WINDER SECTION ───────────────
+	// Start/stop and speed control commands for the winder section.
+	winderSectionStart            : BOOL;  // Start Press Section (Ligar Prensa)
+	winderSectionStop             : BOOL;  // Stop Press Section (Parar Prensa)
+	winderSectionAutoMan          : BOOL;  // 1 = Auto / 0 = Manual mode (Modo automático/manual)
+	winderSectionManualSetpoint   : REAL;  // Manual speed setpoint [m/min] (Setpoint manual)
+	winderSectionSpeedInc         : BOOL;  // Increase speed manually (Aumentar velocidade)
+	winderSectionSpeedDec         : BOOL;  // Decrease speed manually (Diminuir velocidade)
+	winderSectionRecoverSpeedCmd  : BOOL;  // Temporarily recover speed (Recuperar velocidade)
+	winderSectionRecoverIncrement : REAL;  // Recovery speed increment [m/min or %] (Incremento de recuperação)
+
+
+	
+	
+	
+  // Pressure fine adjustments for rider roll
+    winderPressureOperatorSideIncCmd : BOOL; // EN: Increase operator-side pressure / PT: Aumenta a pressão no lado do operador
+    winderPressureOperatorSideDecCmd : BOOL; // EN: Decrease operator-side pressure / PT: Diminui a pressão no lado do operador
+
+    winderPressureDriveSideIncCmd    : BOOL; // EN: Increase drive-side pressure / PT: Aumenta a pressão no lado motriz
+    winderPressureDriveSideDecCmd    : BOOL; // EN: Decrease drive-side pressure / PT: Diminui a pressão no lado motriz
+
+	winderRiderRollWorkPositionCmd	: BOOL;
+	winderRiderRollReleasePositionCmd	: BOOL;
+	
+
+	
+    //==============================================================
+    // CORE LOCK (CHUCK LOCKING SYSTEM)
+    //==============================================================
+    winderCoreLockAutoMan         : BOOL;  // EN: Core lock mode (0=Manual, 1=Auto) / PT: Modo do travamento do mandril (0=Manual, 1=Automático)
+    winderCoreLockCmd             : BOOL;  // EN: Lock core chucks / PT: Travar mandril (core chucks)
+    winderCoreUnlockCmd           : BOOL;  // EN: Unlock core chucks / PT: Destravar mandril
+
+	//==============================================================
+    // CORE LOCK (CHUCK LOCKING SYSTEM)
+    //==============================================================
+	winderCoreAceleratorEngageCmd : BOOL;
+	winderCoreAceleratorDisengageCmd : BOOL;
+	
+    //==============================================================
+    // CORE BRAKE CONTROL
+    //==============================================================
+    winderCoreBrakeAutoMan        : BOOL;  // EN: Core brake mode (0=Manual, 1=Auto) / PT: Modo de freio do mandril (0=Manual, 1=Automático)
+    winderCoreBrakeEnableCmd      : BOOL;  // EN: Enable core brake / PT: Habilita o freio do mandril
+    winderCoreBrakeDisableCmd     : BOOL;  // EN: Disable core brake / PT: Desabilita o freio do mandril	
+	
+	winderCorePositioningArmFwdCmd      : BOOL;  // EN: Command to move arm forward / PT: Comando para avançar o braço posicionador
+    winderCorePositioningArmRevCmd      : BOOL;  // EN: Command to move arm backward / PT: Comando para recuar o braço posicionador
+
+    winderCorePositioningArmPosLimitFwd : BOOL;  // EN: Forward limit switch / PT: Fim de curso avançado
+    winderCorePositioningArmPosLimitRev : BOOL;  // EN: Reverse limit switch / PT: Fim de curso recuado
+	
+    // ─────────────── CENTRIFUGAL PRESSURE SCREEN ───────────────
+    pressureScreenStart : BOOL;  // Start centrifugal pressure screen (Ligar peneira centrífuga de pressão)
+    pressureScreenStop  : BOOL;  // Stop centrifugal pressure screen (Parar peneira centrífuga de pressão)
+	
+
+    // ─────────────── COUCH PIT PUMP & MIXER ───────────────
+    couchPitPumpStart        : BOOL;  // Start couch pit pump (Ligar bomba do poço da mesa couch)
+    couchPitPumpStop         : BOOL;  // Stop couch pit pump (Parar bomba do poço da mesa couch)
+    couchPitPumpAutoMan      : BOOL;  // Auto/manual mode select (Seleção automático/manual)
+    couchPitPumpSetpointMan  : REAL;  // Manual setpoint (Setpoint manual)
+    couchPitPumpSetpointAuto : REAL;  // Auto setpoint (Setpoint automático)
+    couchPitMixerStart       : BOOL;  // Start couch pit mixer (Ligar misturador do poço da mesa couch)
+    couchPitMixerStop        : BOOL;  // Stop couch pit mixer (Parar misturador do poço da mesa couch)
+
+    // ─────────────── WIRE PIT PUMP ───────────────
+    wirePitPumpStart    : BOOL;  // Start wire pit pump (Ligar bomba do poço da mesa plana)
+    wirePitPumpStop     : BOOL;  // Stop wire pit pump (Parar bomba do poço da mesa plana)
+    wirePitPumpAutoMan  : BOOL;  // Auto/manual mode select (Seleção automático/manual)
+    wirePitSetpointMan  : REAL;  // Manual setpoint (Setpoint manual)
+    wirePitSetpointManInc  : BOOL;  // Manual setpoint (Setpoint manual)
+    wirePitSetpointManDec  : BOOL;  // Manual setpoint (Setpoint manual)	
+    wirePitSetpointAuto : REAL;  // Auto setpoint (Setpoint automático)
+    wirePitSetpointAutoInc  : BOOL;  // Manual setpoint (Setpoint manual)
+    wirePitSetpointAutoDec  : BOOL;  // Manual setpoint (Setpoint manual)	
+    // ─────────────── STOCK PUMP ───────────────
+    stockPumpStart        : BOOL;  // Start stock pump (Ligar bomba de massa)
+    stockPumpStop         : BOOL;  // Stop stock pump (Parar bomba de massa)
+    stockPumpAutoMan      : BOOL;  // Auto/manual mode select (Seleção automático/manual)
+    stockPumpSetpointMan  : REAL;  // Manual setpoint (Setpoint manual)
+    stockPumpSetpointManInc  : BOOL;  // Manual setpoint (Setpoint manual)
+    stockPumpSetpointManDec  : BOOL;  // Manual setpoint (Setpoint manual)
+	
+    stockPumpSetpointAuto : REAL;  // Auto setpoint (Setpoint automático)
+    stockPumpSetpointAutoInc : BOOL;  // Auto setpoint (Setpoint automático)
+    stockPumpSetpointAutoDec : BOOL;  // Auto setpoint (Setpoint automático)
+	
+
+    // ─────────────── MIX PUMP ───────────────
+    mixPumpStart      : BOOL;  // Start mixing pump (Ligar bomba de mistura)
+    mixPumpStop       : BOOL;  // Stop mixing pump (Parar bomba de mistura)
+    mixPumpAutoMan    : BOOL;  // Auto/manual mode select (Seleção automático/manual)
+	mixPumpSetpointManInc: BOOL;  // Manual setpoint (Setpoint manual)
+	mixPumpSetpointManDec: BOOL;  // Manual setpoint (Setpoint manual)
+	mixPumpRatioInc   : BOOL;  // Increase mix ratio (Aumentar proporção de mistura)
+    mixPumpRatioDec   : BOOL;  // Decrease mix ratio (Diminuir proporção de mistura)
+	mixPumpSetpointMan: REAL;  // Manual setpoint (Setpoint manual)
+	mixPumpRatio   	: REAL;  // Increase mix ratio (Aumentar proporção de mistura)
+
+    // ─────────────── VACUUM PUMPS ───────────────
+    vacuumSealPumpStart      : BOOL;  // Start vacuum seal pump (Ligar bomba de vedação a vácuo)
+    vacuumSealPumpStop       : BOOL;  // Stop vacuum seal pump (Parar bomba de vedação a vácuo)
+    vacuumWaterSepPumpStart  : BOOL;  // Start water separator vacuum pump (Ligar bomba de vácuo separadora de água)
+    vacuumWaterSepPumpStop   : BOOL;  // Stop water separator vacuum pump (Parar bomba de vácuo separadora de água)
+    suctionRollVacuumPumpStart: BOOL; // Start suction roll vacuum pump (Ligar bomba de vácuo do rolo de sucção)
+    suctionRollVacuumPumpStop : BOOL; // Stop suction roll vacuum pump (Parar bomba de vácuo do rolo de sucção)
+    wireVacuumPumpStart      : BOOL;  // Start wire section vacuum pump (Ligar bomba de vácuo da mesa plana)
+    wireVacuumPumpStop       : BOOL;  // Stop wire section vacuum pump (Parar bomba de vácuo da mesa plana)
+    pressVacuumPump1Start     : BOOL;  // Start press section vacuum pump (Ligar bomba de vácuo da seção de prensas)
+    pressVacuumPump1Stop      : BOOL;  // Stop press section vacuum pump (Parar bomba de vácuo da seção de prensas)
+    pressVacuumPump2Start     : BOOL;  // Start press section vacuum pump (Ligar bomba de vácuo da seção de prensas)
+    pressVacuumPump2Stop      : BOOL;  // Stop press section vacuum pump (Parar bomba de vácuo da seção de prensas)
+
+    // ─────────────── LOW VACUUM EXHAUST FAN ───────────────
+    lowVacuumExhaustFanStart : BOOL;  // Start low vacuum exhaust fan (Ligar exaustor do baixo vácuo)
+    lowVacuumExhaustFanStop  : BOOL;  // Stop low vacuum exhaust fan (Parar exaustor do baixo vácuo)
+
+    // ─────────────── WIRE SECTION ───────────────
+    wireSectionDisplacementOpSide    : BOOL;  // Displacement sensor - operator side (Sensor de deslocamento - lado operador)
+    wireSectionDisplacementDriveSide : BOOL;  // Displacement sensor - drive side (Sensor de deslocamento - lado acionamento)
+    wireSectionTensionLimitMax       : REAL;  // Maximum wire tension limit (Limite máximo de tensão da tela formadora)
+    wireSectionTensionLimitMin       : REAL;  // Minimum wire tension limit (Limite mínimo de tensão da tela formadora)
+    wireSectionStretchExtendCmd      : BOOL;  // Command to stretch wire (Comando para esticar a tela)
+    wireSectionStretchReleaseCmd     : BOOL;  // Command to release wire (Comando para aliviar a tela)
+
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

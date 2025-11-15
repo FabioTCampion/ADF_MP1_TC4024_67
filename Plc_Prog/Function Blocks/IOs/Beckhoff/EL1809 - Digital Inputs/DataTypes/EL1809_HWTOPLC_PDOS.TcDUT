@@ -1,0 +1,31 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.15">
+  <DUT Name="EL1809_HWTOPLC_PDOS" Id="{79e5d8a9-ca27-46bf-b5d9-d68ac3f7699f}">
+    <Declaration><![CDATA[TYPE EL1809_HWTOPLC_PDOS :
+	STRUCT
+		
+	
+	digitalInput_01 AT %I* : BOOL;
+	digitalInput_02 AT %I* : BOOL;
+	digitalInput_03 AT %I* : BOOL;
+	digitalInput_04 AT %I* : BOOL;
+	digitalInput_05 AT %I* : BOOL;
+	digitalInput_06 AT %I* : BOOL;
+	digitalInput_07 AT %I* : BOOL;
+	digitalInput_08 AT %I* : BOOL;
+	digitalInput_09 AT %I* : BOOL;
+	digitalInput_10 AT %I* : BOOL;
+	digitalInput_11 AT %I* : BOOL;
+	digitalInput_12 AT %I* : BOOL;
+	digitalInput_13 AT %I* : BOOL;
+	digitalInput_14 AT %I* : BOOL;
+	digitalInput_15 AT %I* : BOOL;
+	digitalInput_16 AT %I* : BOOL;
+
+
+		
+	END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

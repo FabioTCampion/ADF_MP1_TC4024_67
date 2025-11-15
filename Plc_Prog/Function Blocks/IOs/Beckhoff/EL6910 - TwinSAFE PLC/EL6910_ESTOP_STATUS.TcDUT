@@ -1,0 +1,19 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.15">
+  <DUT Name="EL6910_ESTOP_STATUS" Id="{ff27a21d-4bff-479f-9aea-9375b66fe54c}">
+    <Declaration><![CDATA[TYPE EL6910_ESTOP_STATUS :
+STRUCT
+	
+    estopState_RUN        : BOOL; // RUN state 
+    estopState_STOP       : BOOL; // STOP state 
+    estopState_SAFE       : BOOL; // SAFE state 
+    estopState_ERROR      : BOOL; // ERROR state 
+    estopState_RESET      : BOOL; // RESET state 
+    estopState_START      : BOOL; // START state 
+    estopState_DELAYOUT   : BOOL; // DELAYOUT state 
+	
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

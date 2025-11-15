@@ -1,0 +1,13 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.15">
+  <DUT Name="EL1809_PDOS" Id="{6667a0d9-4c36-4afe-94e3-3b411804f9a2}">
+    <Declaration><![CDATA[TYPE EL1809_PDOS :
+	STRUCT
+		
+		HwToPLC : EL1809_HWTOPLC_PDOS;
+		
+	END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

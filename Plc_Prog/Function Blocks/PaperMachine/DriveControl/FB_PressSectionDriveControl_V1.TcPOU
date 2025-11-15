@@ -1,0 +1,1326 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.15">
+  <POU Name="FB_PressSectionDriveControl_V1" Id="{8a7a6de3-cab0-4eb3-85b5-f94d513c2a99}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_PressSectionDriveControl_V1
+
+(*VAR_INPUT
+    {region "GROUP / INTERLOCKS"}
+    //==============================================================
+    // GROUP / INTERLOCKS
+    //==============================================================
+    startGroup                      : BOOL;  // Start command (pulse / rising edge)
+    stopGroup                       : BOOL;  // Stop command (level / maintained)
+    groupReset                      : BOOL;  // Group fault reset (acknowledge)
+    {endregion}
+
+    {region "DRIVE STATUS INPUTS (VFDs) — PRESS SECTION (2 MOTORS)"}
+    //==============================================================
+    // DRIVE STATUS INPUTS (VFDs) — PRESS SECTION (2 MOTORS)
+    //==============================================================
+    firstPressReady                 : BOOL;  // First press (MASTER) ready. TRUE = ready
+    firstPressVfdRunFeedback        : BOOL;  // First press RUN feedback. TRUE = running
+    firstPressVfdFaultFeedback      : BOOL;  // First press fault/alarm. TRUE = fault
+
+    secondPressVfdReady             : BOOL;  // Second press (SLAVE) ready. TRUE = ready
+    secondPressVfdRunFeedback       : BOOL;  // Second press RUN feedback. TRUE = running
+    secondPressVfdFaultFeedback     : BOOL;  // Second press fault/alarm. TRUE = fault
+    {endregion}
+
+    {region "SPEED SETPOINTS / MODE"}
+    //==============================================================
+    // SPEED SETPOINTS / MODE
+    //==============================================================
+    groupAutoSpeedMPM               : REAL;          // Auto speed setpoint [m/min]
+    groupManualSpeedMPM             : REAL := 50.0;  // Manual speed [m/min]
+    groupMaxSpeed                   : REAL := 600.0; // Max allowed line speed [m/min]
+    groupSpeedAutoMan               : BOOL;          // 0 = Manual, 1 = Auto
+    {endregion}
+
+    {region "FEEDBACKS (FROM DRIVES/SENSORS)"}
+    //==============================================================
+    // FEEDBACKS (FROM DRIVES/SENSORS)
+    //==============================================================
+    firstPressSpeedFeedback         : REAL;  // First press speed feedback [m/min or %]
+    firstPressTorqueFeedback        : REAL;  // First press torque feedback [% or Nm]
+    secondPressSpeedFeedback        : REAL;  // Second press speed feedback [m/min or %]
+    secondPressTorqueFeedback       : REAL;  // Second press torque feedback [% or Nm]
+    {endregion}
+
+    {region "RATIO / OFFSETS (FOLLOWING / TRIM LOGIC)"}
+    //==============================================================
+    // RATIO / OFFSETS (FOLLOWING / TRIM LOGIC)
+    //==============================================================
+    masterSlaveGearRatio            : REAL := 1.0;   // Slave/Master speed ratio (dimensionless)
+    interGroupGearRatio             : REAL := 1.0;   // Speed difference between groups
+
+    slaveTorqueOfsset               : REAL := 0.0;   // Torque trim offset applied to slave [% or Nm]
+    slaveSpeedOffset                : REAL := 0.0;   // Speed offset slave vs master [% of master]
+
+    // Group-wide recover bump
+    groupRecoverSpeedCmd            : BOOL;          // Temporarily recover speed (while TRUE)
+    groupRecoverIncrement           : REAL := 5.0;   // Recovery speed increment [m/min]
+
+    // Operator-tuned group speed offset vs previous section (TUNE2)
+    grouSpeedDifCmdInc              : BOOL;          // Increment group speed offset
+    grouSpeedDifCmdDec              : BOOL;          // Decrement group speed offset
+    grouSpeedDifLimHigh             : REAL := 20.0;  // Upper limit for group speed offset [%]
+    grouSpeedDifLimLow              : REAL := -20.0; // Lower limit for group speed offset [%]
+    {endregion}
+
+    {region "TORQUE CONTROL / LIMITS (SLAVE-FOCUSED)"}
+    //==============================================================
+    // TORQUE CONTROL / LIMITS (SLAVE-FOCUSED)
+    //==============================================================
+    enableTorquePid                 : BOOL := FALSE; // Enable torque trim PID for slave
+    torqueTrimLimit                 : REAL := 10.0;  // Limit for torque trim magnitude [% or Nm]
+    torqueLimitMinPct               : REAL := 0.0;   // Minimum torque limit for slave [%]
+    torqueLimitMaxPct               : REAL := 150.0; // Maximum torque limit for slave [%]
+    torqueFilterTime                : TIME := T#5MS; // Control torque PT1 filter time constant
+    displayFilterTime               : TIME := T#20MS;// HMI display filters time constant
+
+    //----- OSCAT CTRL_PID parameters (torque trim) -----
+    torqueCtrlKp                    : REAL := 1.0;   // Proportional gain
+    torqueCtrlTn                    : REAL := 8.0;   // Integral time [s]
+    torqueCtrlTv                    : REAL := 0.0;   // Derivative time [s]
+    {endregion}
+
+    {region "DYNAMICS / LIMITS"}
+    //==============================================================
+    // DYNAMICS / LIMITS
+    //==============================================================
+    rampRate                        : REAL := 0.01;  // Reference acceleration rate for ramp block [%/s]
+    speedDiferenceLimit             : REAL := 5.0;   // Max allowed master↔slave speed difference [%]
+    {endregion}
+
+    {region "AUX MOTORS — COMMANDS / LIMIT SWITCHES"}
+    //==============================================================
+    // AUX MOTORS
+    //  - Direct start style with FWD/REV and end limit switches
+    //==============================================================
+    grouSpeedDifInc                 : BOOL;          // Increment group speed offset indication lamp
+    grouSpeedDifDec                 : BOOL;          // Decrement group speed offset indication lamp
+
+    // Felt stretcher — UPPER
+    upperFelt1StretcherCmdFwd        : BOOL; // Run forward command
+    upperFelt1StretcherCmdRev        : BOOL; // Run reverse command
+    upperFelt1StretcherFault         : BOOL; // Reverse motion fault
+    upperFelt1StretcherLimitFwd      : BOOL; // Forward end limit switch
+    upperFelt1StretcherLimitRev      : BOOL; // Reverse end limit switch
+
+    // Felt stretcher — UPPER
+    upperFelt2StretcherCmdFwd        : BOOL; // Run forward command
+    upperFeltt2tretcherCmdRev        : BOOL; // Run reverse command
+    upperFeltS2tretcherFault         : BOOL; // Reverse motion fault
+    upperFeltS2tretcherLimitFwd      : BOOL; // Forward end limit switch
+    upperFeltS2tretcherLimitRev      : BOOL; // Reverse end limit switch		 
+
+    // Felt stretcher — LOWER (direct start given; no reverse cmd provided)
+    lowerFeltStretcherCmdFwd        : BOOL; // Run forward command
+    lowerFeltStretcherCmdRev        : BOOL; // Run forward command
+    lowerFeltStretcherFault         : BOOL; // Fault/alarm
+    lowerFeltStretcherLimitFwd      : BOOL; // Forward end limit switch
+    lowerFeltStretcherLimitRev      : BOOL; // Reverse end limit switch
+
+    // Infeed roll — UPPER
+    upperInfeedRollCmdFwd           : BOOL; // Run forward command
+    upperInfeedRollCmdRev           : BOOL; // Run reverse command
+    upperInfeedRollFault            : BOOL; // Fault/alarm
+    upperInfeedRollLimitFwd         : BOOL; // Forward end limit switch
+    upperInfeedRollLimitRev         : BOOL; // Reverse end limit switch
+
+    // Infeed roll — LOWER
+    lowerInfeedRollCmdFwd           : BOOL; // Run forward command
+    lowerInfeedRollCmdRev           : BOOL; // Run reverse command
+    lowerInfeedRollFault            : BOOL; // Fault/alarm
+    lowerInfeedRollLimitFwd         : BOOL; // Forward end limit switch
+    lowerInfeedRollLimitRev         : BOOL; // Reverse end limit switch
+    {endregion}
+		 
+    // ── FELT EDGE / RUNNING SAFETY SENSORS ─────────────────────────────────────
+    pressSectionUpperFelt1OverrunSensorOperatorSide : BOOL;  // Felt 1 overrun detected on operator side (sensor active)
+    pressSectionUpperFelt1OverrunSensorDriveSide    : BOOL;  // Felt 1 overrun detected on drive side (sensor active)
+    pressSectionUpperFelt2OverrunSensorOperatorSide : BOOL;  // Felt 2 overrun detected on operator side (sensor active)
+    pressSectionUpperFelt2OverrunSensorDriveSide    : BOOL;  // Felt 2 overrun detected on drive side (sensor active)
+    pressSectionLowerFeltOverrunSensorOperatorSide : BOOL;  // Felt 3 overrun detected on operator side (sensor active)
+    pressSectionLowerFeltOverrunSensorDriveSide    : BOOL;  // Felt 3 overrun detected on drive side (sensor active)
+		 
+		 
+END_VAR
+*)
+
+VAR_INPUT
+
+    //────────────────────────────────────────────
+    // GROUP / INTERLOCKS
+    //────────────────────────────────────────────
+    startGroup              : BOOL; // Start command (pulse) / Comando de partida (pulso)
+    stopGroup               : BOOL; // Stop command (level) / Comando de parada (nível)
+    groupReset              : BOOL; // Fault reset / Reset de falhas do grupo
+
+    //────────────────────────────────────────────
+    // DRIVE STATUS INPUTS — PRESS SECTION (2 MOTORS)
+    //────────────────────────────────────────────
+    firstPressReady         : BOOL; // First press (MASTER) ready / Prensa 1 (mestre) pronto
+    firstPressVfdRunFeedback: BOOL; // First press running / Prensa 1 em funcionamento
+    firstPressVfdFaultFeedback : BOOL; // First press fault / Falha na prensa 1
+
+    secondPressReady        : BOOL; // Second press (SLAVE) ready / Prensa 2 (escravo) pronto
+    secondPressVfdRunFeedback: BOOL; // Second press running / Prensa 2 em funcionamento
+    secondPressVfdFaultFeedback : BOOL; // Second press fault / Falha na prensa 2
+
+    //────────────────────────────────────────────
+    // SPEED SETPOINTS / MODE
+    //────────────────────────────────────────────
+    groupAutoSpeedMPM       : REAL; // Auto mode speed [m/min] / Velocidade em modo automático [m/min]
+    groupManualSpeedMPM     : REAL := 50.0; // Manual mode speed / Velocidade em modo manual
+    groupMaxSpeed           : REAL := 600.0; // Max allowed speed / Velocidade máxima permitida
+    groupSpeedAutoMan       : BOOL; // Speed mode: 0=Manual, 1=Auto / Modo de velocidade: 0=Manual, 1=Automático
+
+    //────────────────────────────────────────────
+    // SPEED & TORQUE FEEDBACKS
+    //────────────────────────────────────────────
+    firstPressSpeedFeedback : REAL; // First press speed feedback / Velocidade medida da prensa 1
+    firstPressTorqueFeedback: REAL; // First press torque feedback / Torque da prensa 1
+    secondPressSpeedFeedback: REAL; // Second press speed feedback / Velocidade medida da prensa 2
+    secondPressTorqueFeedback: REAL; // Second press torque feedback / Torque da prensa 2
+
+    //────────────────────────────────────────────
+    // GEAR RATIOS / SPEED OFFSETS
+    //────────────────────────────────────────────
+    masterSlaveGearRatio    : REAL := 1.0; // Ratio master/slave / Relação mestre/escravo
+    interGroupGearRatio     : REAL := 1.0; // Ratio vs previous group / Diferença entre grupos
+    slaveTorqueOfsset       : REAL := 0.0; // Slave torque trim offset / Ajuste de torque do escravo
+    slaveSpeedOffset        : REAL := 0.0; // Slave speed offset [% of master] / Ajuste de velocidade do escravo
+
+    //────────────────────────────────────────────
+    // SPEED ADJUSTMENTS / OFFSET TUNING
+    //────────────────────────────────────────────
+    groupRecoverSpeedCmd    : BOOL; // Recover speed while TRUE / Recuperar velocidade enquanto TRUE
+    groupRecoverIncrement   : REAL := 5.0; // Recovery increment [m/min] / Incremento de recuperação
+    grouSpeedDifCmdInc      : BOOL; // Increase speed offset / Aumentar desvio de velocidade
+    grouSpeedDifCmdDec      : BOOL; // Decrease speed offset / Reduzir desvio de velocidade
+    grouSpeedDifLimHigh     : REAL := 20.0; // Max offset allowed [%] / Limite superior de ajuste
+    grouSpeedDifLimLow      : REAL := -20.0; // Min offset allowed [%] / Limite inferior de ajuste
+
+    //────────────────────────────────────────────
+    // TORQUE CONTROL / LIMITS (SLAVE)
+    //────────────────────────────────────────────
+    enableTorquePid         : BOOL := FALSE; // Enable torque control PID / Ativa o PID de torque
+    torqueTrimLimit         : REAL := 10.0;  // Max trim magnitude / Limite de ajuste de torque
+    torqueLimitMinPct       : REAL := 0.0;   // Minimum torque limit / Limite mínimo de torque
+    torqueLimitMaxPct       : REAL := 150.0; // Maximum torque limit / Limite máximo de torque
+    torqueFilterTime        : TIME := T#5MS; // Filter time for control / Tempo de filtragem (controle)
+    displayFilterTime       : TIME := T#20MS; // Filter time for HMI display / Tempo de filtro na HMI
+    torqueCtrlKp            : REAL := 1.0;   // PID proportional gain / Ganho proporcional PID
+    torqueCtrlTn            : REAL := 8.0;   // PID integral time [s] / Tempo integral PID
+    torqueCtrlTv            : REAL := 0.0;   // PID derivative time [s] / Tempo derivativo PID
+
+    //────────────────────────────────────────────
+    // DYNAMICS / LIMITS
+    //────────────────────────────────────────────
+    rampRate                : REAL := 0.01; // Reference acceleration [%/s] / Aceleração de referência
+    speedDiferenceLimit     : REAL := 5.0;  // Max allowed speed deviation / Diferença de velocidade permitida
+
+    //────────────────────────────────────────────
+    // AUXILIARY MOTORS — INDICATORS & COMMANDS
+    //────────────────────────────────────────────
+    grouSpeedDifInc         : BOOL; // Lamp: offset increasing / Lâmpada: aumento de offset
+    grouSpeedDifDec         : BOOL; // Lamp: offset decreasing / Lâmpada: redução de offset
+
+    //──── Upper Felt 1 Stretcher ────
+    upperFelt1StretcherCmdFwd     : BOOL; // Run forward / Comando para frente
+    upperFelt1StretcherCmdRev     : BOOL; // Run reverse / Comando para trás
+    upperFelt1StretcherFault      : BOOL; // Fault detected / Falha detectada
+    upperFelt1StretcherLimitFwd   : BOOL; // End limit forward / Fim de curso frente
+    upperFelt1StretcherLimitRev   : BOOL; // End limit reverse / Fim de curso trás
+
+    //──── Upper Felt 2 Stretcher ────
+    upperFelt2StretcherCmdFwd     : BOOL; // Run forward / Comando para frente
+    upperFeltt2tretcherCmdRev     : BOOL; // Run reverse / Comando para trás (corrigir nome!)
+    upperFeltS2tretcherFault      : BOOL; // Fault detected / Falha detectada
+    upperFeltS2tretcherLimitFwd   : BOOL; // End limit forward / Fim de curso frente
+    upperFeltS2tretcherLimitRev   : BOOL; // End limit reverse / Fim de curso trás
+
+    //──── Lower Felt Stretcher ────
+    lowerFeltStretcherCmdFwd      : BOOL;
+    lowerFeltStretcherCmdRev      : BOOL;
+    lowerFeltStretcherFault       : BOOL;
+    lowerFeltStretcherLimitFwd    : BOOL;
+    lowerFeltStretcherLimitRev    : BOOL;
+
+    //──── Upper Infeed Roll ────
+    upperInfeedRollCmdFwd         : BOOL;
+    upperInfeedRollCmdRev         : BOOL;
+    upperInfeedRollFault          : BOOL;
+    upperInfeedRollLimitFwd       : BOOL;
+    upperInfeedRollLimitRev       : BOOL;
+
+    //──── Lower Infeed Roll ────
+    lowerInfeedRollCmdFwd         : BOOL;
+    lowerInfeedRollCmdRev         : BOOL;
+    lowerInfeedRollFault          : BOOL;
+    lowerInfeedRollLimitFwd       : BOOL;
+    lowerInfeedRollLimitRev       : BOOL;
+
+    //────────────────────────────────────────────
+    // FELT EDGE / RUNNING SAFETY SENSORS
+    //────────────────────────────────────────────
+    pressSectionUpperFelt1OverrunSensorOperatorSide : BOOL; // Operator side / Lado operador
+    pressSectionUpperFelt1OverrunSensorDriveSide    : BOOL; // Drive side / Lado comando
+
+    pressSectionUpperFelt2OverrunSensorOperatorSide : BOOL;
+    pressSectionUpperFelt2OverrunSensorDriveSide    : BOOL;
+
+    pressSectionLowerFeltOverrunSensorOperatorSide  : BOOL;
+    pressSectionLowerFeltOverrunSensorDriveSide     : BOOL;
+
+END_VAR
+
+(*
+VAR_OUTPUT
+    {region "STATE / DIAGNOSTICS"}
+    //==============================================================
+    // STATE / DIAGNOSTICS
+    //==============================================================
+    deviceState                     : STRING;        // Human-readable state string
+    statusCode                      : INT;           // 0=Idle, 1=Starting, 2=Running, 3=Fault
+    groupFault                      : BOOL;  		// External group fault present (interlock)
+		 
+    groupSpeedOffset                : REAL := 0.0;   // Current group speed offset vs previous section [%] (from TUNE2)
+    currentSpeedDifence             : REAL;          // Live master↔slave speed difference [%] (filtered displays)
+    {endregion}
+
+    {region "SPEED REFERENCES (TO DRIVES)"}
+    //==============================================================
+    // SPEED REFERENCES (TO DRIVES) — 0..100%
+    //==============================================================
+    firstPressDriveSpeedRefPct      : REAL;  // First press (MASTER) speed reference [%]
+    secondPressDriveSpeedRefPct     : REAL;  // Second press (SLAVE) speed reference [%]
+    nextGroupSpeedRefPct            : REAL;  // Suggested speed reference for next downstream group [%]
+    nextGroupSpeedRefMPM            : REAL;  // Next group reference [m/min]
+    {endregion}
+
+    {region "TORQUE REFERENCES / LIMITS (SLAVE)"}
+    //==============================================================
+    // TORQUE REFERENCES / LIMITS (TO SLAVE DRIVE)
+    //==============================================================
+    secondPressDriveTorqueRefPct    : REAL;  // Second press torque reference [% or Nm]
+    slaveDriveTorqueLimit           : REAL;  // Effective torque limit applied to slave [% or Nm]
+    {endregion}
+
+    {region "DRIVE COMMANDS (ENABLE / RESET)"}
+    //==============================================================
+    // DRIVE COMMANDS (ENABLE / RESET)
+    //==============================================================
+    firstPressDriveEnable           : BOOL;  // Enable first press drive
+    firstPressDriveReset            : BOOL;  // Reset first press fault (pulse)
+    secondPressDriveEnable          : BOOL;  // Enable second press drive
+    secondPressDriveReset           : BOOL;  // Reset second press fault (pulse)
+    {endregion}
+
+    {region "HMI — FILTERED DISPLAYS"}
+    //==============================================================
+    // HMI — FILTERED DISPLAYS
+    //==============================================================
+    firstPressSpeedMPMFilteredDisplay   : REAL; // Filtered first press speed [m/min]
+    secondPressSpeedMPMFilteredDisplay  : REAL; // Filtered second press speed [m/min]
+    firstPressTorqueFilteredDisplay     : REAL; // Filtered first press torque [% or Nm]
+    secondPressTorqueFilteredDisplay    : REAL; // Filtered second press torque [% or Nm]
+    {endregion}
+
+    {region "PER-DRIVE STATUS CODES (HMI)"}
+    //==============================================================
+    // PER-DRIVE STATUS CODES (HMI)
+    //==============================================================
+    firstPressStatusCode            : INT;  // First press: 0=Idle,1=Start,2=Run,3=Fault
+    secondPressStatusCode           : INT;  // Second press: 0=Idle,1=Start,2=Run,3=Fault
+    {endregion}
+
+    {region "AUX MOTORS — DIRECT START OUTPUTS"}
+    //-----------------------------------------------------------------------------
+    // VAR_OUTPUT — Direct start: RUN commands + RESET only (no drive-enable changes here)
+    //-----------------------------------------------------------------------------
+
+    // Felt stretcher — UPPER
+    upperFelt1StretcherRunFwd : BOOL; // Run forward
+    upperFelt1StretcherRunRev : BOOL; // Run reverse
+
+    upperFelt2StretcherRunFwd : BOOL; // Run forward
+    upperFelt2StretcherRunRev : BOOL; // Run reverse	 
+		  
+    lowerFeltStretcherRunFwd : BOOL; // Run forward
+    lowerFeltStretcherRunRev : BOOL; // Run reverse
+
+    upperInfeedRollRunFwd    : BOOL; // Run forward
+    upperInfeedRollRunRev    : BOOL; // Run reverse
+
+    lowerInfeedRollRunFwd    : BOOL; // Run forward
+    lowerInfeedRollRunRev    : BOOL; // Run reverse
+    {endregion}
+				 
+	hmiAlarms 				: PaperMachine_TypeHmiAlarms; 	
+ 
+END_VAR
+*)
+
+
+VAR_OUTPUT
+
+    //────────────────────────────────────────────
+    // STATE / DIAGNOSTICS
+    //────────────────────────────────────────────
+    deviceState                 : STRING; // Current state string / Estado atual em texto
+    statusCode                  : INT;    // 0=Idle, 1=Starting, 2=Running, 3=Fault
+    groupFault                  : BOOL;   // TRUE if any group fault active / Falha geral do grupo
+
+    groupSpeedOffset            : REAL := 0.0; // Offset vs previous group [%] / Offset vs grupo anterior [%]
+    currentSpeedDifence         : REAL;        // Measured speed difference between master/slave [%] / Diferença de velocidade atual mestre↔escravo [%]
+
+    //────────────────────────────────────────────
+    // SPEED REFERENCES (TO DRIVES)
+    //────────────────────────────────────────────
+    firstPressDriveSpeedRefPct  : REAL; // Master speed reference [%] / Referência de velocidade mestre
+    secondPressDriveSpeedRefPct : REAL; // Slave speed reference [%] / Referência de velocidade escravo
+    nextGroupSpeedRefPct        : REAL; // Next downstream group speed [%] / Velocidade sugerida para o próximo grupo
+    nextGroupSpeedRefMPM        : REAL; // Next group speed [m/min] / Velocidade do próximo grupo [m/min]
+
+    //────────────────────────────────────────────
+    // TORQUE REFERENCES / LIMITS (SLAVE)
+    //────────────────────────────────────────────
+    secondPressDriveTorqueRefPct : REAL; // Torque setpoint for slave / Referência de torque escravo
+    slaveDriveTorqueLimit        : REAL; // Max torque limit [% or Nm] / Limite de torque do escravo
+
+    //────────────────────────────────────────────
+    // DRIVE COMMANDS (ENABLE / RESET)
+    //────────────────────────────────────────────
+    firstPressDriveEnable        : BOOL; // Enable master drive / Habilita drive mestre
+    firstPressDriveReset         : BOOL; // Reset master drive fault / Reset falha drive mestre
+    secondPressDriveEnable       : BOOL; // Enable slave drive / Habilita drive escravo
+    secondPressDriveReset        : BOOL; // Reset slave drive fault / Reset falha drive escravo
+
+    //────────────────────────────────────────────
+    // HMI — FILTERED DISPLAYS
+    //────────────────────────────────────────────
+    firstPressSpeedMPMFilteredDisplay   : REAL; // Master speed (filtered) / Velocidade mestre filtrada
+    secondPressSpeedMPMFilteredDisplay  : REAL; // Slave speed (filtered) / Velocidade escravo filtrada
+    firstPressTorqueFilteredDisplay     : REAL; // Master torque (filtered) / Torque mestre filtrado
+    secondPressTorqueFilteredDisplay    : REAL; // Slave torque (filtered) / Torque escravo filtrado
+
+    //────────────────────────────────────────────
+    // STATUS CODES (PER DRIVE)
+    //────────────────────────────────────────────
+    firstPressStatusCode        : INT; // 0=Idle, 1=Start, 2=Run, 3=Fault / Código de status da prensa 1
+    secondPressStatusCode       : INT; // Código de status da prensa 2
+
+    //────────────────────────────────────────────
+    // AUXILIARY MOTORS — DIRECT START OUTPUTS
+    //────────────────────────────────────────────
+    upperFelt1StretcherRunFwd   : BOOL; // Run forward / Rodar para frente
+    upperFelt1StretcherRunRev   : BOOL; // Run reverse / Rodar para trás
+
+    upperFelt2StretcherRunFwd   : BOOL;
+    upperFelt2StretcherRunRev   : BOOL;
+
+    lowerFeltStretcherRunFwd    : BOOL;
+    lowerFeltStretcherRunRev    : BOOL;
+
+    upperInfeedRollRunFwd       : BOOL;
+    upperInfeedRollRunRev       : BOOL;
+
+    lowerInfeedRollRunFwd       : BOOL;
+    lowerInfeedRollRunRev       : BOOL;
+
+    //────────────────────────────────────────────
+    // HMI ALARMS STRUCTURE
+    //────────────────────────────────────────────
+    hmiAlarms                   : PaperMachine_TypeHmiAlarms; // Alarm structure / Estrutura de alarmes
+
+END_VAR
+
+
+
+
+VAR
+    {region "INTERNAL — STATE / EDGE DETECTION"}
+    //==============================================================
+    // INTERNAL — STATE / EDGE DETECTION
+    //==============================================================
+    state                           : INT;   // 0=IDLE,1=ENABLE,2=WAIT_EN,3=RAMP_EN,4=RUN,5=STOPPING,10=FAULT
+    startGroupOld                   : BOOL;  // Previous cycle state of startGroup
+    stopGroupOld                    : BOOL;  // Previous cycle state of stopGroup
+    rStart                          : BOOL;  // Rising edge of startGroup
+    rStop                           : BOOL;  // Rising edge of stopGroup
+
+    modeChanged                     : BOOL;
+    groupSpeedAutoManOld            : BOOL;
+    useRamp                         : BOOL;  // Enable ramp only when needed
+    {endregion}
+
+    {region "INTERNAL — RAMP / REFERENCE SHAPING"}
+    //==============================================================
+    // INTERNAL — RAMP / REFERENCE SHAPING
+    //==============================================================
+    rampTargetPct                   : REAL;        // Target reference for ramp [0..100%]
+    instFB_Gen_SRamp                : FB_Gen_SRamp;// S-ramp block instance
+    rampReset                       : BOOL;        // Reset ramp (forces Y/V = 0)
+    epsRefPct                       : REAL := 0.05;// Small epsilon to avoid chattering
+    {endregion}
+
+    {region "INTERNAL — TIMERS"}
+    //==============================================================
+    // INTERNAL — TIMERS
+    //==============================================================
+    instTONEnableWait               : TON;         // Wait for enable/ready
+    instTONStopWait                 : TON;         // Stop/decay timeout
+    instTONSpeedDifDelay            : TON;         // Debounce for speed-difference supervision
+    enableTimeout                   : TIME := T#5S;// Max time waiting for enable
+    speedZeroThresholdPct           : REAL := 4.0; // Consider “stopped” if speed ≤ this [% of range]
+    {endregion}
+
+    {region "INTERNAL — SLAVE HEADROOM / LIMITING"}
+    //==============================================================
+    // INTERNAL — SLAVE HEADROOM / LIMITING
+    //==============================================================
+    offsetPct                       : REAL;        // slaveSpeedOffset [%] -> ratio
+    denom                           : REAL;        // gearRatio + offsetPct
+    maxMasterBySlave                : REAL;        // Master % where slave would hit 100%
+    allowedCapPct                   : REAL;        // Cap applied to master
+    currMasterPct                   : REAL;        // Current master ramp output
+    currSlavePct                    : REAL;        // Synthetic slave (%)
+    {endregion}
+
+    {region "INTERNAL — HMI FILTERS (DISPLAY ONLY)"}
+    //==============================================================
+    // INTERNAL — HMI FILTERS (DISPLAY ONLY)
+    //==============================================================
+    instPT1_FirstPressSpeedDisplay  : FT_PT1;
+    instPT1_FirstPressTorqueDisplay : FT_PT1;
+    instPT1_SecondPressSpeedDisplay : FT_PT1;
+    instPT1_SecondPressTorqueDisplay: FT_PT1;
+    {endregion}
+
+    {region "INTERNAL — CONTROL TORQUE FILTER & PID (SLAVE)"}
+    //==============================================================
+    // INTERNAL — CONTROL TORQUE FILTER & PID (SLAVE)
+    //==============================================================
+    instFT_PT1FirstPressTorqueFilter   : FT_PT1;   // Control PT1 filter for first press torque
+    instCTRL_PID_SecondPressTorqueTrim : CTRL_PID; // Slave torque trim PID
+    {endregion}
+END_VAR
+
+VAR PERSISTENT
+    {region "PERSISTENT — TUNING / ADJUSTMENTS"}
+    //==============================================================
+    // PERSISTENT — TUNING / ADJUSTMENTS
+    //==============================================================
+    instTUNE2_GroupSpeedDiference   : TUNE2;       // Operator tuning: group speed offset vs previous section [%]
+    {endregion}
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[// ─────────────────────────────────────────────────────────────────────────────
+// MAIN CALL SEQUENCE
+// ─────────────────────────────────────────────────────────────────────────────
+_FeedbackDisplay();
+_GroupControl();          // 1) State machine: edges, enables, stop modes
+_ReferenceGenerator();    // 2) Build master/slave references with ramp
+_TorqueReference();       // 3) Legacy torque transfer (kept)
+_StateDisplay();
+_SpeedDifferenceCheck();  // 4) Speed difference monitor & trip
+_auxiliaryControls();
+
+_alarmsDisplay();]]></ST>
+    </Implementation>
+    <Method Name="_alarmsDisplay" Id="{d5dc7498-eeb6-4592-9187-acfba3b1a943}">
+      <Declaration><![CDATA[METHOD _alarmsDisplay
+VAR_INPUT
+END_VAR
+(*
+//==============================================================
+// FAULT EVALUATION — PER CONDITION (flags only; no global set)
+//==============================================================
+
+//----------------------------
+// PRESS SECTION DRIVES
+//----------------------------
+hmiAlarms.pressSectionFirstPressFaultAlarm  := firstPressVfdFaultFeedback;
+hmiAlarms.pressSectionSecondPressFaultAlarm := secondPressVfdFaultFeedback;
+
+//----------------------------
+// PRESS SECTION AUXILIARIES
+//----------------------------
+hmiAlarms.pressSectionUpperFeltStretcherFaultAlarm := upperFelt1StretcherFault;
+hmiAlarms.pressSectionLowerFeltStretcherFaultAlarm := lowerFeltStretcherFault;
+hmiAlarms.pressSectionUpperInfeedRollFaultAlarm    := upperInfeedRollFault;
+hmiAlarms.pressSectionLowerInfeedRollFaultAlarm    := lowerInfeedRollFault;
+
+
+//==============================================================
+// PRESS SECTION — FELT EDGE OVERRUN ALARMS (DIRECT SENSORS)
+//==============================================================
+
+hmiAlarms.pressSectionUpperFelt1OverrunOperatorSideAlarm := pressSectionUpperFelt1OverrunSensorOperatorSide;
+hmiAlarms.pressSectionUpperFelt1OverrunDriveSideAlarm    := pressSectionUpperFelt1OverrunSensorDriveSide;
+
+hmiAlarms.pressSectionUpperFelt2OverrunOperatorSideAlarm := pressSectionUpperFelt2OverrunSensorOperatorSide;
+hmiAlarms.pressSectionUpperFelt2OverrunDriveSideAlarm    := pressSectionUpperFelt2OverrunSensorDriveSide;
+
+hmiAlarms.pressSectionLowerFeltOverrunOperatorSideAlarm := pressSectionLowerFeltOverrunSensorOperatorSide;
+hmiAlarms.pressSectionLowerFeltOverrunDriveSideAlarm    := pressSectionLowerFeltOverrunSensorDriveSide;
+
+
+//----------------------------
+// PRESS SECTION GROUP FAULT STATUS
+//----------------------------
+groupFault :=
+    hmiAlarms.pressSectionFirstPressFaultAlarm 
+	OR hmiAlarms.pressSectionSecondPressFaultAlarm 
+	OR hmiAlarms.pressFelt1OverrunOperatorSideAlarm
+	OR hmiAlarms.pressFelt1OverrunDriveSideAlarm
+	OR hmiAlarms.pressFelt2OverrunOperatorSideAlarm
+	OR hmiAlarms.pressFelt2OverrunDriveSideAlarm
+	OR hmiAlarms.pressFelt3OverrunOperatorSideAlarm
+	OR hmiAlarms.pressFelt3OverrunDriveSideAlarm;
+
+
+*)]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[//==============================================================
+// FAULT EVALUATION — PER CONDITION (flags only; no global set)
+//==============================================================
+
+//----------------------------
+// PRESS SECTION DRIVES
+//----------------------------
+hmiAlarms.pressSectionFirstPressFaultAlarm  := firstPressVfdFaultFeedback;
+hmiAlarms.pressSectionSecondPressFaultAlarm := secondPressVfdFaultFeedback;
+
+//----------------------------
+// PRESS SECTION AUXILIARIES
+//----------------------------
+hmiAlarms.pressSectionUpperFeltStretcherFaultAlarm := upperFelt1StretcherFault;
+hmiAlarms.pressSectionLowerFeltStretcherFaultAlarm := lowerFeltStretcherFault;
+hmiAlarms.pressSectionUpperInfeedRollFaultAlarm    := upperInfeedRollFault;
+hmiAlarms.pressSectionLowerInfeedRollFaultAlarm    := lowerInfeedRollFault;
+
+
+//==============================================================
+// PRESS SECTION — FELT EDGE OVERRUN ALARMS (DIRECT SENSORS)
+//==============================================================
+
+hmiAlarms.pressSectionUpperFelt1OverrunOperatorSideAlarm := pressSectionUpperFelt1OverrunSensorOperatorSide;
+hmiAlarms.pressSectionUpperFelt1OverrunDriveSideAlarm    := pressSectionUpperFelt1OverrunSensorDriveSide;
+
+hmiAlarms.pressSectionUpperFelt2OverrunOperatorSideAlarm := pressSectionUpperFelt2OverrunSensorOperatorSide;
+hmiAlarms.pressSectionUpperFelt2OverrunDriveSideAlarm    := pressSectionUpperFelt2OverrunSensorDriveSide;
+
+hmiAlarms.pressSectionLowerFeltOverrunOperatorSideAlarm := pressSectionLowerFeltOverrunSensorOperatorSide;
+hmiAlarms.pressSectionLowerFeltOverrunDriveSideAlarm    := pressSectionLowerFeltOverrunSensorDriveSide;
+
+
+//----------------------------
+// PRESS SECTION GROUP FAULT STATUS
+//----------------------------
+groupFault := hmiAlarms.pressSectionFirstPressFaultAlarm OR
+		hmiAlarms.pressSectionSecondPressFaultAlarm OR
+		hmiAlarms.pressSectionUpperFelt1OverrunOperatorSideAlarm OR
+		hmiAlarms.pressSectionUpperFelt1OverrunDriveSideAlarm OR
+		hmiAlarms.pressSectionUpperFelt2OverrunOperatorSideAlarm OR
+		hmiAlarms.pressSectionUpperFelt2OverrunDriveSideAlarm OR
+		hmiAlarms.pressSectionLowerFeltOverrunOperatorSideAlarm OR
+		hmiAlarms.pressSectionLowerFeltOverrunDriveSideAlarm;
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_auxiliaryControls" Id="{d6b7011c-67d0-44aa-a4e9-ab9d8a5f9850}">
+      <Declaration><![CDATA[METHOD _auxiliaryControls
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[//============================
+// LOWER FELT STRETCHER
+//============================
+IF NOT lowerFeltStretcherFault THEN
+    IF lowerFeltStretcherCmdFwd AND NOT lowerFeltStretcherCmdRev AND NOT lowerFeltStretcherLimitFwd THEN
+        lowerFeltStretcherRunFwd := TRUE;
+    ELSE
+        lowerFeltStretcherRunFwd := FALSE;
+    END_IF;
+
+    IF lowerFeltStretcherCmdRev AND NOT lowerFeltStretcherCmdFwd AND NOT lowerFeltStretcherLimitRev THEN
+        lowerFeltStretcherRunRev := TRUE;
+    ELSE
+        lowerFeltStretcherRunRev := FALSE;
+    END_IF;
+ELSE
+    lowerFeltStretcherRunFwd := FALSE;
+    lowerFeltStretcherRunRev := FALSE;
+END_IF;
+
+
+//============================
+// UPPER INFEED ROLL
+//============================
+IF NOT upperInfeedRollFault THEN
+    IF upperInfeedRollCmdFwd AND NOT upperInfeedRollCmdRev AND NOT upperInfeedRollLimitFwd THEN
+        upperInfeedRollRunFwd := TRUE;
+    ELSE
+        upperInfeedRollRunFwd := FALSE;
+    END_IF;
+
+    IF upperInfeedRollCmdRev AND NOT upperInfeedRollCmdFwd AND NOT upperInfeedRollLimitRev THEN
+        upperInfeedRollRunRev := TRUE;
+    ELSE
+        upperInfeedRollRunRev := FALSE;
+    END_IF;
+ELSE
+    upperInfeedRollRunFwd := FALSE;
+    upperInfeedRollRunRev := FALSE;
+END_IF;
+
+
+//============================
+// LOWER INFEED ROLL
+//============================
+IF NOT lowerInfeedRollFault THEN
+    IF lowerInfeedRollCmdFwd AND NOT lowerInfeedRollCmdRev AND NOT lowerInfeedRollLimitFwd THEN
+        lowerInfeedRollRunFwd := TRUE;
+    ELSE
+        lowerInfeedRollRunFwd := FALSE;
+    END_IF;
+
+    IF lowerInfeedRollCmdRev AND NOT lowerInfeedRollCmdFwd AND NOT lowerInfeedRollLimitRev THEN
+        lowerInfeedRollRunRev := TRUE;
+    ELSE
+        lowerInfeedRollRunRev := FALSE;
+    END_IF;
+ELSE
+    lowerInfeedRollRunFwd := FALSE;
+    lowerInfeedRollRunRev := FALSE;
+END_IF;
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_FeedbackDisplay" Id="{adc33cda-d923-4cb5-8eb0-f08aa7d819be}">
+      <Declaration><![CDATA[METHOD _FeedbackDisplay
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[//================================================================================
+// ── HMI display filters (PT1). Display-only; no control logic uses these values.
+//================================================================================
+
+// PRESS SECTION — SPEED
+instPT1_FirstPressSpeedDisplay(
+    in  := firstPressSpeedFeedback,
+    T   := displayFilterTime,
+    K   := 1.0,
+    out => firstPressSpeedMPMFilteredDisplay
+);
+instPT1_SecondPressSpeedDisplay(
+    in  := secondPressSpeedFeedback,
+    T   := displayFilterTime,
+    K   := 1.0,
+    out => secondPressSpeedMPMFilteredDisplay
+);
+
+// PRESS SECTION — TORQUE
+instPT1_FirstPressTorqueDisplay(
+    in  := firstPressTorqueFeedback,
+    T   := displayFilterTime,
+    K   := 1.0,
+    out => firstPressTorqueFilteredDisplay
+);
+instPT1_SecondPressTorqueDisplay(
+    in  := secondPressTorqueFeedback,
+    T   := displayFilterTime,
+    K   := 1.0,
+    out => secondPressTorqueFilteredDisplay
+);
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_GroupControl" Id="{1ba90802-695f-46ff-9fc9-f289dd6855ca}">
+      <Declaration><![CDATA[// ============================== Methods ==============================
+// 1) GROUP CONTROL
+METHOD _GroupControl
+VAR_INPUT
+END_VAR
+VAR
+    // Basic conditions
+    speedsNearZero  : BOOL; // All drives ~0 speed
+    refsNearZero    : BOOL; // Both masters ~0 ref
+    allReady        : BOOL; // All six drives ready
+    anyFault        : BOOL; // Any drive fault or external groupFault
+	
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[
+// ── Edge detection ────────────────────────────────────────────────────────────
+rStart := startGroup AND NOT startGroupOld;   // Start on pulse
+rStop  := stopGroup  AND NOT stopGroupOld;    // Stop edge
+startGroupOld := startGroup;
+stopGroupOld  := stopGroup;
+
+// ── Aggregate readiness / faults ──────────────────────────────────────────────
+allReady :=
+    firstPressReady AND
+    secondPressReady;
+
+anyFault :=
+    groupFault OR
+    firstPressVfdFaultFeedback OR
+    secondPressVfdFaultFeedback;
+
+// ── Near-zero checks (unit must match your speed signals) ─────────────────────
+speedsNearZero :=
+    (ABS(firstPressSpeedFeedback)  <= speedZeroThresholdPct) AND
+    (ABS(secondPressSpeedFeedback) <= speedZeroThresholdPct);
+
+// Refs near zero (backup condition)
+refsNearZero :=
+    (ABS(firstPressDriveSpeedRefPct)  <= epsRefPct) AND
+    (ABS(secondPressDriveSpeedRefPct) <= epsRefPct);
+
+// ── State machine ─────────────────────────────────────────────────────────────
+CASE state OF
+    0: // IDLE
+        deviceState := 'IDLE';
+        rampReset   := TRUE;
+
+        // Ensure outputs are safe
+        firstPressDriveEnable  := FALSE;
+        secondPressDriveEnable := FALSE;
+
+        IF rStart AND NOT anyFault THEN
+            state := 1;
+        END_IF
+
+    1: // ENABLE_DRIVES
+        deviceState := 'ENABLE_DRIVES';
+        rampReset   := TRUE;
+
+        // Enable both drives
+        firstPressDriveEnable  := TRUE;
+        secondPressDriveEnable := TRUE;
+
+        // Start enable wait timer
+        instTONEnableWait(IN := TRUE, PT := enableTimeout);
+
+        IF rStop OR stopGroup THEN
+            instTONEnableWait(IN := FALSE);
+            state := 5; // STOPPING
+        ELSE
+            state := 2; // WAIT_ENABLE_FEEDBACK
+        END_IF
+
+    2: // WAIT_ENABLE_FEEDBACK
+        deviceState := 'WAIT_ENABLE_FEEDBACK';
+        rampReset   := TRUE;
+
+        // Keep enables on while waiting
+        firstPressDriveEnable  := TRUE;
+        secondPressDriveEnable := TRUE;
+
+        instTONEnableWait(IN := TRUE, PT := enableTimeout);
+
+        IF anyFault THEN
+            instTONEnableWait(IN := FALSE);
+            state := 10; // FAULT
+        ELSIF rStop OR stopGroup THEN
+            instTONEnableWait(IN := FALSE);
+            state := 5;  // STOPPING
+        ELSIF allReady THEN
+            instTONEnableWait(IN := FALSE);
+            state := 3;  // RAMP_ENABLE
+        ELSIF instTONEnableWait.Q THEN
+            instTONEnableWait(IN := FALSE);
+            state := 10; // fault: no enable feedback in time
+        END_IF
+
+    3: // RAMP_ENABLE (single-cycle gate to release ramp)
+        deviceState := 'RAMP_ENABLE';
+        rampReset   := FALSE; // release ramp now
+
+        // Keep enables on
+        firstPressDriveEnable  := TRUE;
+        secondPressDriveEnable := TRUE;
+
+        IF rStop OR stopGroup THEN
+            state := 5;
+        ELSE
+            state := 4; // RUN
+        END_IF
+
+    4: // RUN
+        deviceState := SEL(groupSpeedAutoMan, 'RUN (Manual)', 'RUN (Auto)');
+        rampReset   := FALSE;
+
+        // Keep enables on during run
+        firstPressDriveEnable  := TRUE;
+        secondPressDriveEnable := TRUE;
+
+        IF anyFault THEN
+            state := 10; // FAULT
+        ELSIF rStop OR stopGroup THEN
+            state := 5;  // STOPPING
+        END_IF
+
+    5: // STOPPING (controlled decel)
+        deviceState := 'STOPPING';
+        rampReset   := FALSE; // allow ramp to drive refs down
+
+        // Keep enables TRUE for controlled decel
+        firstPressDriveEnable  := TRUE;
+        secondPressDriveEnable := TRUE;
+
+        // Optional: stop timeout if desired
+        // instTONStopWait(IN := TRUE, PT := stopTimeout);
+
+        // Exit when speeds≈0 and refs≈0
+        IF anyFault THEN
+            // instTONStopWait(IN := FALSE);
+            state := 10;
+
+        ELSIF speedsNearZero AND refsNearZero THEN
+            // Disable both drives
+            firstPressDriveEnable  := FALSE;
+            secondPressDriveEnable := FALSE;
+
+            // instTONStopWait(IN := FALSE);
+            state := 0; // IDLE
+
+        ELSIF instTONStopWait.Q THEN
+            // Timeout path → force disable then fault
+            firstPressDriveEnable  := FALSE;
+            secondPressDriveEnable := FALSE;
+
+            instTONStopWait(IN := FALSE);
+            state := 10;
+        END_IF
+
+    10: // FAULT
+        deviceState := 'FAULT';
+        rampReset   := TRUE; // force ramp outputs to zero
+
+        // Disable both drives
+        firstPressDriveEnable  := FALSE;
+        secondPressDriveEnable := FALSE;
+
+        // Return to IDLE when faults clear and start released
+        IF (NOT anyFault) AND (NOT startGroup) THEN
+            state := 0;
+        END_IF
+END_CASE
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_ReferenceGenerator" Id="{a43eed9c-5b84-41c2-ac71-46af7bc42f1b}">
+      <Declaration><![CDATA[// 2) REFERENCE GENERATOR — Press Section (firstPress = Master, secondPress = Slave)
+// Behavior:
+//   • One ramp shared by master+slave. Slave always follows the ramped master.
+//   • Ramp is enabled only when the target change is “large enough”; otherwise direct pass-through.
+//   • Protect slave from exceeding 100% considering (masterSlaveGearRatio + slaveSpeedOffset).
+METHOD _ReferenceGenerator
+VAR
+    // ---------- Limits & helpers ----------
+    headroomEpsPct      : REAL := 0.20;     // anti-chatter near saturation (100%)
+    offsetPct           : REAL;             // slave speed offset as ratio (e.g., 10% -> 0.10)
+    denom               : REAL;             // effective slave multiplier vs master
+    maxMasterBySlave    : REAL;             // master % at which slave would hit 100%
+    allowedCapPct       : REAL;             // master upward cap (prevents slave > 100%)
+
+    // ---------- Base commands ----------
+    baseCmdSpeedMPM     : REAL;             // base command from Auto/Manual
+    cmdSpeedMPM         : REAL;             // selected command (after Recover bump)
+    targetPct           : REAL;             // 0..100 scaled line reference before ramp
+
+    // ---------- Freeze upward overrun ----------
+    currMasterPct       : REAL;             // current ramp output for master (%)
+    currSlavePct        : REAL;             // current synthetic slave (%), for freeze check
+
+    // ---------- Group offset (TUNE2) ----------
+    groupDeltaRatioAll  : REAL;             // = 1 + (groupSpeedOffset / 100) → applies to BOTH motors
+
+    // ---------- Final references ----------
+    baseMasterRefPct    : REAL;             // master reference after ramp/cap (pre-offsets)
+
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[//==============================================================
+// 1) Base command (Auto/Manual) + "Recover" temporary bump
+//==============================================================
+IF groupSpeedAutoMan THEN
+    baseCmdSpeedMPM := groupAutoSpeedMPM * interGroupGearRatio; // Auto reference (calibrated)
+ELSE
+    baseCmdSpeedMPM := groupManualSpeedMPM;                     // Manual reference (raw)
+END_IF;
+
+IF groupRecoverSpeedCmd THEN
+    cmdSpeedMPM := baseCmdSpeedMPM + groupRecoverIncrement;     // Recover bump [m/min]
+ELSE
+    cmdSpeedMPM := baseCmdSpeedMPM;                             // Normal operation
+END_IF;
+
+//==============================================================
+// 2) Scale to 0..100% for the drives
+//==============================================================
+targetPct := _Scale(
+    X    := cmdSpeedMPM,
+    I_LO := 0.0,          I_HI := groupMaxSpeed,
+    O_LO := 0.0,          O_HI := 100.0);
+
+//==============================================================
+// 3) STOPPING/RAMP_ENABLE: force target=0; otherwise track target
+//==============================================================
+IF (state = 5) OR (state = 3) THEN
+    rampTargetPct := 0.0;
+ELSE
+    rampTargetPct := targetPct;
+END_IF;
+
+//==============================================================
+// 4) Pre-limit so SLAVE cannot exceed 100% given gearRatio + slaveSpeedOffset
+//==============================================================
+offsetPct := slaveSpeedOffset * 0.01;          // [%] → ratio
+denom     := masterSlaveGearRatio + offsetPct; // effective slave multiplier vs master
+
+IF denom > 0.0 THEN
+    maxMasterBySlave := 100.0 / denom;         // master % that would make slave hit 100%
+ELSE
+    maxMasterBySlave := 100.0;
+END_IF;
+
+allowedCapPct := MIN(100.0, maxMasterBySlave);
+
+//==============================================================
+// 5) Freeze upward if currently at/near saturation (prevents chatter)
+//==============================================================
+currMasterPct := instFB_Gen_SRamp.Y;                        // current master ref (%)
+currSlavePct  := LIMIT(0.0, currMasterPct * denom, 100.0);
+
+IF (currMasterPct >= 100.0 - headroomEpsPct) OR
+   (currSlavePct  >= 100.0 - headroomEpsPct) THEN
+    // Prevent increasing target above current value; allow only decreases
+    rampTargetPct := MIN(rampTargetPct, currMasterPct);
+END_IF;
+
+//==============================================================
+// 6) Ramp gating — enable ONLY when the target step is “large enough”
+//    (slew with ramp if |Δ| ≥ 2×rampRate; else write through directly)
+//==============================================================
+useRamp := (ABS(rampTargetPct - instFB_Gen_SRamp.Y) >= 2);
+
+//==============================================================
+// 7) Single ramp (group ramp). If bypassed, direct-feed capped target.
+//==============================================================
+instFB_Gen_SRamp(
+    X          := rampTargetPct,             // always drive the ramp (also keeps it tracking)
+    A_UP       := MAX(0.0, rampRate),
+    A_DN       := -MAX(0.0, rampRate),
+    VU_MAX     := 1000.0,
+    VD_MAX     := -1000.0,
+    LIMIT_HIGH := 100.0,
+    RST        := rampReset);
+
+IF (state = 5) OR (state = 3) THEN
+    instFB_Gen_SRamp.LIMIT_LOW := 0.0;
+ELSE
+    instFB_Gen_SRamp.LIMIT_LOW := 3.5;       // avoid too-low crawling in RUN/READY
+END_IF;
+
+// When ramp is enabled, take its output; otherwise use the capped target directly.
+IF useRamp THEN
+    baseMasterRefPct := MIN(instFB_Gen_SRamp.Y, allowedCapPct);
+ELSE
+    baseMasterRefPct := MIN(rampTargetPct,     allowedCapPct);
+END_IF;
+
+baseMasterRefPct := LIMIT(0.0, baseMasterRefPct, 100.0);
+
+//==============================================================
+// 8) Operator-adjustable groupSpeedOffset using TUNE2 (applies to BOTH motors)
+//==============================================================
+instTUNE2_GroupSpeedDiference(
+    SET     := FALSE,               // keep last tuned value
+    SU      := grouSpeedDifCmdInc,     // increment button
+    SD      := grouSpeedDifCmdDec,     // decrement button
+    RST     := FALSE,               // optional HMI reset
+    SS      := 0.1,                 // step per action [%]
+    FS      := 0.0,                 // fast step (unused)
+    LIMIT_L := grouSpeedDifLimLow,  // lower bound  [%]
+    LIMIT_H := grouSpeedDifLimHigh, // upper bound  [%]
+    Y       => groupSpeedOffset     // tuned value [%]
+);
+groupDeltaRatioAll := 1.0 + (groupSpeedOffset * 0.01);
+
+//==============================================================
+// 9) References
+//    - Master (firstPress): apply groupSpeedOffset
+//    - Slave  (secondPress): follow ramped master * (gearRatio + offset)
+//==============================================================
+firstPressDriveSpeedRefPct :=
+    LIMIT(0.0, MIN(baseMasterRefPct * groupDeltaRatioAll, allowedCapPct), 100.0);
+
+secondPressDriveSpeedRefPct :=
+    LIMIT(0.0, firstPressDriveSpeedRefPct * denom, 100.0);
+
+//==============================================================
+// 10) Final clamp and downstream handoff
+//==============================================================
+firstPressDriveSpeedRefPct  := LIMIT(0.0, firstPressDriveSpeedRefPct, 100.0);
+secondPressDriveSpeedRefPct := LIMIT(0.0, secondPressDriveSpeedRefPct, 100.0);
+
+// Suggest reference to next section/group
+nextGroupSpeedRefPct := firstPressDriveSpeedRefPct;
+
+// Also forward the next group reference in m/min
+nextGroupSpeedRefMPM := _Scale(
+    X    := nextGroupSpeedRefPct,
+    I_LO := 0.0,          I_HI := 100.0,
+    O_LO := 0.0,          O_HI := groupMaxSpeed);
+
+// Remember current mode for external logic (if used elsewhere)
+groupSpeedAutoManOld := groupSpeedAutoMan;
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_Scale" Id="{def6cc47-00ea-401f-8e17-6028f1756083}">
+      <Declaration><![CDATA[METHOD PRIVATE _Scale : REAL
+VAR_INPUT
+    X    : REAL;
+    I_LO : REAL;
+    I_HI : REAL;
+    O_LO : REAL;
+    O_HI : REAL;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF I_LO = I_HI THEN
+	_Scale := O_LO;
+ELSE
+	_Scale := (O_HI - O_LO) / (I_HI - I_LO) * (LIMIT(I_LO, X, I_HI) - I_LO) + O_LO;
+END_IF;
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_SpeedDifferenceCheck" Id="{1d44cf9d-58ab-4709-a82d-941ff448eb8e}">
+      <Declaration><![CDATA[// ============================== Methods ==============================
+// Intra-section speed supervision for Press Section (firstPress ↔ secondPress)
+METHOD _SpeedDifferenceCheck
+VAR_INPUT
+END_VAR
+VAR
+    diffPress : REAL;   // Absolute speed difference between master and slave
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[
+// ── Compare only within the press section: Master (firstPress) ↔ Slave (secondPress)
+diffPress := ABS(firstPressSpeedMPMFilteredDisplay - secondPressSpeedMPMFilteredDisplay);
+
+// Expose live deviation for diagnostics / HMI
+currentSpeedDifence := diffPress;
+
+// ── Trip logic with delay (debounce), matching reference behavior
+instTONSpeedDifDelay(
+    IN := (diffPress > speedDiferenceLimit),
+    PT := T#2s
+);
+
+IF instTONSpeedDifDelay.Q THEN
+    state := 10; // FAULT
+    deviceState := 'FAULT: Press speed difference exceeded';
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_StateDisplay" Id="{ba0fb43f-62be-440a-b5ac-cf11c2aa57c9}">
+      <Declaration><![CDATA[METHOD _StateDisplay
+VAR_INPUT
+END_VAR
+
+// ──────────────────────────────────────────────────────────────────────────────
+// _StateDisplay — Press Section (firstPress = Master, secondPress = Slave)
+// Maps the internal machine "state" to a compact HMI status code and derives
+// per-drive motor status codes from VFD signals.
+//
+// statusCode / firstPressStatusCode / secondPressStatusCode legend:
+//   0 = Idle, 1 = Starting, 2 = Running, 3 = Fault
+//
+// Machine "state" groups:
+//   0 = IDLE, 1 = ENABLE, 2 = WAIT_EN, 3 = RAMP_EN, 4 = RUN, 5 = STOPPING, 10 = FAULT
+// Priority rule (for motors): Fault > Running > Starting > Idle
+// ──────────────────────────────────────────────────────────────────────────────
+VAR CONSTANT
+    STATUS_IDLE     : INT := 0;
+    STATUS_STARTING : INT := 1;
+    STATUS_RUNNING  : INT := 2;
+    STATUS_FAULT    : INT := 3;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[
+// ─────────────── Group machine states into a single HMI statusCode ───────────
+CASE state OF
+    10: // FAULT
+        statusCode := STATUS_FAULT;
+    4:  // RUN
+        statusCode := STATUS_RUNNING;
+    1, 2, 3: // ENABLE / WAIT_EN / RAMP_EN
+        statusCode := STATUS_STARTING;
+ELSE   // IDLE, STOPPING, or any other
+        statusCode := STATUS_IDLE;
+END_CASE;
+
+
+// ─────────────── Per-drive status (priority: Fault > Running > Starting > Idle) ───────────────
+// FIRST PRESS (MASTER)
+IF firstPressVfdFaultFeedback THEN
+    firstPressStatusCode := STATUS_FAULT;
+ELSIF firstPressVfdRunFeedback THEN
+    firstPressStatusCode := STATUS_RUNNING;
+ELSIF firstPressDriveEnable THEN
+    firstPressStatusCode := STATUS_STARTING;
+ELSE
+    firstPressStatusCode := STATUS_IDLE;
+END_IF;
+
+// SECOND PRESS (SLAVE)
+IF secondPressVfdFaultFeedback THEN
+    secondPressStatusCode := STATUS_FAULT;
+ELSIF secondPressVfdRunFeedback THEN
+    secondPressStatusCode := STATUS_RUNNING;
+ELSIF secondPressDriveEnable THEN
+    secondPressStatusCode := STATUS_STARTING;
+ELSE
+    secondPressStatusCode := STATUS_IDLE;
+END_IF;
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_TorqueReference" Id="{5794001f-f9ec-45eb-91a5-d74e777f6550}">
+      <Declaration><![CDATA[METHOD PRIVATE _TorqueReference
+VAR
+    // MASTER (firstPress)
+    rawTorqueMaster        : REAL;
+    filteredTorqueMaster   : REAL;
+    capMaster              : REAL; // ≤ master, ≤ global max
+    baseLimit              : REAL; // (master + offset) capped by master
+    directTorque           : REAL; // direct write portion (when PID enabled)
+    trimUp                 : REAL; // PID top-up (≥0)
+
+    // SLAVE (secondPress)
+    avgTorqueSlave         : REAL; // here it's just the slave torque feedback
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[
+
+// ── MASTER (firstPress) ───────────────────────────────────────────────────────
+rawTorqueMaster := firstPressTorqueFeedback;
+
+// Process (control) filter for torque — distinct from HMI display filter
+instFT_PT1FirstPressTorqueFilter(
+    in  := rawTorqueMaster,
+    T   := torqueFilterTime,
+    K   := 1.0,
+    out => filteredTorqueMaster
+);
+
+// Master cap and base limit (never exceed master torque or global limits)
+capMaster := LIMIT(torqueLimitMinPct, filteredTorqueMaster, torqueLimitMaxPct);
+baseLimit := MIN(
+    capMaster,
+    LIMIT(torqueLimitMinPct, filteredTorqueMaster + slaveTorqueOfsset, torqueLimitMaxPct)
+);
+
+// ── SLAVE (secondPress) torque reference ──────────────────────────────────────
+IF NOT enableTorquePid THEN
+    // No PID: slave tracks capped master torque directly
+    secondPressDriveTorqueRefPct := capMaster;
+
+ELSE
+    // With PID: allow small positive trim on top of a reduced "direct" part
+    directTorque   := LIMIT(torqueLimitMinPct, baseLimit - torqueTrimLimit, capMaster);
+    avgTorqueSlave := secondPressTorqueFeedback; // only one slave in Press section
+
+    instCTRL_PID_SecondPressTorqueTrim(
+        ACT := avgTorqueSlave,           // measured slave torque
+        SET := baseLimit,                // target = capped master (+offset)
+        MAN := NOT enableTorquePid,      // manual when disabled (tracks 0)
+        M_I := 0.0,                      // manual input (unused)
+        RST := FALSE,                    // no reset pulse here
+        KP  := torqueCtrlKp,
+        TN  := torqueCtrlTn,
+        TV  := torqueCtrlTv,
+        LL  := 0.0,                      // unipolar trim (only add)
+        LH  := torqueTrimLimit,          // limit the trim magnitude
+        Y   => trimUp
+    );
+
+    secondPressDriveTorqueRefPct :=
+        LIMIT(torqueLimitMinPct, directTorque + trimUp, capMaster);
+END_IF
+
+// Expose common torque limit used for slave
+slaveDriveTorqueLimit := capMaster;
+
+// ── Safety hold-off (INIT / STOPPING / FAULT) ────────────────────────────────
+IF (state < 3) OR (state = 5) OR (state = 10) THEN
+    secondPressDriveTorqueRefPct := 0.0;
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_PressSectionDriveControl_V1">
+      <LineId Id="2920" Count="2" />
+      <LineId Id="3011" Count="0" />
+      <LineId Id="2923" Count="2" />
+      <LineId Id="2929" Count="2" />
+      <LineId Id="3010" Count="0" />
+      <LineId Id="1138" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_PressSectionDriveControl_V1._alarmsDisplay">
+      <LineId Id="133" Count="36" />
+      <LineId Id="171" Count="6" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_PressSectionDriveControl_V1._auxiliaryControls">
+      <LineId Id="6" Count="60" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_PressSectionDriveControl_V1._FeedbackDisplay">
+      <LineId Id="79" Count="0" />
+      <LineId Id="46" Count="0" />
+      <LineId Id="80" Count="0" />
+      <LineId Id="47" Count="27" />
+      <LineId Id="13" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_PressSectionDriveControl_V1._GroupControl">
+      <LineId Id="925" Count="156" />
+      <LineId Id="128" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_PressSectionDriveControl_V1._ReferenceGenerator">
+      <LineId Id="2132" Count="134" />
+      <LineId Id="20" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_PressSectionDriveControl_V1._Scale">
+      <LineId Id="1" Count="5" />
+    </LineIds>
+    <LineIds Name="FB_PressSectionDriveControl_V1._SpeedDifferenceCheck">
+      <LineId Id="378" Count="16" />
+      <LineId Id="27" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_PressSectionDriveControl_V1._StateDisplay">
+      <LineId Id="227" Count="35" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_PressSectionDriveControl_V1._TorqueReference">
+      <LineId Id="751" Count="54" />
+      <LineId Id="159" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

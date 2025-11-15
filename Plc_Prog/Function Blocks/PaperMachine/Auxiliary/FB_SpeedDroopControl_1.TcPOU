@@ -1,0 +1,176 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.15">
+  <POU Name="FB_SpeedDroopControl_1" Id="{bd11e35f-3a0b-43f4-bc84-b35e3e13c462}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_SpeedDroopControl_1
+VAR_INPUT
+
+
+	startGroup		: BOOL;
+	groupFault		: BOOL;
+	
+	
+	machineSpeedMPM	: REAL;
+	
+	machineMinSpeed	: REAL	:= 0.0;
+	machineMaxSpeed	: REAL	:= 600.0;
+	
+	
+	motorMaxSpeedMPM	: REAL := 600.0;
+	
+	
+	speedAutoMan		: BOOL; //Speed selector (0 = Man / 1 = Auto)
+	groupManualSpeedMPM	: REAL := 50.0;
+	
+	
+	gearRatio : REAL := 1.0;
+	
+	
+	recovery	: BOOL; //When pressed increase the group speed
+	recoveryPct	: REAL;	//Paper recovery percentage this value is incremented to the speed setpoint	
+	
+	speedDifInc	: BOOL;
+	speedDifDec	: BOOL;
+	
+	speedDifRate	: REAL := 0.1;
+	speedDifLimLow	: REAL := -10.0;	
+	speedDifLimHigh	: REAL := 10.0;
+
+	
+	rampRate	: REAL := 0.1;
+	
+	
+
+END_VAR
+
+VAR_OUTPUT
+	
+(*Slave setpoint variables*)
+	driveSpeedRefPct  : REAL;		(*Speed reference to the drive*)
+	driveSpeedRefPctRamp  : REAL;	(*Speed reference to the drive*)
+	speedDifPct				: REAL;
+	
+	
+	driveEnable		: BOOL;
+
+END_VAR
+
+VAR
+	
+	currentMachineSpeedPCT  : REAL;
+	instTUNE2_SpeedDifGen	: TUNE2;
+	instFB_Gen_SRamp	: FB_Gen_SRamp;
+
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[currentMachineSpeedPCT  := _Scale(machineSpeedMPM,0.0,machineMaxSpeed,0.0,100);
+
+
+IF recovery THEN
+	
+	driveSpeedRefPct := (currentMachineSpeedPCT * gearRatio ) + speedDifPct;
+	
+ELSE
+	
+	driveSpeedRefPct := (currentMachineSpeedPCT * gearRatio ) + speedDifPct + recoveryPct; 
+
+END_IF
+
+
+_SpeedDifGenerator();
+_RampGenerator();]]></ST>
+    </Implementation>
+    <Method Name="_RampGenerator" Id="{e078f713-3575-4f38-a9d1-9e5c3cca2e4f}">
+      <Declaration><![CDATA[METHOD _RampGenerator
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[instFB_Gen_SRamp(
+	X:= driveSpeedRefPct, 
+	A_UP:= rampRate, 
+	A_DN:= -rampRate, 
+	VU_MAX:= 1.0, 
+	VD_MAX:= -1.0, 
+	LIMIT_HIGH:= 100.0, 
+	LIMIT_LOW:= 0.0, 
+	RST:= , 
+	Y=> driveSpeedRefPctRamp, 
+	V=> );]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_Scale" Id="{102b9fd2-3e4b-4f4d-b7b2-cc4131255092}">
+      <Declaration><![CDATA[METHOD PRIVATE _Scale : REAL
+VAR_INPUT
+	
+	X : REAL;
+	I_LO : REAL;
+	I_HI : REAL;
+	O_LO : REAL;
+	O_HI : REAL;
+	
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF I_LO = I_HI THEN
+	_Scale := O_LO;
+ELSE
+	_Scale := (O_HI - O_LO) / (I_HI - I_LO) * (LIMIT(I_LO, X, I_HI) - I_LO) + O_LO;
+END_IF;
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_SpeedDifGenerator" Id="{960234fc-feb4-45a3-846b-51aa436771ce}">
+      <Declaration><![CDATA[METHOD _SpeedDifGenerator
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[instTUNE2_SpeedDifGen(
+	SET:= , 
+	SU:= speedDifInc, 
+	SD:= speedDifDec, 
+	FU:= , 
+	FD:= , 
+	RST:= , 
+	SS:= speedDifRate, 
+	FS:= speedDifRate, 
+	Limit_L:= speedDifLimLow, 
+	LIMIT_H:= speedDifLimHigh, 
+	RST_val:= , 
+	SET_val:= , 
+	TR:= , 
+	S1:= , 
+	S2:= , 
+	Y=> speedDifPct);
+	]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_SpeedDroopControl_1">
+      <LineId Id="329" Count="1" />
+      <LineId Id="343" Count="0" />
+      <LineId Id="331" Count="0" />
+      <LineId Id="344" Count="0" />
+      <LineId Id="347" Count="0" />
+      <LineId Id="351" Count="0" />
+      <LineId Id="346" Count="0" />
+      <LineId Id="350" Count="0" />
+      <LineId Id="348" Count="1" />
+      <LineId Id="345" Count="0" />
+      <LineId Id="333" Count="1" />
+      <LineId Id="301" Count="0" />
+      <LineId Id="338" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_SpeedDroopControl_1._RampGenerator">
+      <LineId Id="6" Count="9" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_SpeedDroopControl_1._Scale">
+      <LineId Id="1" Count="5" />
+    </LineIds>
+    <LineIds Name="FB_SpeedDroopControl_1._SpeedDifGenerator">
+      <LineId Id="6" Count="15" />
+      <LineId Id="5" Count="0" />
+      <LineId Id="28" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

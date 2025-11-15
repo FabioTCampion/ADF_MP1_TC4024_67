@@ -1,0 +1,14 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.15">
+  <DUT Name="C2000_PDOS" Id="{01da06ea-2e76-09fa-0a76-f95e5f815115}">
+    <Declaration><![CDATA[TYPE C2000_PDOS :
+STRUCT
+	
+	DrvToPLC : C2000_DRVTOPLC_PDOS;
+	PlcToDrv : C2000_PLCTODRV_PDOS;		
+
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

@@ -1,0 +1,173 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.15">
+  <POU Name="FB_DryingSectionPressureControl" Id="{d26cee54-40c7-4174-9eb4-5ea95be3ae1b}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_DryingSectionPressureControl
+VAR_INPUT
+    // Curve config
+    holdPressureBar           : REAL := 0.1;
+    holdTimeMin               : DINT := 60;
+    finalPressureBar          : REAL := 6.0;
+    heatingCurveTotalTimeMin  : DINT := 360;
+
+    // Commands & enables
+    startCmd           : BOOL;
+    stopCmd            : BOOL;
+    resetCmd           : BOOL;
+    heatingCurveEnable : BOOL;   // <-- gate for the curve
+
+    // PID I/O & params
+    steamPressureFeedback        : REAL;
+    steamPressureAutoMan         : BOOL;  // FALSE=Manual, TRUE=Auto
+    steamPressureAutoSetpoint    : REAL;  // Auto setpoint when curve is disabled
+    steamPressureManualSetpoint  : REAL;
+    steamPressureKp : REAL := 1.5;   // proportional gain
+    steamPressureTn : REAL := 20.0;  // integral time [s]
+    steamPressureTv : REAL := 0.2;   // derivative time [s]
+	
+END_VAR
+
+VAR_OUTPUT
+    steamPressureSetpointBar       : REAL; // Auto setpoint from curve (0 if stopped/disabled)
+    steamPressureControllerOutput  : REAL; // PID output to solenoid
+END_VAR
+
+VAR
+    // Timing
+    tonMinutePulse : TON;
+    minuteCounter  : DINT;
+    rampElapsedMin : DINT;
+
+    // Curve math
+    pressureIncrementPerMin : REAL;
+
+    // State
+    isRunning : BOOL;
+    isReset   : BOOL;
+
+    // Filtering
+    instPT1_SteamPressureFiltered : FT_PT1;
+    filteredSteamPressureFeedback : REAL;
+instCTRL_PID_TemperatureController : CTRL_PID;
+    // PID setpoint selection
+    effectiveSetpoint : REAL;
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[
+//────────────────────────────────────
+// RESET LOGIC
+//────────────────────────────────────
+IF resetCmd THEN
+    minuteCounter := 0;
+    isRunning := FALSE;
+    isReset := TRUE;
+END_IF
+
+// If curve is disabled at any time, force not running
+IF NOT heatingCurveEnable THEN
+    isRunning := FALSE;
+END_IF
+
+//────────────────────────────────────
+// START/STOP LOGIC
+//────────────────────────────────────
+IF heatingCurveEnable AND startCmd AND NOT isReset THEN
+    isRunning := TRUE;     // start curve
+    isReset := FALSE;
+END_IF
+
+IF stopCmd THEN
+    isRunning := FALSE;    // stop curve (counter preserved to resume later)
+END_IF
+
+//────────────────────────────────────
+// TON MINUTE TIMER (1-minute base)
+//────────────────────────────────────
+IF isRunning THEN
+    tonMinutePulse(IN := TRUE, PT := T#1S);
+
+    IF tonMinutePulse.Q THEN
+        minuteCounter := minuteCounter + 1;
+        tonMinutePulse(IN := FALSE); // Reset TON
+    END_IF;
+ELSE
+    tonMinutePulse(IN := FALSE);
+END_IF
+
+//────────────────────────────────────
+// HEATING CURVE SETPOINT CALCULATION
+// (Only when curve is enabled; otherwise keep it at 0)
+//────────────────────────────────────
+IF heatingCurveEnable AND isRunning THEN
+    pressureIncrementPerMin := (finalPressureBar - holdPressureBar) / heatingCurveTotalTimeMin;
+
+    IF minuteCounter <= holdTimeMin THEN
+        // Phase 1: Hold
+        steamPressureSetpointBar := holdPressureBar;
+
+    ELSIF minuteCounter <= (holdTimeMin + heatingCurveTotalTimeMin) THEN
+        // Phase 2: Ramp
+        rampElapsedMin := minuteCounter - holdTimeMin;
+        steamPressureSetpointBar := holdPressureBar + rampElapsedMin * pressureIncrementPerMin;
+
+    ELSE
+        // Phase 3: Final hold
+        steamPressureSetpointBar := finalPressureBar;
+    END_IF;
+ELSE
+    // Curve disabled or stopped => do not provide curve setpoint
+    steamPressureSetpointBar := 0.0;
+END_IF
+
+//────────────────────────────────────
+// PT1 FILTER — Smooth feedback input
+//────────────────────────────────────
+instPT1_SteamPressureFiltered(
+    in  := steamPressureFeedback,
+    T   := T#2S,
+    K   := 1.0,
+    out => filteredSteamPressureFeedback
+);
+
+//────────────────────────────────────
+// PID SETPOINT SELECTION
+//  - Manual: use steamPressureManualSetpoint
+//  - Auto:
+//      * If heatingCurveEnable = TRUE and (curve running or has progressed), use curve setpoint
+//      * Else use steamPressureAutoSetpoint (external auto setpoint)
+//────────────────────────────────────
+IF NOT steamPressureAutoMan THEN
+    // Manual mode
+    effectiveSetpoint := steamPressureManualSetpoint;
+ELSE
+    // Auto mode
+    IF heatingCurveEnable AND (isRunning OR (minuteCounter > 0)) THEN
+        effectiveSetpoint := steamPressureSetpointBar;     // use the curve
+    ELSE
+        effectiveSetpoint := steamPressureAutoSetpoint;    // curve disabled → external auto SP
+    END_IF
+END_IF
+
+//────────────────────────────────────
+// PID CONTROLLER
+//────────────────────────────────────
+instCTRL_PID_TemperatureController(
+    ACT := filteredSteamPressureFeedback,
+    SET := effectiveSetpoint,
+    MAN := NOT steamPressureAutoMan,
+    M_I := steamPressureManualSetpoint,
+    RST := FALSE,
+    KP  := steamPressureKp,
+    TN  := steamPressureTn,
+    TV  := steamPressureTv,
+    LL  := 0.0,
+    LH  := 5.0,
+    Y   => steamPressureControllerOutput
+);
+]]></ST>
+    </Implementation>
+    <LineIds Name="FB_DryingSectionPressureControl">
+      <LineId Id="203" Count="110" />
+      <LineId Id="9" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

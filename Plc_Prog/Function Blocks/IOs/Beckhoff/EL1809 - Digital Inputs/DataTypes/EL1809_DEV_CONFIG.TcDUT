@@ -1,0 +1,31 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.15">
+  <DUT Name="EL1809_DEV_CONFIG" Id="{75891318-dc6e-49ac-8092-48ef68f4cbaa}">
+    <Declaration><![CDATA[TYPE EL1809_DEV_CONFIG :
+    STRUCT
+       
+		enableForce	: BOOL;
+		forceDigitalInput_00 : BOOL;
+		forceDigitalInput_01 : BOOL;
+		forceDigitalInput_02 : BOOL;
+		forceDigitalInput_03 : BOOL;
+		forceDigitalInput_04 : BOOL;
+		forceDigitalInput_05 : BOOL;
+		forceDigitalInput_06 : BOOL;
+		forceDigitalInput_07 : BOOL;
+		forceDigitalInput_08 : BOOL;
+		forceDigitalInput_09 : BOOL;
+		forceDigitalInput_10 : BOOL;
+		forceDigitalInput_11 : BOOL;
+		forceDigitalInput_12 : BOOL;
+		forceDigitalInput_13 : BOOL;
+		forceDigitalInput_14 : BOOL;
+		forceDigitalInput_15 : BOOL;
+
+
+    END_STRUCT
+END_TYPE
+
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

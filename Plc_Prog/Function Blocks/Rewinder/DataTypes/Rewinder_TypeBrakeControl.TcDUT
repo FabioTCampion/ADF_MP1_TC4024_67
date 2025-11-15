@@ -1,0 +1,16 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.15">
+  <DUT Name="Rewinder_TypeBrakeControl" Id="{96178b58-f902-4084-8d38-a4e40fc28837}">
+    <Declaration><![CDATA[TYPE Rewinder_TypeBrakeControl :
+	STRUCT
+		
+	
+		rollDiameter		: REAL;			//Forming board manual speed (Slow speed)
+		pressureSetpoint	: REAL;			//Forming board manual speed (Slow speed)
+		tensionSetpoint		: REAL;
+			
+	END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

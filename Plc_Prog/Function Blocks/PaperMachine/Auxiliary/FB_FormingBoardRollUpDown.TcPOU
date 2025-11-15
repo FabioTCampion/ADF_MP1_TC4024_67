@@ -1,0 +1,64 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.15">
+  <POU Name="FB_FormingBoardRollUpDown" Id="{72fcbb29-8147-4b1c-bd1e-a94c563b4db7}" SpecialFunc="None">
+    <Declaration><![CDATA[(*---------------------------------------------------------------
+  FB_FormingBoardRollUpDown
+  Purpose:
+    - Drive "Roll Up" / "Roll Down" with safety interlocks
+  Behavior:
+    - Fault = TRUE  -> both outputs OFF
+    - Limit sensors inhibit motion toward that limit
+    - If both commands are pressed simultaneously -> no motion
+    - Outputs are mutually exclusive
+  Notes:
+    - Variable names kept exactly as provided (e.g., limitDOwnSensor)
+----------------------------------------------------------------*)
+
+FUNCTION_BLOCK FB_FormingBoardRollUpDown
+VAR_INPUT
+    rollUpCmd      : BOOL;   // Command request to roll UP (active-high)
+    rollDownCmd    : BOOL;   // Command request to roll DOWN (active-high)
+    limitUpSensor  : BOOL;   // TRUE when upper limit is reached (stop further UP)
+    limitDOwnSensor: BOOL;   // TRUE when lower limit is reached (stop further DOWN)
+    fault          : BOOL;   // TRUE = fault present -> outputs forced OFF
+END_VAR
+
+VAR_OUTPUT
+    rollUp         : BOOL;   // Drive UP output (mutually exclusive with rollDown)
+    rollDown       : BOOL;   // Drive DOWN output (mutually exclusive with rollUp)
+END_VAR
+
+VAR
+    // Internal permission and arbitration flags
+    upAllowed      : BOOL;
+    downAllowed    : BOOL;
+    bothPressed    : BOOL;
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[
+// 1) Resolve simultaneous commands (prefer safety: do not move)
+bothPressed := rollUpCmd AND rollDownCmd;
+
+// 2) Compute permissions considering fault and limit sensors
+//    - When a limit sensor is active, inhibit motion further in that direction.
+upAllowed   := (NOT fault)
+               AND (NOT bothPressed)
+               AND rollUpCmd
+               AND (NOT limitUpSensor);
+
+downAllowed := (NOT fault)
+               AND (NOT bothPressed)
+               AND rollDownCmd
+               AND (NOT limitDOwnSensor);
+
+// 3) Final outputs (mutually exclusive)
+rollUp   := upAllowed  AND (NOT downAllowed);
+rollDown := downAllowed AND (NOT upAllowed);]]></ST>
+    </Implementation>
+    <LineIds Name="FB_FormingBoardRollUpDown">
+      <LineId Id="21" Count="0" />
+      <LineId Id="48" Count="16" />
+      <LineId Id="27" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

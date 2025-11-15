@@ -1,0 +1,652 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.15">
+  <POU Name="FB_RewinderControl_V1" Id="{0a676068-7b1e-4267-8851-4e9750c7a11f}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_RewinderControl_V1
+VAR_INPUT
+
+    //==============================================================
+    // ─────────────── BASIC COMMANDS / MACHINE INTERFACE ───────────────
+    //==============================================================
+    startCmd                    : BOOL;  // EN: Start rewinder command / PT: Comando de partida do rebobinador
+    stopCmd                     : BOOL;  // EN: Stop rewinder command / PT: Comando de parada do rebobinador
+	
+	jogCmd						: BOOL;
+  
+	rewinderAutoMan            : BOOL;  // EN: Auto/Manual selector (FALSE = Manual) / PT: Seletor Auto/Manual (FALSE = Manual)
+
+	
+	rollEjectorFwCmd			: BOOL;
+	rollEjectorRevCmd			: BOOL;
+	
+	
+	
+    //==============================================================
+    // ─────────────── SPEED MONITORING / LIMITS ───────────────
+    //==============================================================
+    speedFeedBackMPM           : REAL;  // EN: Actual machine speed [m/min] / PT: Velocidade atual da máquina [m/min]
+    groupMaxSpeed              : REAL;  // EN: Max allowed speed [m/min] / PT: Velocidade máxima permitida [m/min]
+
+    //==============================================================
+    // ─────────────── PRESS ROLL / NIP CONTROL ───────────────
+    //==============================================================
+    pressRollAutoMan           : BOOL;  // EN: Press roll Auto/Manual selector (FALSE = Manual) / PT: Seletor Auto/Manual do rolo de pressão (FALSE = Manual)
+  
+    pressRollManualSetpoint    : REAL;  // EN: Manual press roll setpoint / PT: Setpoint manual de posição/pressão do rolo de pressão
+    //==============================================================
+    // ─────────────── PRESS ROLL / NIP OUTPUTS ───────────────
+    //==============================================================
+
+    pressRollCmdUp             : BOOL;  // EN: Output command to open press roll / PT: Comando de abertura do rolo de pressão
+    pressRollCmdDown           : BOOL;  // EN: Output command to close press roll / PT: Comando de fechamento do rolo de pressão
+
+    //==============================================================
+    // ─────────────── DIAMETER INPUTS ───────────────
+    //==============================================================
+    rewinderRollDiameter       : REAL;  // EN: Rewinder roll (winding) diameter [mm] / PT: Diâmetro do rolo rebobinado [mm]
+    unwinderRollDiameter       : REAL;  // EN: Unwinder roll (payoff) diameter [mm] / PT: Diâmetro do rolo desbobinado [mm]
+
+    //==============================================================
+    // ─────────────── TENSION CONTROL ───────────────
+    //==============================================================
+    tensionSetpointN           : REAL;  // EN: Web tension setpoint [N] / PT: Setpoint de tensão da folha [N]
+    tensionFeedbackN           : REAL;  // EN: Web tension feedback from load cell [N] / PT: Leitura de tensão da célula de carga [N]
+    tensionControlEnable       : BOOL;  // EN: Enable tension control / PT: Habilita controle de tensão
+
+    //==============================================================
+    // ─────────────── ROLL LIMITS ───────────────
+    //==============================================================
+    maxRewinderDiameter        : REAL;  // EN: Max rewinder roll diameter [mm] / PT: Diâmetro máximo do rebobinador [mm]
+
+    //==============================================================
+    // ─────────────── SAFETY / INTERLOCKS ───────────────
+    //==============================================================
+    safetyCircuitOK            : BOOL;  // EN: Safety circuit healthy / PT: Circuito de segurança OK
+    webBreakSensor             : BOOL;  // EN: Web break sensor triggered / PT: Sensor de ruptura de folha
+
+    //==============================================================
+    // ─────────────── SPEED REFERENCE INPUTS ───────────────
+    //==============================================================
+    rewinderAutoSpeedRefMPM    : REAL;  // EN: Auto speed reference (external) [m/min] / PT: Referência automática de velocidade [m/min]
+    rewinderManualSpeedRefMPM  : REAL;  // EN: Manual speed reference [m/min] / PT: Referência manual de velocidade [m/min]
+    rampRate                   : REAL := 0.01;  // EN: Ramp acceleration rate [%/s] / PT: Taxa de aceleração da rampa [%/s]
+	
+	
+    //==============================================================
+    // ─────────────── WEB GUIDING / EDGE CONTROL ───────────────
+    //==============================================================
+    unwinderRollOperatorSideCmd   : BOOL;  // EN: Operator-side web guide control / PT: Controle de guia lado operador
+    unwinderRollDriveSideCmd      : BOOL;  // EN: Drive-side web guide control / PT: Controle de guia lado acionamento
+	unwinderRollOperatorSideLimitSensor   : BOOL;  // EN: Operator-side web guide control / PT: Controle de guia lado operador
+    unwinderRollDriveSideLimitSensor      : BOOL;  // EN: Drive-side web guide control / PT: Controle de guia lado acionamento
+    unwinderShaftLockedSensor      		: BOOL;  // EN: Drive-side web guide control / PT: Controle de guia lado acionamento
+    unwinderRollBrakeCoupledSensor      : BOOL;  // EN: Drive-side web guide control / PT: Controle de guia lado acionamento
+	
+   rewinderCoreClampSolenoidCmd : BOOL;   // EN: Solenoid valve command to lock (clamp) the core of the rewinding roll / PT: Comando da válvula solenóide que trava o tubete (manga) do rolo em enrolamento
+
+	// ─────────────── ROLL CHUTE / BIN INPUTS ───────────────
+	rollBinAtLoadPositionSensor     : BOOL;   // EN: Sensor — bin/chute at load position / PT: Sensor — caçamba na posição de carga	
+	rollBinAtUnloadPositionSensor   : BOOL;   // EN: Sensor — bin/chute at unload position / PT: Sensor — caçamba na posição de descarte
+	rollBinRequestUnloadPosCmd      : BOOL;   // EN: Command to trigger bin unloading / PT: Comando para iniciar descarregamento da caçamba	
+	rollBinRequestLoadPosCmd      : BOOL;   // EN: Command to trigger bin unloading / PT: Comando para iniciar descarregamento da caçamba	
+	rollBinSafetySensor     : BOOL;   // EN: Command to trigger bin unloading / PT: Comando para iniciar descarregamento da caçamba	
+   
+   machineConfig				: RewinderConfig_TypeStruct;
+   
+
+END_VAR
+
+VAR_OUTPUT
+
+	deviceState				: STRING;
+
+    rewinderRollDiameterFiltered       : REAL;  // EN: Rewinder roll (winding) diameter [mm] / PT: Diâmetro do rolo rebobinado [mm]
+    unwinderRollDiameterFiltered       : REAL;  // EN: Unwinder roll (payoff) diameter [mm] / PT: Diâmetro do rolo desbobinado [mm]
+
+    //==============================================================
+    // ─────────────── REWINDER DRIVE OUTPUTS ───────────────
+    //==============================================================
+    rewinderMotorStart         : BOOL;  // EN: Start/enable command for rewinder drive / PT: Comando de habilitação do motor rebobinador
+    rewinderMotorSpeedRefMPM   : REAL;  // EN: Speed reference [m/min] / PT: Referência de velocidade [m/min]
+    rewinderMotorSpeedRefPct   : REAL;  // EN: Speed/torque reference [%] / PT: Referência de velocidade/torque [%]
+
+
+    //==============================================================
+    // ─────────────── UNWINDER BRAKE OUTPUT ───────────────
+    //==============================================================
+    brakeSetpointPct           : REAL;  // EN: Unwinder brake setpoint [%] / PT: Setpoint do freio do desbobinador [%]
+
+    //==============================================================
+    // ─────────────── WEB GUIDING / EDGE CONTROL ───────────────
+    //==============================================================
+    unwinderRollOperatorSide   : BOOL;  // EN: Operator-side web guide control / PT: Controle de guia lado operador
+    unwinderRollDriveSide      : BOOL;  // EN: Drive-side web guide control / PT: Controle de guia lado acionamento
+	
+	ressRollUP                : BOOL;  // EN: Command to lift/open press roll / PT: Comando para levantar/abrir o rolo de pressão
+    pressRollDown              : BOOL;  // EN: Command to lower/close press roll / PT: Comando para descer/fechar o rolo de pressão  
+	pressRollSetpoint          : REAL;  // EN: Final press roll setpoint / PT: Setpoint final do rolo de pressão
+	rewinderCoreClampSolenoid : BOOL;   // EN: Solenoid valve command to lock (clamp) the core of the rewinding roll / PT: Comando da válvula solenóide que trava o tubete (manga) do rolo em enrolamento
+
+	
+	rollEjectorFw			: BOOL;
+	rollEjectorRev			: BOOL;
+	
+	rollBinRequestUnloadPos      : BOOL;   // EN: Command to trigger bin unloading / PT: Comando para iniciar descarregamento da caçamba	
+	rollBinRequestLoadPos      : BOOL;   // EN: Command to trigger bin unloading / PT: Comando para iniciar descarregamento da caçamba	
+			
+	
+END_VAR
+
+VAR
+
+    i                      : INT;
+    x0, x1, y0, y1         : REAL;
+    interpOutput           : REAL;
+
+	firstCycle		: BOOL := TRUE;
+    //==============================================================
+    // ─────────────── RAMP BLOCK / REFERENCES ───────────────
+    //==============================================================
+    instFB_Gen_SRamp           : FB_Gen_SRamp; // EN: S-curve ramp function block / PT: Bloco de rampa S
+	
+    instFB_Gen_SRampPressRoll           : FB_Gen_SRamp; // EN: S-curve ramp function block / PT: Bloco de rampa S
+    instFB_Gen_SRampBrake           	: FB_Gen_SRamp; // EN: S-curve ramp function block / PT: Bloco de rampa S
+	
+	
+    rampTargetPct              : REAL;         // EN: Target % reference for ramp / PT: Referência alvo [%] para a rampa
+    rampReset                  : BOOL;         // EN: Ramp reset command / PT: Comando de reset da rampa
+
+    //==============================================================
+    // ─────────────── INTERNAL STATE / EDGE DETECT ───────────────
+    //==============================================================
+    rewinderState              : INT;          // EN: Main state (0=IDLE .. 5=STOPPING .. 10=FAULT) / PT: Estado principal (0=IDLE .. 5=PARANDO .. 10=FALHA)
+    startCmdOld                : BOOL;
+    stopCmdOld                 : BOOL;
+    rStart                     : BOOL;         // EN: Rising edge detector for start / PT: Borda de subida para partida
+    rStop                      : BOOL;         // EN: Rising edge detector for stop / PT: Borda de subida para parada
+//    state                      : INT;
+
+    //==============================================================
+    // ─────────────── TIMERS ───────────────
+    //==============================================================
+    tonEnableWait              : TON;          // EN: Delay after enable / PT: Retardo após habilitação
+    tonStopWait                : TON;          // EN: Delay after stop / PT: Retardo após parada
+    enableTimeout              : TIME := T#5S;
+    stopTimeout                : TIME := T#8S;
+
+    //==============================================================
+    // ─────────────── LOGIC CONDITIONS ───────────────
+    //==============================================================
+    anyFault                   : BOOL;         // EN: Any fault detected / PT: Alguma falha presente
+    speedsNearZero             : BOOL;         // EN: TRUE if speed below threshold / PT: Verdadeiro se velocidade for baixa
+    refsNearZero               : BOOL;         // EN: TRUE if reference near zero / PT: Verdadeiro se referência for próxima de zero
+    speedZeroThresholdMPM      : REAL := 3.0;  // EN: Below this = zero speed / PT: Abaixo disso considera parado
+    epsRefMPM                  : REAL := 0.5;  // EN: Small epsilon for speed reference / PT: Margem mínima para referência de velocidade
+
+    //==============================================================
+    // ─────────────── FEEDBACKS ───────────────
+    //==============================================================
+    rewinderReadyFeedback      : BOOL;         // EN: Ready signal from drive / PT: Sinal de pronto do inversor
+
+	rollEjectorFwCmdOld			: BOOL;
+	
+	  rRollEjectorFwCmd : BOOL; // Rising edge for forward
+	  
+	  
+    // ---------- Limits & helpers ----------
+    headroomEpsPct      : REAL := 0.20;     // anti-chatter near saturation (100%)
+    allowedCapPct       : REAL;             // master upward cap (prevents >100%)
+    cmdSpeedMPM         : REAL;             // selected command speed (m/min)
+    targetPct           : REAL;             // 0..100 scaled reference before ramp
+    currMasterPct       : REAL;             // current ramp output (%)
+    baseCmdSpeedMPM     : REAL;             // base command (auto/manual)
+	
+//    speedsNearZero  : BOOL;  // EN: Speed near zero / PT: Velocidade próxima de zero
+ //   refsNearZero    : BOOL;  // EN: Reference near zero / PT: Referência próxima de zero
+//    anyFault        : BOOL;  // EN: Fault condition / PT: Condição de falha
+    allReady        : BOOL;  // EN: Ready feedback OK / PT: Drive pronto		  
+	  
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[
+_GroupControl();
+_PressRollControl();
+_ReferenceGenerator();
+_rollBinControl();
+_RollEjectorControl();
+
+
+firstCycle		 := FALSE;
+]]></ST>
+    </Implementation>
+    <Method Name="_GroupControl" Id="{28219dd5-cd04-4d32-9a47-c688798eb7af}">
+      <Declaration><![CDATA[// ============================== Methods ==============================
+// 1) GROUP CONTROL
+METHOD _GroupControl
+VAR_INPUT
+END_VAR
+VAR
+
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// ──────────────────────────── Edge Detection ─────────────────────────────
+rStart := startCmd AND NOT startCmdOld; // Pulse edge
+rStop  := stopCmd  AND NOT stopCmdOld;
+startCmdOld := startCmd;
+stopCmdOld  := stopCmd;
+
+// ──────────────────────────── Conditions ─────────────────────────────
+allReady   := rewinderReadyFeedback AND safetyCircuitOK AND NOT webBreakSensor;
+anyFault   := NOT safetyCircuitOK OR webBreakSensor;
+//speedsNearZero := (ABS(speedFeedBackMPM) <= speedZeroThresholdMPM);
+speedsNearZero :=  (ABS(rewinderMotorSpeedRefMPM) <= epsRefMPM);
+
+refsNearZero   := (ABS(rewinderMotorSpeedRefMPM) <= epsRefMPM);
+
+// ──────────────────────────── State Machine ─────────────────────────────
+CASE rewinderState OF
+
+    0: // IDLE
+        deviceState := 'IDLE';
+        rampReset := TRUE;
+
+        rewinderMotorStart := FALSE;
+
+        IF jogCmd AND NOT anyFault THEN
+            rewinderState := 100; // Go to JOG
+        ELSIF rStart AND NOT anyFault THEN
+            rewinderState := 1;
+        END_IF
+
+    1: // ENABLE
+        deviceState := 'ENABLE';
+        rampReset := TRUE;
+
+        rewinderMotorStart := TRUE;
+        tonEnableWait(IN := TRUE, PT := enableTimeout);
+
+        IF rStop OR stopCmd THEN
+            tonEnableWait(IN := FALSE);
+            rewinderState := 5;
+        ELSE
+            rewinderState := 2;
+        END_IF
+
+    2: // WAIT_FEEDBACK
+        deviceState := 'WAIT_FEEDBACK';
+        rampReset := TRUE;
+
+        rewinderMotorStart := TRUE;
+        tonEnableWait(IN := TRUE, PT := enableTimeout);
+
+        IF anyFault THEN
+            tonEnableWait(IN := FALSE);
+            rewinderState := 10;
+
+        ELSIF rStop OR stopCmd THEN
+            tonEnableWait(IN := FALSE);
+            rewinderState := 5;
+
+        ELSIF allReady THEN
+            tonEnableWait(IN := FALSE);
+            rewinderState := 3;
+
+        ELSIF tonEnableWait.Q THEN
+            tonEnableWait(IN := FALSE);
+            rewinderState := 10; // Fault: no feedback
+        END_IF
+
+    3: // RAMP_RELEASE
+        deviceState := 'RAMP_RELEASE';
+        rampReset := FALSE; // Release ramp
+        rewinderMotorStart := TRUE;
+
+        rewinderState := 4;
+
+    4: // RUN
+        deviceState := SEL(rewinderAutoMan, 'RUN (Auto)', 'RUN (Manual)');
+        rampReset := FALSE;
+        rewinderMotorStart := TRUE;
+
+        IF anyFault THEN
+            rewinderState := 10;
+        ELSIF rStop OR stopCmd THEN
+            rewinderState := 5;
+        END_IF
+
+    5: // STOPPING
+        deviceState := 'STOPPING';
+        rampReset := FALSE;
+        rewinderMotorStart := TRUE;
+
+        IF anyFault THEN
+            rewinderState := 10;
+        ELSIF speedsNearZero AND refsNearZero THEN
+            rewinderMotorStart := FALSE;
+            rewinderState := 0;
+        ELSIF tonStopWait.Q THEN
+            rewinderMotorStart := FALSE;
+            tonStopWait(IN := FALSE);
+            rewinderState := 10;
+        END_IF
+
+    10: // FAULT
+        deviceState := 'FAULT';
+        rampReset := TRUE;
+        rewinderMotorStart := FALSE;
+
+        IF (NOT anyFault) AND (NOT startCmd) THEN
+            rewinderState := 0;
+        END_IF
+
+    100: // JOG MODE (Immediate Start)
+        deviceState := 'JOG';
+        rampReset := TRUE;
+        rewinderMotorStart := TRUE;
+
+        IF NOT jogCmd OR anyFault THEN
+            rewinderMotorStart := FALSE;
+            rewinderState := 0; // Back to IDLE when released or fault
+        END_IF
+END_CASE
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_PressRollControl" Id="{5d3a8a43-118c-43b7-b8b0-47cecf5512de}">
+      <Declaration><![CDATA[METHOD _PressRollControl
+VAR
+
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[
+// Seleciona a referência base
+IF pressRollAutoMan THEN
+    // ─────── MODO AUTOMÁTICO ───────
+    rewinderRollDiameterFiltered := rewinderRollDiameter;
+
+    // Busca o intervalo para interpolação linear
+    FOR i := 0 TO 18 DO
+        IF rewinderRollDiameterFiltered >= machineConfig.arrPressRollParameters[i].rollDiameter AND
+           rewinderRollDiameterFiltered <= machineConfig.arrPressRollParameters[i+1].rollDiameter THEN
+
+            x0 := machineConfig.arrPressRollParameters[i].rollDiameter;
+            y0 := machineConfig.arrPressRollParameters[i].pressureSetpoint;
+            x1 := machineConfig.arrPressRollParameters[i+1].rollDiameter;
+            y1 := machineConfig.arrPressRollParameters[i+1].pressureSetpoint;
+
+            // Interpolação linear
+            IF x1 <> x0 THEN
+                interpOutput := y0 + (rewinderRollDiameterFiltered - x0) * (y1 - y0) / (x1 - x0);
+            ELSE
+                interpOutput := y0; // fallback (evita divisão por zero)
+            END_IF;
+
+            EXIT; // intervalo encontrado
+        END_IF
+    END_FOR
+ELSE
+    // ─────── MODO MANUAL ───────
+    interpOutput := pressRollManualSetpoint;
+END_IF
+
+// ─────── Aplica rampa para suavizar o valor final ───────
+instFB_Gen_SRampPressRoll(
+    X := interpOutput,
+    A_UP := 5.0,     // aceleração [unit/s] — pode ajustar
+    A_DN := -5.0,    // desaceleração [unit/s]
+    VU_MAX := 1000.0,
+    VD_MAX := -1000.0,
+    LIMIT_HIGH := 100.0,
+    LIMIT_LOW := 0.0,
+    RST := FALSE
+);
+
+// ─────── Seta a saída final ───────
+pressRollSetpoint := instFB_Gen_SRampPressRoll.Y;
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_ReferenceGenerator" Id="{c4824d46-6fe2-4fc1-bba8-057db4f4d682}">
+      <Declaration><![CDATA[//==============================================================
+// REWINDER — SIMPLE SPEED REFERENCE GENERATOR
+// EN: Generates the speed reference (% and m/min) for the rewinder motor
+// PT: Gera a referência de velocidade (% e m/min) para o motor do rebobinador
+//==============================================================
+METHOD _ReferenceGenerator
+VAR
+
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[//==============================================================
+// 1) Determine base speed source (auto or manual)
+//==============================================================
+IF rewinderAutoMan THEN
+    baseCmdSpeedMPM := rewinderManualSpeedRefMPM;   // Auto mode — follow main line
+ELSE
+    baseCmdSpeedMPM := rewinderAutoSpeedRefMPM;     // Manual mode — use local reference
+END_IF;
+
+//==============================================================
+// 2) Apply stop condition and bin constraint
+//==============================================================
+IF rewinderState = 5 THEN
+    cmdSpeedMPM := 0.0;
+ELSIF rewinderState = 100 THEN
+    // JOG MODE — direct jog reference
+    cmdSpeedMPM := machineConfig.rewinderJogSpeedRefMPM;
+ELSE
+    // Normal operation — but limit to jog speed if bin not in load position
+    cmdSpeedMPM := baseCmdSpeedMPM;
+
+    IF NOT rollBinAtLoadPositionSensor THEN
+        cmdSpeedMPM := MIN(cmdSpeedMPM, machineConfig.rewinderJogSpeedRefMPM);
+    END_IF;
+END_IF;
+
+//==============================================================
+// 3) Scale command speed to percentage (0–100%)
+//==============================================================
+targetPct := _Scale(
+    X    := cmdSpeedMPM,
+    I_LO := 0.0,
+    I_HI := groupMaxSpeed,
+    O_LO := 0.0,
+    O_HI := 100.0);
+
+//==============================================================
+// 4) Limit and ramp
+//==============================================================
+allowedCapPct := 100.0;
+rampTargetPct := LIMIT(0.0, MIN(targetPct, allowedCapPct), 100.0);
+
+// Anti-chatter: freeze ramp up if near saturation
+currMasterPct := instFB_Gen_SRamp.Y;
+IF currMasterPct >= 100.0 - headroomEpsPct THEN
+    rampTargetPct := MIN(rampTargetPct, currMasterPct);
+END_IF;
+
+//==============================================================
+// 5) Ramp the command (smooth accel/decel)
+//==============================================================
+instFB_Gen_SRamp(
+    X          := rampTargetPct,
+    A_UP       := MAX(0.0, rampRate),
+    A_DN       := -MAX(0.0, rampRate),
+    VU_MAX     := 1000.0,
+    VD_MAX     := -1000.0,
+    LIMIT_HIGH := 100.0,
+    RST        := rampReset);
+
+IF rewinderState = 5 THEN
+    instFB_Gen_SRamp.LIMIT_LOW := 0.0;
+ELSE
+    instFB_Gen_SRamp.LIMIT_LOW := 3.5;
+END_IF;
+
+//==============================================================
+// 6) Final References
+//==============================================================
+IF rewinderState = 100 THEN // JOG
+    rewinderMotorSpeedRefMPM := machineConfig.rewinderJogSpeedRefMPM;
+    rewinderMotorSpeedRefPct := _Scale(
+        X := machineConfig.rewinderJogSpeedRefMPM,
+        I_LO := 0.0,
+        I_HI := groupMaxSpeed,
+        O_LO := 0.0,
+        O_HI := 100.0);
+ELSE
+    // Normal ramped reference (possibly clamped by jog speed if bin not in place)
+    rewinderMotorSpeedRefMPM := _Scale(
+        X    := instFB_Gen_SRamp.Y,
+        I_LO := 0.0,
+        I_HI := 100.0,
+        O_LO := 0.0,
+        O_HI := groupMaxSpeed);
+    rewinderMotorSpeedRefPct := instFB_Gen_SRamp.Y;
+END_IF;
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_rollBinControl" Id="{2ceeca00-692b-4d70-b55c-0a4f3455869b}">
+      <Declaration><![CDATA[METHOD _rollBinControl
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[//==============================================================
+// ROLL BIN CONTROL LOGIC
+//==============================================================
+
+// ──────────────────────────────
+// SAFETY INTERLOCK — stop all movement
+// ──────────────────────────────
+IF rollBinSafetySensor OR firstCycle THEN
+    rollBinRequestLoadPos := FALSE;
+    rollBinRequestUnloadPos := FALSE;
+ELSE
+    // ──────────────────────────────
+    // Move to LOAD position
+    // ──────────────────────────────
+    IF rollBinRequestLoadPosCmd THEN
+        rollBinRequestLoadPos := TRUE;
+	    rollBinRequestUnloadPos := FALSE;
+	
+    END_IF;
+
+    // ──────────────────────────────
+    // Move to UNLOAD position
+    // ──────────────────────────────
+    IF rollBinRequestUnloadPosCmd AND (rewinderState = 0) THEN
+        rollBinRequestUnloadPos := TRUE;
+	    rollBinRequestLoadPos := FALSE;
+		
+    END_IF;
+END_IF;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_RollEjectorControl" Id="{0fad4245-4400-460a-bfea-5e2796593205}">
+      <Declaration><![CDATA[METHOD _RollEjectorControl
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[//────────────────────────────────────────────────────────────
+// Edge detection — borda de subida do comando de avanço
+//────────────────────────────────────────────────────────────
+rRollEjectorFwCmd := rollEjectorFwCmd AND NOT rollEjectorFwCmdOld;
+
+//────────────────────────────────────────────────────────────
+// Lógica de controle com intertravamentos
+//────────────────────────────────────────────────────────────
+
+// Condições para permitir avanço:
+IF rRollEjectorFwCmd AND (rewinderState = 0) AND // Máquina parada (IDLE)
+      rollBinAtLoadPositionSensor THEN
+    // Prioridade para reversão
+    rollEjectorFw := TRUE;
+END_IF
+
+
+IF rollEjectorRevCmd THEN
+	
+    rollEjectorFw := FALSE;
+
+END_IF
+
+rollEjectorFwCmdOld := rollEjectorFwCmd;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_Scale" Id="{9d37e878-9b16-42d5-a83d-5bac7b9c4eb9}">
+      <Declaration><![CDATA[METHOD PRIVATE _Scale : REAL
+VAR_INPUT
+    X    : REAL;
+    I_LO : REAL;
+    I_HI : REAL;
+    O_LO : REAL;
+    O_HI : REAL;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF I_LO = I_HI THEN
+	_Scale := O_LO;
+ELSE
+	_Scale := (O_HI - O_LO) / (I_HI - I_LO) * (LIMIT(I_LO, X, I_HI) - I_LO) + O_LO;
+END_IF;
+]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_RewinderControl_V1">
+      <LineId Id="636" Count="1" />
+      <LineId Id="644" Count="0" />
+      <LineId Id="638" Count="0" />
+      <LineId Id="640" Count="0" />
+      <LineId Id="645" Count="0" />
+      <LineId Id="641" Count="2" />
+      <LineId Id="9" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_RewinderControl_V1._GroupControl">
+      <LineId Id="1319" Count="9" />
+      <LineId Id="1438" Count="0" />
+      <LineId Id="1437" Count="0" />
+      <LineId Id="1329" Count="107" />
+      <LineId Id="128" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_RewinderControl_V1._PressRollControl">
+      <LineId Id="16" Count="0" />
+      <LineId Id="18" Count="43" />
+      <LineId Id="6" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_RewinderControl_V1._ReferenceGenerator">
+      <LineId Id="1954" Count="86" />
+      <LineId Id="20" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_RewinderControl_V1._rollBinControl">
+      <LineId Id="7" Count="2" />
+      <LineId Id="35" Count="0" />
+      <LineId Id="11" Count="11" />
+      <LineId Id="37" Count="1" />
+      <LineId Id="25" Count="6" />
+      <LineId Id="40" Count="0" />
+      <LineId Id="39" Count="0" />
+      <LineId Id="34" Count="0" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_RewinderControl_V1._RollEjectorControl">
+      <LineId Id="18" Count="3" />
+      <LineId Id="23" Count="6" />
+      <LineId Id="48" Count="0" />
+      <LineId Id="30" Count="0" />
+      <LineId Id="32" Count="0" />
+      <LineId Id="45" Count="0" />
+      <LineId Id="49" Count="3" />
+      <LineId Id="56" Count="0" />
+      <LineId Id="54" Count="0" />
+      <LineId Id="53" Count="0" />
+      <LineId Id="46" Count="1" />
+    </LineIds>
+    <LineIds Name="FB_RewinderControl_V1._Scale">
+      <LineId Id="1" Count="5" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

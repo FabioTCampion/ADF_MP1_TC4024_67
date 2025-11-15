@@ -1,0 +1,160 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.15">
+  <POU Name="FB_GroupTorqueTrimControl_V1" Id="{de8c5a72-b3d0-4051-95f3-c0746b78d500}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_GroupTorqueTrimControl_V1
+VAR_INPUT
+    //----------------------------------------------------------------------
+    // TORQUE FEEDBACKS (already filtered)
+    //----------------------------------------------------------------------
+    group1MasterTorqueFeedback     : REAL;  // EN: Master torque feedback [% or Nm]
+    group1Slave1TorqueFeedback     : REAL;  // EN: Slave 1 torque feedback [% or Nm]
+    group1Slave2TorqueFeedback     : REAL;  // EN: Slave 2 torque feedback [% or Nm]
+    group2MasterTorqueFeedback     : REAL;  // EN: Master torque feedback [% or Nm]
+    group2Slave1TorqueFeedback     : REAL;  // EN: Slave 1 torque feedback [% or Nm]
+    group2Slave2TorqueFeedback     : REAL;  // EN: Slave 2 torque feedback [% or Nm]
+
+    //----------------------------------------------------------------------
+    // CONFIGURATION PARAMETERS
+    //----------------------------------------------------------------------
+    slaveTorqueOffset              : REAL := 0.0;     // EN: Fixed offset between master and slave [%]
+    torqueTrimLimit                : REAL := 10.0;    // EN: Max PID trim output [%]
+    torqueLimitMinPct              : REAL := -100.0;     // EN: Min torque command limit [%]
+    torqueLimitMaxPct              : REAL := 100.0;   // EN: Max torque command limit [%]
+
+    //----------------------------------------------------------------------
+    // PID GAINS
+    //----------------------------------------------------------------------
+    torqueCtrlKp                   : REAL := 1.0;
+    torqueCtrlTn                   : REAL := 8.0;
+    torqueCtrlTv                   : REAL := 0.0;
+
+    //----------------------------------------------------------------------
+    // CONTROL FLAGS
+    //----------------------------------------------------------------------
+    enableTorquePid                : BOOL := TRUE;    // EN: Enables PID control (FALSE = fixed torque)
+END_VAR
+
+
+VAR_OUTPUT
+    //----------------------------------------------------------------------
+    // TORQUE REFERENCES (%)
+    //----------------------------------------------------------------------
+    group1Slave1DriveTorqueRefPct  : REAL;
+    group1Slave2DriveTorqueRefPct  : REAL;
+    group2Slave1DriveTorqueRefPct  : REAL;
+    group2Slave2DriveTorqueRefPct  : REAL;
+
+    //----------------------------------------------------------------------
+    // INTERNAL PID OUTPUTS (for monitoring)
+    //----------------------------------------------------------------------
+    trimGroup1                     : REAL;
+    trimGroup2                     : REAL;
+	
+	
+	
+END_VAR
+
+
+VAR
+    //----------------------------------------------------------------------
+    // INTERNAL PID CONTROLLERS
+    //----------------------------------------------------------------------
+    instCTRL_PID_Group1TorqueTrim  : CTRL_PID;
+    instCTRL_PID_Group2TorqueTrim  : CTRL_PID;
+
+    //----------------------------------------------------------------------
+    // INTERNAL SIGNALS
+    //----------------------------------------------------------------------
+    capMasterGroup1                : REAL;
+    capMasterGroup2                : REAL;
+    baseLimitGroup1                : REAL;
+    baseLimitGroup2                : REAL;
+    directTorqueGroup1             : REAL;
+    directTorqueGroup2             : REAL;
+    avgTorqueGroup1                : REAL;
+    avgTorqueGroup2                : REAL;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[//======================================================================
+// ─── GROUP 1 TORQUE CONTROL ─────────────────────────────────────────
+//======================================================================
+
+// Limit master torque safely
+capMasterGroup1 := LIMIT(torqueLimitMinPct, group1MasterTorqueFeedback, torqueLimitMaxPct);
+
+// Compute base torque reference for slaves (with offset)
+baseLimitGroup1 := group1MasterTorqueFeedback + slaveTorqueOffset;
+
+IF NOT enableTorquePid THEN
+    // PID disabled — slaves follow master torque directly
+    group1Slave1DriveTorqueRefPct := capMasterGroup1;
+    group1Slave2DriveTorqueRefPct := capMasterGroup1;
+ELSE
+    // PID active — fine trim on torque balance
+    directTorqueGroup1 := LIMIT(torqueLimitMinPct, baseLimitGroup1 - torqueTrimLimit, capMasterGroup1);
+    avgTorqueGroup1    := 0.5 * (group1Slave1TorqueFeedback + group1Slave2TorqueFeedback);
+
+    instCTRL_PID_Group1TorqueTrim(
+        ACT := avgTorqueGroup1,
+        SET := baseLimitGroup1,
+        MAN := NOT enableTorquePid,
+        M_I := 0.0,
+        RST := FALSE,
+        KP  := torqueCtrlKp,
+        TN  := torqueCtrlTn,
+        TV  := torqueCtrlTv,
+        LL  := torqueLimitMinPct,                   // Bipolar output
+        LH  := torqueTrimLimit,
+        Y   => trimGroup1
+    );
+
+    group1Slave1DriveTorqueRefPct := LIMIT(torqueLimitMinPct, directTorqueGroup1 + trimGroup1, capMasterGroup1);
+    group1Slave2DriveTorqueRefPct := LIMIT(torqueLimitMinPct, directTorqueGroup1 + trimGroup1, capMasterGroup1);
+END_IF;
+
+
+//======================================================================
+// ─── GROUP 2 TORQUE CONTROL ─────────────────────────────────────────
+//======================================================================
+
+capMasterGroup2 := LIMIT(torqueLimitMinPct, group2MasterTorqueFeedback, torqueLimitMaxPct);
+baseLimitGroup2 := MIN(
+    capMasterGroup2,
+    LIMIT(torqueLimitMinPct, group2MasterTorqueFeedback + slaveTorqueOffset, torqueLimitMaxPct)
+);
+
+IF NOT enableTorquePid THEN
+    group2Slave1DriveTorqueRefPct := capMasterGroup2;
+    group2Slave2DriveTorqueRefPct := capMasterGroup2;
+ELSE
+    directTorqueGroup2 := LIMIT(torqueLimitMinPct, baseLimitGroup2 - torqueTrimLimit, capMasterGroup2);
+    avgTorqueGroup2    := 0.5 * (group2Slave1TorqueFeedback + group2Slave2TorqueFeedback);
+
+    instCTRL_PID_Group2TorqueTrim(
+        ACT := avgTorqueGroup2,
+        SET := baseLimitGroup2,
+        MAN := NOT enableTorquePid,
+        M_I := 0.0,
+        RST := FALSE,
+        KP  := torqueCtrlKp,
+        TN  := torqueCtrlTn,
+        TV  := torqueCtrlTv,
+        LL  := 0.0,
+        LH  := torqueTrimLimit,
+        Y   => trimGroup2
+    );
+
+    group2Slave1DriveTorqueRefPct := LIMIT(torqueLimitMinPct, directTorqueGroup2 + trimGroup2, capMasterGroup2);
+    group2Slave2DriveTorqueRefPct := LIMIT(torqueLimitMinPct, directTorqueGroup2 + trimGroup2, capMasterGroup2);
+END_IF;
+]]></ST>
+    </Implementation>
+    <LineIds Name="FB_GroupTorqueTrimControl_V1">
+      <LineId Id="336" Count="7" />
+      <LineId Id="346" Count="0" />
+      <LineId Id="348" Count="62" />
+      <LineId Id="9" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

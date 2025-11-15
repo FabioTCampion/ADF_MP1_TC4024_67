@@ -1,0 +1,84 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.15">
+  <POU Name="FB_EL3052" Id="{eb79f4b9-4e5c-43ff-8977-def3c364525c}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_EL3052
+VAR_INPUT PERSISTENT
+
+	deviceConfig    : EL3052_DEV_CONFIG; // Configuration settings for the CT121F device
+	
+END_VAR
+VAR_OUTPUT
+		
+	Channel1  : REAL;
+	Channel2  : REAL;
+	
+END_VAR
+VAR
+	    PDOS : EL3052_PDOS; // Process Data Objects for RWPT01D communication
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[
+_AnalogInputs();]]></ST>
+    </Implementation>
+    <Method Name="_AnalogInputs" Id="{f5deb18f-32d5-4a4a-9fd6-46e2e6372bda}">
+      <Declaration><![CDATA[METHOD PRIVATE _AnalogInputs
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// Calculate the actual motor speed
+Channel1 := _Scale(
+    X := DINT_TO_REAL(PDOS.HwToPLC.Channel1.Value), 
+    I_LO := deviceConfig.channel1InputLow, 
+    I_HI := deviceConfig.channel1InputHigh, 
+    O_LO := deviceConfig.channel1OutputLow, 
+    O_HI := deviceConfig.channel1OutputHigh
+);
+
+// Calculate the actual motor speed
+Channel2 := _Scale(
+    X := DINT_TO_REAL(PDOS.HwToPLC.Channel2.Value), 
+    I_LO := deviceConfig.channe12InputLow, 
+    I_HI := deviceConfig.channe12InputHigh, 
+    O_LO := deviceConfig.channe12OutputLow, 
+    O_HI := deviceConfig.channe12OutputHigh
+);]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_Scale" Id="{cf8158f2-5836-4e1f-ae70-b413da248982}">
+      <Declaration><![CDATA[METHOD PRIVATE _Scale : REAL
+VAR_INPUT
+	
+	X : REAL;
+	I_LO : REAL;
+	I_HI : REAL;
+	O_LO : REAL;
+	O_HI : REAL;
+	
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF I_LO = I_HI THEN
+	_Scale := O_LO;
+ELSE
+	_Scale := (O_HI - O_LO) / (I_HI - I_LO) * (LIMIT(I_LO, X, I_HI) - I_LO) + O_LO;
+END_IF;
+]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_EL3052">
+      <LineId Id="3" Count="0" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_EL3052._AnalogInputs">
+      <LineId Id="19" Count="6" />
+      <LineId Id="15" Count="0" />
+      <LineId Id="27" Count="7" />
+      <LineId Id="26" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_EL3052._Scale">
+      <LineId Id="1" Count="5" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

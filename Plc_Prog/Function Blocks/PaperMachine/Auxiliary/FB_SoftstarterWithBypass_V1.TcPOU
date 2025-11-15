@@ -1,0 +1,345 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.15">
+  <POU Name="FB_SoftstarterWithBypass_V1" Id="{ede9a98d-8b66-40e8-8c86-32861e64ceda}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_SoftstarterWithBypass_V1
+VAR_INPUT
+    // Commands & interlocks
+    startCommand                : BOOL;   // Start pulse (toggle run)
+    stopCommand                 : BOOL;   // Stop pulse/level (force stop)
+    sofstarterOK                : BOOL;   // Softstarter healthy/ready
+
+    safetyOK                  : BOOL := TRUE;
+    interlock2                  : BOOL := TRUE;
+    interlock3                  : BOOL := TRUE;
+    interlock4                  : BOOL := TRUE;
+
+    // Feedbacks
+    softstarterContactorFb      : BOOL;   // FB - softstarter contactor
+    lineContactorFb             : BOOL;   // FB - line/bypass contactor
+
+    // Timers
+    startDelayTime              : TIME := T#2S;   // Ramp-up time before switching to line
+    overlapDelayTime            : TIME := T#3S;   // Both contactors ON overlap
+    ssContactorTimeout          : TIME := T#5S;   // Timeout to get SS contactor FB
+    lineContactorTimeout        : TIME := T#5S;   // Timeout to get Line contactor FB
+
+    // Motor current proof
+    motorCurrentFeedback        : REAL;   // Measured motor current
+    minCurrentThreshold         : REAL;   // Minimum current to prove energized
+    currentProofTime            : TIME;   // Time current must stay above threshold
+
+    // NEW: Softstarter analog feedback for display
+    softstarterCurrentFeedback  : REAL;   // Softstarter phase/line current [A] for HMI
+END_VAR
+
+VAR_OUTPUT
+    faultActive                 : BOOL;       // Latched fault
+    startSequenceRunning        : BOOL;       // Sequence running
+    startSequenceFinished       : BOOL;       // Sequence finished successfully
+
+    softstarterContactor        : BOOL;       // CMD softstarter contactor
+    lineContactor               : BOOL;       // CMD line/bypass contactor
+    softstarterStart            : BOOL;       // CMD start to softstarter
+
+    deviceState                 : STRING(80); // Human-readable state
+
+    // NEW: Status & display values
+    statusCode                  : INT;        // 0=Idle, 1=Starting, 2=Running, 3=Fault
+    softstarterCurrentDisplay   : REAL;       // Echo of softstarterCurrentFeedback
+END_VAR
+
+VAR
+    // State & edges
+    step                        : INT;    // State machine step
+    startCommandOld             : BOOL;
+    stopCommandOld              : BOOL;
+    rStart                      : BOOL;   // start pulse edge
+    rStop                       : BOOL;   // stop pulse edge
+
+    // Run latch toggled by Start pulse
+    runLatch                    : BOOL;
+
+    // Timers
+    tonStartDelay               : TON;    // Ramp-up timer
+    tonOverlapDelay             : TON;    // Overlap timer
+    tonCurrentProof             : TON;    // Current proof timer
+    tonSSFbTimeout              : TON;    // Timeout for SS contactor FB
+    tonLineFbTimeout            : TON;    // Timeout for Line contactor FB
+    instTONSoftstartDelay       : TON;    // Small delay before softstarterStart
+
+    // Helpers
+    allInterlocksOK             : BOOL;
+	
+    blinkTon    : TON;   // 1-second timer for blinking / temporizador 1s para piscar
+    blinkBit    : BOOL;  // Blink state / estado de pisca	
+	
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[// ============================ Edges, interlocks, defaults ============================
+rStart := startCommand AND NOT startCommandOld;
+rStop  :=  stopCommand AND NOT  stopCommandOld;
+startCommandOld := startCommand;
+stopCommandOld  := stopCommand;
+
+allInterlocksOK := safetyOK AND interlock2 AND interlock3 AND interlock4;
+
+// Clear "finished" when a new start request or any stop occurs
+IF rStart OR rStop OR stopCommand THEN
+    startSequenceFinished := FALSE;
+END_IF
+
+// Default state and HMI displays
+deviceState := 'Idle (Parado)';
+softstarterCurrentDisplay := softstarterCurrentFeedback;
+
+// =============================== Latch / Fault reset =================================
+// Start pulse toggles run; Stop pulse/level forces stop and clears latch
+IF rStart THEN
+    runLatch := TRUE;
+END_IF;
+IF rStop OR stopCommand THEN
+    runLatch := FALSE;
+END_IF;
+
+// Clear fault only when not demanding run and stop is not held
+IF NOT runLatch AND NOT rStart THEN
+    faultActive := FALSE;
+END_IF
+
+// ============================= Immediate stop handling ===============================
+IF rStop OR stopCommand THEN
+    softstarterStart      := FALSE;
+    lineContactor         := FALSE;
+    softstarterContactor  := FALSE;
+
+    tonStartDelay(IN:=FALSE);
+    tonOverlapDelay(IN:=FALSE);
+    tonCurrentProof(IN:=FALSE);
+    tonSSFbTimeout(IN:=FALSE);
+    tonLineFbTimeout(IN:=FALSE);
+    instTONSoftstartDelay(IN:=FALSE);
+
+    startSequenceRunning  := FALSE;
+    step := 0;
+END_IF
+
+// ============================= Interlocks & health checks ============================
+IF runLatch AND NOT allInterlocksOK THEN
+    faultActive := TRUE;
+    deviceState := 'Fault: interlock open (Falha: intertrav. aberto)';
+END_IF
+
+IF runLatch AND NOT sofstarterOK THEN
+    faultActive := TRUE;
+    deviceState := 'Fault: softstarter not OK (Falha: softstarter NOK)';
+END_IF
+
+// If fault is active, ensure safe idle
+IF faultActive THEN
+    softstarterStart      := FALSE;
+    lineContactor         := FALSE;
+    softstarterContactor  := FALSE;
+
+    tonStartDelay(IN:=FALSE);
+    tonOverlapDelay(IN:=FALSE);
+    tonCurrentProof(IN:=FALSE);
+    tonSSFbTimeout(IN:=FALSE);
+    tonLineFbTimeout(IN:=FALSE);
+    instTONSoftstartDelay(IN:=FALSE);
+
+    startSequenceRunning  := FALSE;
+    step := 0;
+END_IF
+
+// ================================= State machine ====================================
+IF runLatch AND NOT faultActive AND sofstarterOK AND allInterlocksOK AND NOT stopCommand THEN
+
+    CASE step OF
+        0: // Idle -> energize softstarter contactor
+		
+
+            deviceState := 'Energizing SS contactor (Acionando contator SS)';
+            softstarterContactor := TRUE;
+
+            // reset timers
+            tonStartDelay(IN:=FALSE);
+            tonOverlapDelay(IN:=FALSE);
+            tonCurrentProof(IN:=FALSE);
+
+            // start SS FB timeout while command is ON and FB is OFF
+            tonSSFbTimeout(IN:=NOT softstarterContactorFb, PT:=ssContactorTimeout);
+
+            step := 10;
+
+        10: // Wait SS contactor feedback + pre-start delay
+		
+			startSequenceRunning := TRUE;
+
+            deviceState := 'Waiting SS FB + pre-start delay (Aguardando retorno SS + atraso)';
+            tonSSFbTimeout(IN:=NOT softstarterContactorFb);
+
+            // call the small pre-start delay timer every scan
+            instTONSoftstartDelay(IN:=softstarterContactorFb, PT:=T#5s);
+
+            // Timeout fault
+            IF tonSSFbTimeout.Q THEN
+                faultActive := TRUE;
+                deviceState := 'Fault: SS FB timeout (Falha: tempo retorno SS)';
+                softstarterStart     := FALSE;
+                softstarterContactor := FALSE;
+                lineContactor        := FALSE;
+                step := 0;
+
+            ELSIF softstarterContactorFb AND instTONSoftstartDelay.Q THEN
+                softstarterStart := TRUE;                           // Start softstarter
+                tonStartDelay(IN:=TRUE, PT:=startDelayTime);        // Start ramp timer
+                tonSSFbTimeout(IN:=FALSE);                          // Stop SS timeout
+                instTONSoftstartDelay(IN:=FALSE);
+
+                step := 20;
+            END_IF
+
+        20: // Prove motor current while ramping
+            deviceState := 'Proving current & ramp (Prova de corrente e rampa)';
+
+            IF ABS(motorCurrentFeedback) >= minCurrentThreshold THEN
+                tonCurrentProof(IN:=TRUE, PT:=currentProofTime);
+            ELSE
+                tonCurrentProof(IN:=FALSE);
+            END_IF
+
+            tonStartDelay(IN:=TRUE); // keep ramp timer active
+
+            // Proceed only when BOTH complete
+            IF tonCurrentProof.Q AND tonStartDelay.Q THEN
+                deviceState := 'Energizing line contactor (Acionando contator linha)';
+                lineContactor := TRUE;
+
+                // start line feedback timeout while command is ON and FB is OFF
+                tonLineFbTimeout(IN:=NOT lineContactorFb, PT:=lineContactorTimeout);
+
+                tonCurrentProof(IN:=FALSE);
+                step := 30;
+            END_IF
+
+        30: // Wait line contactor feedback
+            deviceState := 'Waiting line contactor FB (Aguardando retorno linha)';
+            tonLineFbTimeout(IN:=NOT lineContactorFb);
+
+            IF tonLineFbTimeout.Q THEN
+                faultActive := TRUE;
+                deviceState := 'Fault: Line FB timeout (Falha: tempo retorno linha)';
+                softstarterStart     := FALSE;
+                softstarterContactor := FALSE;
+                lineContactor        := FALSE;
+                step := 0;
+
+            ELSIF lineContactorFb THEN
+                deviceState := 'Overlap both contactors (Sobreposição contatores)';
+                tonOverlapDelay(IN:=TRUE, PT:=overlapDelayTime);
+                tonLineFbTimeout(IN:=FALSE);
+                step := 40;
+            END_IF
+
+        40: // Overlap timing
+            deviceState := 'Overlapping... (Sobrepondo...)';
+            tonOverlapDelay(IN:=TRUE);
+            IF tonOverlapDelay.Q THEN
+                softstarterStart     := FALSE;   // Stop softstarter
+                softstarterContactor := FALSE;   // Release SS contactor
+                tonOverlapDelay(IN:=FALSE);
+                deviceState := 'Running on line (Operando em linha)';
+                step := 50;
+            END_IF
+
+        50: // Running on line
+            deviceState := 'Running on line (Operando em linha)';
+            startSequenceFinished := TRUE;
+
+            // Stay running while the latch is set; a new Start pulse toggles it off
+            IF stopCommand THEN
+                lineContactor := FALSE;
+                startSequenceRunning := FALSE;
+                deviceState := 'Idle (Parado)';
+                step := 0;
+            END_IF
+
+        ELSE
+            deviceState := 'Idle (Parado)';
+            step := 0;
+    END_CASE
+
+ELSE
+    // No latched run / inhibited / fault: ensure safe idle
+    startSequenceRunning := FALSE;
+
+    IF step <> 50 THEN
+        lineContactor := FALSE;
+    END_IF
+
+    softstarterStart     := FALSE;
+    softstarterContactor := FALSE;
+
+    tonStartDelay(IN:=FALSE);
+    tonOverlapDelay(IN:=FALSE);
+    tonCurrentProof(IN:=FALSE);
+    tonSSFbTimeout(IN:=FALSE);
+    tonLineFbTimeout(IN:=FALSE);
+    instTONSoftstartDelay(IN:=FALSE);
+
+    IF NOT runLatch THEN
+        deviceState := 'Idle (Parado)';
+        step := 0;
+    END_IF
+END_IF
+
+
+//────────────────────────────────────
+// Blink generator (1 s ON / 1 s OFF)
+// Gerador de pisca (1 s ligado / 1 s desligado)
+//────────────────────────────────────
+blinkTon(IN := TRUE, PT := T#1S);
+IF blinkTon.Q THEN
+    blinkTon(IN := FALSE);       // reset timer next cycle / reseta o timer no próximo ciclo
+    blinkBit := NOT blinkBit;    // toggle blink bit / alterna o bit de pisca
+END_IF
+
+
+// =============================== Status code =======================================
+// 0 = OFF
+// 0-1 (alternando) = STARTING
+// 1 = RUNNING
+// 2 = FAULT
+//==============================================================================
+IF faultActive THEN
+    // Fault has highest priority / Falha tem maior prioridade
+    statusCode := 2;                             // FAULT
+
+ELSIF softstarterContactor OR (softstarterContactor AND lineContactor)  THEN
+    // STARTING: use blink (0/1) / PARTIDA: usa pisca (0/1)
+    IF blinkBit THEN
+        statusCode := 1;                         // ON (blink ON)
+    ELSE
+        statusCode := 0;                         // OFF (blink OFF)
+    END_IF
+
+ELSIF  lineContactor AND NOT softstarterContactor THEN
+    // RUNNING: steady ON / EM FUNCIONAMENTO: ligado fixo
+    statusCode := 1;                             // RUNNING
+
+ELSE
+    // OFF (stopped / idle) / Desligado (parado)
+    statusCode := 0;                             // OFF
+END_IF]]></ST>
+    </Implementation>
+    <LineIds Name="FB_SoftstarterWithBypass_V1">
+      <LineId Id="2134" Count="216" />
+      <LineId Id="2455" Count="1" />
+      <LineId Id="2459" Count="7" />
+      <LineId Id="2457" Count="1" />
+      <LineId Id="2351" Count="0" />
+      <LineId Id="2430" Count="24" />
+      <LineId Id="9" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

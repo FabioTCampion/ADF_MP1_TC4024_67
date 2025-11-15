@@ -1,0 +1,250 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.15">
+  <POU Name="FB_SimpleMotorStart_V3" Id="{a3cdf4f5-41d8-467a-afc0-f672c4d3ae17}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_SimpleMotorStart_V3
+VAR_INPUT
+    // ───────── Commands & interlocks ─────────
+    startCommand                 : BOOL;   // Pulse to toggle run (Pulso para alternar execução)
+    stopCommand                  : BOOL;   // Pulse to force stop (Pulso para forçar parada
+	runtimeMeterResetCmd		: BOOL;
+	
+    motorStarterOK             : BOOL := TRUE;   // Softstarter healthy/ready (Softstarter ok/pronto)
+    safetyOK                   	 : BOOL	:= TRUE;   // External interlock 1 (Intertravamento 1)
+	
+    interlock1                   : BOOL := TRUE;   // External interlock 2 (Intertravamento 2)
+    interlock2                   : BOOL := TRUE;   // External interlock 3 (Intertravamento 3)
+    interlock3                   : BOOL := TRUE;   // External interlock 4 (Intertravamento 4)
+
+    // ───────── Motor current proof ─────────
+    motorCurrentFeedback         : REAL;   // Measured motor current
+
+END_VAR
+
+VAR_OUTPUT
+	
+    faultActive                  : BOOL;       // Latched fault
+	lineContactor                : BOOL;       // CMD line/bypass contactor
+    deviceState                  : STRING(80); // Human-readable state
+    statusCode                   : INT;        // 0=Idle, 1=Running, 2=Fault
+    motorCurrentFiltered         : REAL;       // Filtered motor current for HMI/logic
+	runtimeMeter				 : DINT;
+	
+END_VAR
+
+VAR
+    // ───────── State & edges ─────────
+    step                         : INT;    // State machine step
+    startCommandOld              : BOOL;
+    stopCommandOld               : BOOL;
+    rStart                       : BOOL;
+    rStop                        : BOOL;
+
+    // ───────── Latch ─────────
+    runLatch                     : BOOL;   // Latched run request (start toggles, stop clears)
+
+    // ───────── Timers ─────────
+    tonStartDelay                : TON;    // Ramp-up timer
+
+    // ───────── Helpers ─────────
+    allInterlocksOK              : BOOL;
+    proofCurrent                 : REAL;
+
+    // ───────── OSCAT PT1 instance used by _InputFilter ─────────
+    // Replace FT_PT1T with the correct type name from your OSCAT lib if different.
+    instsFT_PT1TInputFilter      : FT_PT1;
+
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[// ============================ Edges, interlocks, defaults ============================
+rStart := startCommand AND NOT startCommandOld;
+rStop  := stopCommand  AND NOT stopCommandOld;
+startCommandOld := startCommand;
+stopCommandOld  := stopCommand;
+
+allInterlocksOK := safetyOK AND interlock1 AND interlock2 AND interlock3;
+
+// Start TOGGLES run latch; Stop forces stop
+IF rStart THEN
+    runLatch := NOT runLatch;  // Toggle / Alterna start-stop
+END_IF;
+
+IF rStop THEN
+    runLatch := FALSE;         // Stop sempre desliga
+END_IF;
+
+// Default textual state
+deviceState := 'Idle (Parado)';
+
+// =============================== Fault reset =======================================
+// Limpa falha somente quando não há pedido de partida e stop não está mantido
+IF NOT runLatch AND NOT stopCommand THEN
+    faultActive := FALSE;
+END_IF;
+
+// ============================= Interlocks & health checks ===========================
+// Se pedir para rodar sem intertravamento ou softstarter OK -> entra em falha
+IF runLatch AND NOT allInterlocksOK THEN
+    faultActive := TRUE;
+    deviceState := 'Fault: interlock open (Falha: intertrav. aberto)';
+END_IF;
+
+IF runLatch AND NOT motorStarterOK THEN
+    faultActive := TRUE;
+    deviceState := 'Fault: softstarter not OK (Falha: softstarter NOK)';
+END_IF;
+
+// Se falha ativa, garante tudo parado e volta pro passo 0
+IF faultActive THEN
+    lineContactor := FALSE;
+    step := 0;
+END_IF;
+
+// ============================= Stop handling (immediate) ===========================
+// Stop (pulso ou nível) força parada imediata
+IF rStop OR stopCommand THEN
+    lineContactor := FALSE;
+    tonStartDelay(IN := FALSE);
+    runLatch := FALSE;       // garante que o latch desligue
+    step := 0;
+END_IF;
+
+// ================================= State machine ===================================
+// Máquina de estados simples: 0 = Idle, 10 = Starting delay, 50 = Running
+CASE step OF
+
+    // ---------------------------------------------------------
+    // 0: IDLE
+    // ---------------------------------------------------------
+    0:
+        lineContactor := FALSE;
+        tonStartDelay(IN := FALSE);
+        deviceState := 'Idle (Parado)';
+
+        // Condições para iniciar partida
+        IF runLatch AND NOT faultActive AND motorStarterOK AND allInterlocksOK AND NOT stopCommand THEN
+            // Inicia tempo de partida (ajuste o PT conforme desejado)
+            tonStartDelay(IN := TRUE, PT := T#1S);
+            deviceState := 'Starting (Partida - softstarter)';
+            step := 10;
+        END_IF;
+
+
+    // ---------------------------------------------------------
+    // 10: STARTING DELAY (SOFTSTARTER)
+    // ---------------------------------------------------------
+    10:
+        deviceState := 'Starting (Partida - softstarter)';
+        tonStartDelay(IN := TRUE, PT := T#3S);
+
+        // Abort start se perder condição
+        IF NOT runLatch OR stopCommand OR faultActive OR NOT allInterlocksOK OR NOT motorStarterOK THEN
+            tonStartDelay(IN := FALSE);
+            lineContactor := FALSE;
+            step := 0;
+
+        ELSIF tonStartDelay.Q THEN
+            // Tempo de partida concluído -> liga contator de linha
+            tonStartDelay(IN := FALSE);
+            lineContactor := TRUE;
+            step := 50;
+        END_IF;
+
+
+    // ---------------------------------------------------------
+    // 50: RUNNING ON LINE
+    // ---------------------------------------------------------
+    50:
+        lineContactor := TRUE;
+        deviceState := 'Running on line (Operando em linha)';
+
+        // Sai do RUN se o latch for desligado ou se der stop
+        IF NOT runLatch OR stopCommand THEN
+            lineContactor := FALSE;
+            step := 0;
+        END_IF;
+
+
+    // ---------------------------------------------------------
+    // Fallback (qualquer outro valor de step)
+    // ---------------------------------------------------------
+    ELSE
+        lineContactor := FALSE;
+        tonStartDelay(IN := FALSE);
+        deviceState := 'Idle (Parado)';
+        step := 0;
+END_CASE;
+
+
+// =============================== Status code =======================================
+// 0 = Idle/Off
+// 1 = Running
+// 2 = Fault
+IF faultActive THEN
+    statusCode := 2;             // Fault
+ELSIF lineContactor THEN
+    statusCode := 1;             // Running
+ELSE
+    statusCode := 0;             // Idle / Off
+END_IF;
+]]></ST>
+    </Implementation>
+    <Method Name="_InputFilter" Id="{d5dd269f-22db-409a-ae67-60a346b2b360}">
+      <Declaration><![CDATA[// ============================================================================
+// METHOD: _InputFilter
+// OSCAT PT1 filter for PV, with enable/disable and bumpless behavior.
+// When disabled, the filter tracks input quickly (tiny T) to avoid bumps.
+// ============================================================================
+METHOD PRIVATE _InputFilter
+VAR_INPUT
+    enableFilter   : BOOL;  // TRUE=apply PT1, FALSE=bypass
+    rawValue       : REAL;  // Input value to be filtered
+    filterTime     : TIME;  // PT1 time constant
+    filterGainK    : REAL;  // PT1 gain, typically 1.0
+END_VAR
+VAR_OUTPUT
+    filteredValue  : REAL;  // Filtered (or bypassed) value
+END_VAR
+VAR
+    kUse           : REAL;
+    tUse           : TIME;
+    yPT1           : REAL;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[
+
+IF enableFilter THEN
+    kUse := filterGainK;
+    tUse := filterTime;
+ELSE
+    // Track input closely for bumpless re-enable
+    kUse := 1.0;
+    tUse := T#10ms;
+END_IF;
+
+instsFT_PT1TInputFilter(
+    in  := rawValue,
+    T   := tUse,
+    K   := kUse,
+    out => yPT1
+);
+
+// Output selection
+IF enableFilter THEN
+    filteredValue := yPT1;
+ELSE
+    filteredValue := rawValue;
+END_IF;
+]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_SimpleMotorStart_V3">
+      <LineId Id="3843" Count="130" />
+      <LineId Id="9" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_SimpleMotorStart_V3._InputFilter">
+      <LineId Id="286" Count="9" />
+      <LineId Id="224" Count="13" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

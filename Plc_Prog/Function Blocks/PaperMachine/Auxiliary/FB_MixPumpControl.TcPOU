@@ -1,0 +1,423 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.15">
+  <POU Name="FB_MixPumpControl" Id="{10428b6a-3b06-4cfb-8425-cae03603146d}" SpecialFunc="None">
+    <Declaration><![CDATA[(*
+    FB_MixPumpControl
+    - English comments
+    - Pressure in mmH2O
+    - Uses OSCAT CTRL_PID (v3.33): SUP = DIFF deadband (mmH2O), OFS adds to output Y
+    - Includes PV input filter (OSCAT PT1)
+    - Includes Jet-to-Wire computation (wire speed in m/min, ratio unitless)
+    - Includes ratio tuning via OSCAT TUNE2 (increment/decrement buttons with min/max/step)
+    - VFD supervision with RUN feedback timeout
+*)
+
+FUNCTION_BLOCK FB_MixPumpControl
+VAR_INPUT
+    // Commands
+    startCommand                : BOOL;          // Start
+    stopCommand                 : BOOL;          // Stop
+
+    // Mode
+    autoMode                    : BOOL;          // TRUE=Auto / FALSE=Manual
+
+    // Process (pressure in mmH2O)
+    pressureFeedback_mmH2O      : REAL;          // Measured pressure [mmH2O]
+    manualOutputPct             : REAL;          // Manual output 0..100%
+
+    // Forming board / wire speed and ratio
+    formingBoardSpeedMPM        : REAL;          // Wire speed [m/min]
+    // Ratio adjust buttons (local HMI)
+    jetToWireRatioInc           : BOOL;          // Increment ratio button
+    jetToWireRatioDec           : BOOL;          // Decrement ratio button
+    // Ratio limits and step
+    jetToWireRatioMin           : REAL := 0.50;  // Minimum allowed ratio
+    jetToWireRatioMax           : REAL := 2.00;  // Maximum allowed ratio
+    jetToWireRatioStep          : REAL := 0.01;  // Step per press
+
+    // Mapping from jet speed to pressure setpoint
+    jetHeadGainK                : REAL := 1.0;       // Gain applied to computed head (mmH2O)
+    jetHeadOffset_mmH2O         : REAL := 0.0;       // Offset added to computed head (mmH2O)
+    minAutoSP_mmH2O             : REAL := 0.0;       // Auto SP clamp low [mmH2O]
+    maxAutoSP_mmH2O             : REAL := 4000.0;    // Auto SP clamp high [mmH2O]
+
+    // PID parameters (OSCAT CTRL_PID)
+    kp                          : REAL := 0.8;       // Proportional gain
+    tn                          : REAL := 3.0;       // Integral time [s]
+    tv                          : REAL := 0.0;       // Derivative time [s]
+    pidDeadband_mmH2O           : REAL := 5.0;       // SUP: DIFF deadband [mmH2O]
+
+    // Output limits and adjustments (percent)
+    outLowLimitPct              : REAL := 0.0;       // Lower output limit [%]
+    outHighLimitPct             : REAL := 100.0;     // Upper output limit [%]
+    outputOffsetPct             : REAL := 0.0;       // OFS: Output offset [%] added to Y
+
+    // PID housekeeping
+    resetPID                    : BOOL;              // Asynchronous reset integrator
+
+    // Input filter (OSCAT PT1) for PV
+    enableInputFilter           : BOOL := TRUE;      // TRUE=apply PT1, FALSE=bypass
+    inputFilterTime             : TIME := T#300ms;   // PT1 time constant
+    inputFilterGainK            : REAL := 1.0;       // PT1 gain (typically 1.0)
+
+    // Interlocks / permissives (4)
+    interlock1                  : BOOL;
+    interlock2                  : BOOL;
+    interlock3                  : BOOL;
+    interlock4                  : BOOL;
+
+    // VFD interface & supervision
+    vfdReady                    : BOOL;              // VFD ready/healthy
+    vfdRunFeedback              : BOOL;              // VFD RUN feedback
+    vfdFaultFeedback            : BOOL;              // VFD fault feedback
+    vfdRunFbTimeout             : TIME := T#5s;      // Timeout to receive RUN FB after start
+END_VAR
+
+VAR_OUTPUT
+    // State
+    running                     : BOOL;              // TRUE when VFD confirms RUN
+    faultActive                 : BOOL;              // Latched fault flag
+    deviceState                 : STRING(80);        // Human-readable state
+	
+    // Commands to VFD
+    vfdStartCmd                 : BOOL;              // RUN command
+    vfdSpeedPct                 : REAL;              // 0..100% speed reference
+
+    // Telemetry
+    jetToWireRatio              : REAL;              // Current ratio value (unitless)
+    jetSpeed_mps                : REAL;              // Computed jet speed [m/s]
+    headBoxMMH2OCalc          : REAL;              // Auto SP fed to PID [mmH2O]
+    headBoxMMH2ORead          : REAL;              // Auto SP fed to PID [mmH2O]
+	
+    pidDiff                     : REAL;              // CTRL_PID DIFF (deadband-filtered)
+    pidLimited                  : BOOL;              // CTRL_PID LIM (Y at limit)
+	
+	
+END_VAR
+
+VAR
+    // Edges & helpers
+    startOld                    : BOOL;
+    rStart                      : BOOL;
+    allInterlocksOK             : BOOL;
+
+    // Supervision timer
+    tonVfdRunFbTimeout          : TON;
+
+    // Fault text
+    faultMsg                    : STRING(80);
+
+    // PID path
+    filteredPV_mmH2O            : REAL;
+    manualCmdPct                : REAL;
+    yPID_Pct                    : REAL;
+
+    // OSCAT instances
+    instPID                     : CTRL_PID;         // Pressure controller (percent output)
+    instsFT_PT1TInputFilter     : FT_PT1;         // PV PT1 filter
+END_VAR
+
+
+VAR PERSISTENT
+	
+	instTUNE2RatioSetpoint      : TUNE2;            // Ratio tuner with min/max clamp
+
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[// ============================== MAIN EXECUTION ==============================
+rStart := startCommand AND NOT startOld;
+startOld := startCommand;
+
+allInterlocksOK := interlock1 AND interlock2 AND interlock3 AND interlock4;
+deviceState := 'Idle (Stopped)';
+
+// Reset latched fault when idle (no start/stop)
+IF NOT startCommand AND NOT stopCommand THEN
+    faultActive := FALSE;
+    faultMsg := '';
+END_IF
+
+// Immediate fault sources
+IF vfdFaultFeedback THEN
+    faultActive := TRUE;
+    faultMsg := 'Fault: VFD fault feedback';
+END_IF
+IF startCommand AND NOT allInterlocksOK THEN
+    faultActive := TRUE;
+    faultMsg := 'Fault: interlock open';
+END_IF
+IF startCommand AND NOT vfdReady THEN
+    faultActive := TRUE;
+    faultMsg := 'Fault: VFD not ready';
+END_IF
+
+// Stop branch (immediate safe stop)
+IF stopCommand THEN
+    vfdStartCmd := FALSE;
+    vfdSpeedPct := 0.0;
+    running := FALSE;
+    tonVfdRunFbTimeout(IN:=FALSE);
+    deviceState := 'Stopping';
+
+ELSE
+    // Fault branch (hold safe)
+    IF faultActive THEN
+        vfdStartCmd := FALSE;
+        vfdSpeedPct := 0.0;
+        running := FALSE;
+        deviceState := faultMsg;
+        tonVfdRunFbTimeout(IN:=FALSE);
+
+    // Run branch
+    ELSIF startCommand AND allInterlocksOK AND vfdReady THEN
+        // --- Ratio tuning via TUNE2 (buttons & min/max clamp) ---
+        _RatioInputControl();
+
+        // --- Compute Auto SP (mmH2O) from jet-to-wire and speed ---
+        _JetToWire(
+            wireSpeedMPM        := formingBoardSpeedMPM,
+            ratio               := jetToWireRatio,
+            gainK               := jetHeadGainK,
+            offset_mmH2O        := jetHeadOffset_mmH2O,
+            minSP_mmH2O         := minAutoSP_mmH2O,
+            maxSP_mmH2O         := maxAutoSP_mmH2O,
+            jetSpeed_mps        => jetSpeed_mps,
+            autoSetpoint_mmH2O  => headBoxMMH2OCalc
+        );
+
+        // --- Filter PV (mmH2O) with OSCAT PT1 (enable/disable) ---
+        _InputFilter(
+            enableFilter  := enableInputFilter,
+            rawValue      := pressureFeedback_mmH2O,
+            filterTime    := inputFilterTime,
+            filterGainK   := inputFilterGainK,
+            filteredValue => filteredPV_mmH2O
+        );
+
+        // --- Manual command in % with clamp ---
+        manualCmdPct := manualOutputPct;
+        IF manualCmdPct < outLowLimitPct  THEN manualCmdPct := outLowLimitPct;  END_IF;
+        IF manualCmdPct > outHighLimitPct THEN manualCmdPct := outHighLimitPct; END_IF;
+
+        // --- OSCAT CTRL_PID (mmH2O domain for ACT/SET, % domain for Y/limits) ---
+        instPID(
+            ACT := filteredPV_mmH2O,           // PV [mmH2O]
+            SET := headBoxMMH2OCalc,         // SP [mmH2O]
+            SUP := pidDeadband_mmH2O,          // DIFF deadband [mmH2O]
+            OFS := outputOffsetPct,            // Output offset [%]
+            M_I := manualCmdPct,               // Manual track value [%]
+            MAN := NOT autoMode,               // TRUE => manual (Y = M_I + OFS)
+            RST := resetPID,                   // Reset integrator
+            KP  := kp,
+            TN  := tn,
+            TV  := tv,
+            LL  := outLowLimitPct,             // Output low limit [%]
+            LH  := outHighLimitPct,            // Output high limit [%]
+            Y   => yPID_Pct,                   // PID output [%]
+            DIFF=> pidDiff,                    // Deadband-filtered DIFF
+            LIM => pidLimited                  // TRUE when Y hits limit
+        );
+
+        // --- Mode selection & clamp ---
+        IF autoMode THEN
+            vfdSpeedPct := yPID_Pct;
+        ELSE
+            vfdSpeedPct := manualCmdPct;
+        END_IF
+        IF vfdSpeedPct < outLowLimitPct  THEN vfdSpeedPct := outLowLimitPct;  END_IF;
+        IF vfdSpeedPct > outHighLimitPct THEN vfdSpeedPct := outHighLimitPct; END_IF;
+
+        // --- Command VFD and supervise RUN FB ---
+        vfdStartCmd := TRUE;
+
+        tonVfdRunFbTimeout(
+            IN := (vfdStartCmd AND NOT vfdRunFeedback),
+            PT := vfdRunFbTimeout
+        );
+
+        IF NOT vfdRunFeedback THEN
+            deviceState := 'Waiting VFD RUN feedback';
+        ELSE
+            IF autoMode THEN
+                deviceState := 'Running (Auto, pressure in mmH2O)';
+            ELSE
+                deviceState := 'Running (Manual)';
+            END_IF
+        END_IF
+
+        IF tonVfdRunFbTimeout.Q THEN
+            faultActive := TRUE;
+            faultMsg := 'Fault: VFD RUN feedback timeout';
+            deviceState := faultMsg;
+
+            vfdStartCmd := FALSE;
+            vfdSpeedPct := 0.0;
+            running := FALSE;
+            tonVfdRunFbTimeout(IN:=FALSE);
+        ELSE
+            running := vfdRunFeedback;  // running when VFD confirms RUN
+        END_IF
+
+    // Idle / safe branch
+    ELSE
+        vfdStartCmd := FALSE;
+        vfdSpeedPct := 0.0;
+        running := FALSE;
+
+        IF startCommand AND (NOT allInterlocksOK) THEN
+            deviceState := 'Fault: interlock open';
+            faultActive := TRUE;
+            faultMsg := deviceState;
+        ELSIF startCommand AND (NOT vfdReady) THEN
+            deviceState := 'Fault: VFD not ready';
+            faultActive := TRUE;
+            faultMsg := deviceState;
+        ELSE
+            deviceState := 'Idle (Stopped)';
+        END_IF
+
+        tonVfdRunFbTimeout(IN:=FALSE);
+    END_IF
+END_IF]]></ST>
+    </Implementation>
+    <Method Name="_InputFilter" Id="{e23526ae-ae42-4b00-8797-42aa9ad8752d}">
+      <Declaration><![CDATA[// ============================================================================
+// METHOD: _InputFilter
+// OSCAT PT1 filter for PV, with enable/disable and bumpless behavior.
+// When disabled, the filter tracks input quickly (tiny T) to avoid bumps.
+// ============================================================================
+METHOD PRIVATE _InputFilter
+VAR_INPUT
+    enableFilter   : BOOL;  // TRUE=apply PT1, FALSE=bypass
+    rawValue       : REAL;  // Input value to be filtered
+    filterTime     : TIME;  // PT1 time constant
+    filterGainK    : REAL;  // PT1 gain, typically 1.0
+END_VAR
+VAR_OUTPUT
+    filteredValue  : REAL;  // Filtered (or bypassed) value
+END_VAR
+VAR
+    kUse           : REAL;
+    tUse           : TIME;
+    yPT1           : REAL;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[
+
+IF enableFilter THEN
+    kUse := filterGainK;
+    tUse := filterTime;
+ELSE
+    // Track input closely for bumpless re-enable
+    kUse := 1.0;
+    tUse := T#10ms;
+END_IF;
+
+instsFT_PT1TInputFilter(
+    in  := rawValue,
+    T   := tUse,
+    K   := kUse,
+    out => yPT1
+);
+
+// Output selection
+IF enableFilter THEN
+    filteredValue := yPT1;
+ELSE
+    filteredValue := rawValue;
+END_IF;
+
+//Display filtered value output
+headBoxMMH2ORead := yPT1;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_JetToWire" Id="{fe9479e2-062c-4943-8aaf-cf59157cde93}">
+      <Declaration><![CDATA[// ============================================================================
+// METHOD: _JetToWire
+// Computes jet speed from wire speed and ratio, then maps to pressure SP (mmH2O).
+// Dynamic head: H[mmH2O] = (v^2 / (2*g)) * 1000, with g = 9.80665 m/s^2.
+// A tunable gain/offset is applied; SP is clamped to min/max bounds.
+// ============================================================================
+METHOD PRIVATE _JetToWire
+VAR_INPUT
+    wireSpeedMPM        : REAL;  // Wire speed [m/min]
+    ratio               : REAL;  // Jet/Wire ratio (unitless), e.g., 1.05
+    gainK               : REAL;  // Gain on computed head
+    offset_mmH2O        : REAL;  // Offset added to head [mmH2O]
+    minSP_mmH2O         : REAL;  // SP lower bound [mmH2O]
+    maxSP_mmH2O         : REAL;  // SP upper bound [mmH2O]
+END_VAR
+VAR_OUTPUT
+    jetSpeed_mps        : REAL;  // Jet speed [m/s]
+    autoSetpoint_mmH2O  : REAL;  // Pressure SP [mmH2O]
+END_VAR
+VAR
+    wire_mps            : REAL;
+    rUse                : REAL;
+    dynHead_mmH2O       : REAL;
+    cHeadCoeff          : REAL := 50.988; // 1000/(2*g), g=9.80665
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// Sanitize ratio
+rUse := ratio;
+IF rUse < 0.0 THEN rUse := 0.0; END_IF;
+
+// Convert wire speed to m/s
+wire_mps := wireSpeedMPM / 60.0;
+
+// Jet speed and dynamic head
+jetSpeed_mps := rUse * wire_mps;
+dynHead_mmH2O := cHeadCoeff * (jetSpeed_mps * jetSpeed_mps);
+
+// Apply gain/offset and clamp
+autoSetpoint_mmH2O := gainK * dynHead_mmH2O + offset_mmH2O;
+IF autoSetpoint_mmH2O < minSP_mmH2O THEN autoSetpoint_mmH2O := minSP_mmH2O; END_IF;
+IF autoSetpoint_mmH2O > maxSP_mmH2O THEN autoSetpoint_mmH2O := maxSP_mmH2O; END_IF;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_RatioInputControl" Id="{8a0387ed-3bfc-480f-a9d1-0f87b3697ef7}">
+      <Declaration><![CDATA[// ============================================================================
+// METHOD: _RatioInputControl
+// Uses OSCAT TUNE2 to adjust jet-to-wire ratio with buttons, step, min/max.
+// The instance preserves ratio value across calls (and download if retained).
+// ============================================================================
+METHOD PRIVATE _RatioInputControl
+
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[
+instTUNE2RatioSetpoint(
+    SET      := FALSE,               // No direct set here (could be mapped to external preset)
+    SU       := jetToWireRatioInc,   // Increment button
+    SD       := jetToWireRatioDec,   // Decrement button
+    RST      := FALSE,               // Optional: add a reset input if needed
+    SS       := jetToWireRatioStep,  // Small step per press
+    FS       := 0.0,                 // Fast step (unused)
+    LIMIT_L  := jetToWireRatioMin,   // Lower bound
+    LIMIT_H  := jetToWireRatioMax,   // Upper bound
+    Y        => jetToWireRatio       // Current ratio output (unitless)
+);
+]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_MixPumpControl">
+      <LineId Id="1657" Count="153" />
+      <LineId Id="9" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_MixPumpControl._InputFilter">
+      <LineId Id="286" Count="9" />
+      <LineId Id="224" Count="13" />
+      <LineId Id="315" Count="1" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_MixPumpControl._JetToWire">
+      <LineId Id="208" Count="13" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_MixPumpControl._RatioInputControl">
+      <LineId Id="36" Count="11" />
+      <LineId Id="12" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

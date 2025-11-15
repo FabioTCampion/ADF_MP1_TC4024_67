@@ -1,0 +1,752 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.15">
+  <POU Name="FB_MixPumpControl_V1" Id="{962207c6-ca14-4119-8fb6-fb5bad640efc}" SpecialFunc="None">
+    <Declaration><![CDATA[(*
+===============================================================================
+FB_MixPumpControl_V1  —  Rev.2025-09-07
+
+CHANGE LOG
+- Start/Stop harmonizado com FB_PressureControl_V1:
+  • Detecção de borda (start/stop), latch de RUN, interlocks como parada normal,
+    timeout para vfdRunFeedback, passos: Idle(0) → Starting(10) → Running(20) → Stopping(90) → Idle.
+  • Parada imediata em falha/stop; parada normal por interlock/processo.
+- Novas variáveis (HMI):
+  • statusCode : INT  // 0=Idle, 1=Starting, 2=Running, 3=Fault
+  • vfdCurrentDisplay : REAL  // corrente filtrada (A ou %)
+  • vfdTorqueDisplay  : REAL  // torque filtrado (Nm ou %)
+  • (mapear de vfdCurrentFeedback / vfdTorqueFeedback; se não conectados, exibem 0.0)
+- Reorganização/limpeza (sem mudar função):
+  • Execução do PID/auto-man, filtro PV e cálculo de setpoint automático
+    executados no estado RUN; resets/segurança centralizados.
+  • Comentários EN + (pt-BR) nas adições.
+
+STATE DIAGRAM (textual)
+Idle(0) --Start→ Starting(10) --RUN fb→ Running(20)
+Running(20) --Stop/Interlock/Hold→ Stopping(90) → Idle(0)
+Any state --Fault/Safety→ Stopping(90) → Idle(0)
+Fault code mapping: statusCode=3 quando falha; Stopping mapeia para Idle (0) ao finalizar.
+
+NOTAS DE MAPEAMENTO
+- Displays:
+  vfdCurrentDisplay <= vfdCurrentFeedback (PT1 curto)  // (corrente)
+  vfdTorqueDisplay  <= vfdTorqueFeedback  (PT1 curto)  // (torque)
+- Se os nomes reais dos sinais forem diferentes (ex.: iVfd, torqueVfdPct),
+  conecte-os às novas entradas vfdCurrentFeedback / vfdTorqueFeedback conforme o seu projeto.
+===============================================================================
+*)
+
+FUNCTION_BLOCK FB_MixPumpControl_V1
+VAR_INPUT
+    // ===== Commands =====
+    startCommand               : BOOL;    // Start pulse (toggle run) (Pulso de partida alterna RUN)
+    stopCommand                : BOOL;    // Stop pulse/level (Parada)
+    autoMode                   : BOOL;    // TRUE=Auto / FALSE=Manual (Modo automático)
+
+    // ===== Process feedbacks / tuning =====
+    pressureFeedback_mmH2O     : REAL;    // PV [mmH2O]
+	manualSetpointInc            : BOOL;    // Manual output 0..100% (Saída manual)
+    manualSetpointDec            : BOOL;    // Manual output 0..100% (Saída manual)
+
+    formingBoardSpeedMPM       : REAL;    // Wire speed [m/min] (Velocidade da tela)
+
+    jetToWireRatioInc          : BOOL;    // Increment ratio (Incrementa razão)
+    jetToWireRatioDec          : BOOL;    // Decrement ratio (Decrementa razão)
+    jetToWireRatioMin          : REAL := 0.5;
+    jetToWireRatioMax          : REAL := 2.0;
+    jetToWireRatioStep         : REAL := 0.01;
+
+    jetHeadGainK               : REAL := 1.0;    // Gain on computed head (Ganho no head calculado)
+    jetHeadOffset_mmH2O        : REAL := 0.0;    // Offset [mmH2O] (Offset no head)
+    minAutoSP_mmH2O            : REAL := 0.0;    // Clamp low [mmH2O] (Limite inferior)
+    maxAutoSP_mmH2O            : REAL := 4000.0; // Clamp high [mmH2O] (Limite superior)
+
+    // ===== PID params (OSCAT CTRL_PID) =====
+    kp                         : REAL := 0.8;
+    tn                         : REAL := 3.0;
+    tv                         : REAL := 0.0;
+    pidDeadband_mmH2O          : REAL := 5.0;    // SUP (faixa morta no DIFF em mmH2O)
+    outLowLimitPct             : REAL := 0.0;    // LL
+    outHighLimitPct            : REAL := 100.0;  // LH
+    outputOffsetPct            : REAL := 0.0;    // OFS
+    resetPID                   : BOOL;           // RST
+
+    // ===== PV input filter =====
+    enableInputFilter          : BOOL := TRUE;
+    inputFilterTime            : TIME := T#300ms;
+    inputFilterGainK           : REAL := 1.0;
+
+    // ===== Interlocks (normal stop only) =====
+    interlock1                 : BOOL;   // Interlock/permissive (Intertravamento)
+    interlock2                 : BOOL;
+    interlock3                 : BOOL;
+    interlock4                 : BOOL;
+
+    // ===== VFD feedbacks & supervision =====
+    vfdReady                   : BOOL;   // VFD ready/healthy (Pronto)
+    vfdRunFeedback             : BOOL;   // VFD RUN FB (Confirmação de RUN)
+    vfdFaultFeedback           : BOOL;   // VFD Fault (Falha inversor)
+    vfdRunFbTimeout            : TIME := T#5s;   // Timeout to receive RUN FB
+
+    // ===== VFD analog feedbacks =====
+    vfdCurrentFeedback      : REAL;            // Motor current [A]
+    vfdEngFeedback          : REAL;            // Motor enginering feedback
+    vfdTorqueFeedback       : REAL;            // Motor torque feedback
+
+	
+END_VAR
+
+VAR_OUTPUT
+    // ===== Machine state =====
+    running                    : BOOL;            // TRUE in RUN (libera outros dispositivos)
+    faultActive                : BOOL;            // Latched fault (Falha memorizada)
+    deviceState                : STRING(80);      // Human-readable (EN/PT-BR)
+    vfdStartCmd                : BOOL;            // RUN command (Comando de partida ao inversor)
+
+    // ===== Drive reference / control =====
+    vfdSpeedPct                : REAL;            // 0..100% speed reference
+
+    // ===== Jet-to-wire & pressure calc =====
+//    jetToWireRatio             : REAL;            // Current ratio
+    jetSpeed_mps               : REAL;            // Computed jet speed [m/s]
+    headBoxMMH2OCalc           : REAL;            // Auto SP to PID [mmH2O]
+    headBoxMMH2ORead           : REAL;            // PV filtered (para HMI)
+
+    // ===== PID observability =====
+    pidDiff                    : REAL;            // DIFF (deadband-filtered)
+    pidLimited                 : BOOL;            // TRUE se Y saturado
+
+    // ===== (NEW) HMI displays =====
+//    manualSetpoint            : REAL;    		// Manual output 0..100% (Saída manual)	
+    statusCode                 : INT;             // 0=Idle,1=Starting,2=Running,3=Fault
+    vfdCurrentDisplay          : REAL;            // corrente (A ou %), filtrada para HMI
+    vfdTorqueDisplay           : REAL;            // torque (Nm ou %), filtrado para HMI
+    vfdEngDisplay           	: REAL;            // Displayed motor speed [rpm]	
+	
+END_VAR
+
+VAR
+	
+	// ====== Edges & state-latch (bordas e trava de RUN) ======
+    firstScan : BOOL := TRUE;   // TRUE only on first PLC cycle (Primeira varredura)
+	
+    // ====== Edges & state-latch (bordas e trava de RUN) ======
+    startOld                   : BOOL;
+    stopOld                    : BOOL;
+    rStart                     : BOOL;
+    rStop                      : BOOL;
+    runLatch                   : BOOL;     // toggled by Start, cleared by Stop/Fault (Trava de execução)
+
+    // ====== Step machine ======
+    step                       : INT;      // 0=Idle,10=Starting,20=Running,90=Stopping
+
+    // ====== Helpers ======
+    allInterlocksOK            : BOOL;
+    yPID_Pct                   : REAL;
+    manualCmdPct               : REAL;
+    filteredPV_mmH2O           : REAL;
+    faultMsg                   : STRING(80);
+
+    // ====== Timers ======
+    tonRunFbWait               : TON;      // Wait RUN FB after start (Aguardar RUN do VFD)
+
+    // ====== Instances already used in original FB ======
+    instPID                    : CTRL_PID; // OSCAT PID
+    instsFT_PT1TInputFilter    : FT_PT1;   // PT1 para PV
+
+    // ====== (NEW) Display PT1 filters (pequeno Tc) ======
+    instPT1_CurrentDisplay     : FT_PT1;   // PT1 para corrente exibida
+    instPT1_TorqueDisplay      : FT_PT1;   // PT1 para torque exibido
+	instPT1_SpeedDisplay		: FT_PT1;   // PT1 para torque exibido
+	
+    displayFilterTime          : TIME := T#50ms; // Small smoothing (Suavização leve)
+	jetToWireRatioOld: REAL;
+	manualSetpointOld: REAL;
+END_VAR
+
+VAR PERSISTENT
+    // Mantido do original (tuner de razão)
+    instTUNE2RatioSetpoint     : TUNE2;   // Ratio tuner with min/max clamp
+  	instTUNE2ManSetpoint     	: TUNE2;   // Ratio tuner with min/max clamp
+
+END_VAR
+
+VAR_IN_OUT
+	
+    jetToWireRatio             : REAL;            // Current ratio
+    manualSetpoint            : REAL;    		// Manual output 0..100% (Saída manual)	
+	
+
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[// ============================ INITIALIZATION ============================
+// Run this block only once on first cycle (Executa apenas uma vez)
+IF firstScan THEN
+
+	jetToWireRatio := instTUNE2RatioSetpoint.Y;
+	manualSetpoint := instTUNE2ManSetpoint.Y;
+	jetToWireRatioOld := jetToWireRatio;
+	manualSetpointOld := manualSetpoint;
+    firstScan := FALSE;             // Clear after first execution
+	
+END_IF
+
+
+
+
+// ============================== MAIN EXECUTION ==============================
+(* --------- 1) Edge detection (detecção de borda) --------- *)
+rStart := startCommand AND NOT startOld;
+startOld := startCommand;
+
+rStop  := stopCommand AND NOT stopOld;
+stopOld := stopCommand;
+
+// Start toggles run; Stop forces stop (Start alterna RUN; Stop força parada)
+IF rStart THEN
+    runLatch := TRUE;
+END_IF;
+IF rStop OR stopCommand THEN
+    runLatch := FALSE;
+END_IF;
+
+// --------- 2) Aggregations / defaults ---------
+allInterlocksOK := interlock1 AND interlock2 AND interlock3 AND interlock4;
+
+// Defaults every cycle (padrões por ciclo)
+vfdStartCmd   := FALSE;
+deviceState   := 'Idle / Parado';
+
+// --------- 3) Immediate stops/faults (paradas/falhas imediatas) ---------
+IF vfdFaultFeedback THEN
+    // Inversor sinalizou falha => parar imediatamente
+    faultActive := TRUE;
+    faultMsg := 'Fault: VFD fault feedback / Falha: inversor';
+    runLatch := FALSE;
+    step := 90;  // Stopping
+END_IF;
+
+IF rStop OR stopCommand THEN
+    // Comando de parada (classe normal, mas imediato no comando)
+    runLatch := FALSE;
+    step := 90;  // Stopping
+END_IF;
+
+// --------- 4) State machine (máquina de estados) ---------
+CASE step OF
+    // ============================= 0) IDLE =============================
+    0:
+        running     := FALSE;
+        vfdStartCmd := FALSE;
+        vfdSpeedPct := 0.0;
+        deviceState := 'Idle / Parado';
+
+        // Limpar timeout e mensagens
+        tonRunFbWait(IN := FALSE);
+        IF NOT startCommand AND NOT stopCommand THEN
+            // libera falha quando em repouso sem comandos
+            faultActive := FALSE;
+            faultMsg := '';
+        END_IF
+
+        // Pedido de partida via runLatch
+        IF runLatch AND NOT stopCommand THEN
+            IF NOT vfdReady THEN
+                deviceState := 'Start blocked: VFD not ready / Partida bloqueada: inversor NOK';
+                runLatch := FALSE; // rejeita pedido
+            ELSIF NOT allInterlocksOK THEN
+                deviceState := 'Start blocked: interlock open / Partida bloqueada: intertravamento';
+                runLatch := FALSE;
+            ELSE
+                // Tudo OK => partir
+                deviceState := 'Starting / Partindo';
+                vfdStartCmd := TRUE;
+                tonRunFbWait(IN := TRUE, PT := vfdRunFbTimeout);
+                step := 10;
+            END_IF
+        END_IF
+
+    // ========================== 10) STARTING ==========================
+    10:
+        running     := FALSE;
+        vfdStartCmd := TRUE;
+        deviceState := 'Starting (await RUN fb) / Aguardando RUN';
+
+        // Falha ou perda de condição => parar
+        IF vfdFaultFeedback THEN
+            faultActive := TRUE;
+            faultMsg := 'Fault from VFD';
+            vfdStartCmd := FALSE;
+            tonRunFbWait(IN := FALSE);
+            runLatch := FALSE;
+            step := 90;
+
+        ELSIF NOT vfdReady THEN
+            deviceState := 'Stopping: VFD not ready / Parando: inversor NOK';
+            vfdStartCmd := FALSE;
+            tonRunFbWait(IN := FALSE);
+            runLatch := FALSE;
+            step := 90;
+
+        // Interlocks em START: classe normal (parada)
+        ELSIF NOT allInterlocksOK THEN
+            deviceState := 'Stopping: interlock open / Parando: intertravamento';
+            vfdStartCmd := FALSE;
+            tonRunFbWait(IN := FALSE);
+            runLatch := FALSE;
+            step := 90;
+
+        // Chegou RUN?
+        ELSIF vfdRunFeedback THEN
+            tonRunFbWait(IN := FALSE);
+            step := 20;
+
+        // Timeout?
+        ELSIF tonRunFbWait.Q THEN
+            faultActive := TRUE;
+            faultMsg := 'Start failed: RUN fb timeout / Falha partida: tempo RUN';
+            deviceState := faultMsg;
+            vfdStartCmd := FALSE;
+            tonRunFbWait(IN := FALSE);
+            runLatch := FALSE;
+            step := 90;
+        END_IF
+
+    // =========================== 20) RUNNING ===========================
+    20:
+        running     := TRUE;           // libera intertravamento de outros grupos
+        vfdStartCmd := TRUE;
+        deviceState := 'Running / Operando';
+
+        // Supervisão contínua
+        IF vfdFaultFeedback THEN
+            faultActive := TRUE;
+            faultMsg := 'Fault from VFD';
+            vfdStartCmd := FALSE;
+            runLatch := FALSE;
+            step := 90;
+
+        ELSIF NOT vfdReady THEN
+            deviceState := 'Stopping: VFD not ready';
+            vfdStartCmd := FALSE;
+            runLatch := FALSE;
+            step := 90;
+
+        ELSIF NOT vfdRunFeedback THEN
+            deviceState := 'Stopping: RUN feedback lost';
+            vfdStartCmd := FALSE;
+            runLatch := FALSE;
+            step := 90;
+
+        // Interlocks: parada normal
+        ELSIF NOT allInterlocksOK THEN
+            deviceState := 'Stopping: interlock open';
+            vfdStartCmd := FALSE;
+            runLatch := FALSE;
+            step := 90;
+
+        // Start foi destoggleado (runLatch caiu)?
+        ELSIF NOT runLatch THEN
+            deviceState := 'Stopping (Start toggled off) / Parando (Start OFF)';
+            vfdStartCmd := FALSE;
+            step := 90;
+
+        ELSE
+            // ================== LOOP DE CONTROLE (ativo em RUN) ==================
+            // 1) Ajuste de razão por botões (mantido do original)
+            _SetpointInputControl();
+
+            // 2) Jet-to-wire → SP automático [mmH2O]
+            _JetToWire(
+                wireSpeedMPM        := formingBoardSpeedMPM,
+                ratio               := jetToWireRatio,
+                gainK               := jetHeadGainK,
+                offset_mmH2O        := jetHeadOffset_mmH2O,
+                minSP_mmH2O         := minAutoSP_mmH2O,
+                maxSP_mmH2O         := maxAutoSP_mmH2O,
+                jetSpeed_mps        => jetSpeed_mps,
+                autoSetpoint_mmH2O  => headBoxMMH2OCalc
+            );
+
+            // 3) Filtro PT1 da PV (habilitável)
+            _InputFilter(
+                enableFilter  := enableInputFilter,
+                rawValue      := pressureFeedback_mmH2O,
+                filterTime    := inputFilterTime,
+                filterGainK   := inputFilterGainK,
+                filteredValue => filteredPV_mmH2O
+            );
+            // headBoxMMH2ORead é atualizado dentro de _InputFilter (mantido)
+
+            // 4) Manual clamp
+            manualCmdPct := LIMIT(outLowLimitPct, manualSetpoint, outHighLimitPct);
+
+            // 5) PID OSCAT (ACT/SET em mmH2O, Y em %)
+            instPID(
+                ACT := filteredPV_mmH2O,
+                SET := headBoxMMH2OCalc,
+                SUP := pidDeadband_mmH2O,
+                OFS := outputOffsetPct,
+                M_I := manualCmdPct,
+                MAN := NOT autoMode,
+                RST := resetPID,
+                KP  := kp,
+                TN  := tn,
+                TV  := tv,
+
+                Y   => yPID_Pct,
+                DIFF=> pidDiff,
+                LIM => pidLimited
+            );
+
+            // 6) Seleção modo & clamp final da referência do VFD
+            IF autoMode THEN
+             vfdSpeedPct := yPID_Pct;
+			 //vfdSpeedPct := manualCmdPct;
+             instPID.LL  := outLowLimitPct;
+             instPID.LH  := outHighLimitPct;		 
+			 
+  
+            ELSE
+				
+                vfdSpeedPct := manualCmdPct;
+				instPID.LL  := manualCmdPct;
+				instPID.LH  := manualCmdPct;	
+			
+            END_IF
+            vfdSpeedPct := LIMIT(outLowLimitPct, vfdSpeedPct, outHighLimitPct);
+        END_IF
+
+    // =========================== 90) STOPPING ==========================
+    90:
+        running     := FALSE;
+        vfdStartCmd := FALSE;
+        vfdSpeedPct := 0.0;
+        tonRunFbWait(IN := FALSE);
+        deviceState := 'Stopping / Parando';
+
+        // Retorna a IDLE quando liberar stop e condições estiverem OK
+        IF NOT stopCommand THEN
+            step := 0; // Idle
+        END_IF
+
+    // ============================ DEFAULT =============================
+    ELSE
+        running     := FALSE;
+        vfdStartCmd := FALSE;
+        vfdSpeedPct := 0.0;
+        tonRunFbWait(IN := FALSE);
+        step := 0;
+END_CASE;
+
+// --------------------- Displays (corrente/torque) ---------------------
+_FeedbackDisplay();
+]]></ST>
+    </Implementation>
+    <Method Name="_FeedbackDisplay" Id="{5dd113b7-bac8-4a7f-94a7-6a96eb3e61b3}">
+      <Declaration><![CDATA[METHOD _FeedbackDisplay
+VAR_INPUT
+END_VAR
+VAR CONSTANT
+    STATUS_IDLE     : INT := 0;
+//    STATUS_STARTING : INT := 1;
+    STATUS_RUNNING  : INT := 1;
+    STATUS_FAULT    : INT := 2;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// ───────────────────────── 5) HMI DISPLAY SIGNALS ─────────────────────────────
+// Filtered speed for HMI (Velocidade filtrada para HMI)
+instPT1_SpeedDisplay(
+    in  := vfdEngFeedback,             // raw speed feedback (velocidade bruta)
+    T   := displayFilterTime,          // small smoothing (suavização leve)
+    K   := 1.0,
+    out => vfdEngDisplay               // speed shown on HMI (velocidade na HMI)
+);
+
+// Filtered torque for HMI (Torque filtrado para HMI)
+instPT1_TorqueDisplay(
+    in  := vfdTorqueFeedback,          // raw torque (torque bruto)
+    T   := displayFilterTime,
+    K   := 1.0,
+    out => vfdTorqueDisplay            // torque shown on HMI (torque na HMI)
+);
+
+// Filtered current for HMI (Corrente filtrada para HMI)
+instPT1_CurrentDisplay(
+    in  := vfdCurrentFeedback,         // raw current (corrente bruta)
+    T   := displayFilterTime,
+    K   := 1.0,
+    out => vfdCurrentDisplay           // current shown on HMI (corrente na HMI)
+);
+
+// ───────────────────────── GROUP STATUS / STATUS CODE ─────────────────────────
+// 0=Idle, 1=Starting, 2=Running, 3=Fault  (códigos para HMI)
+IF vfdFaultFeedback OR faultActive THEN
+    statusCode := STATUS_FAULT;         // Fault (Falha)
+ELSIF vfdRunFeedback THEN
+    statusCode := STATUS_RUNNING;         // Running (Operando)
+ELSE
+    statusCode := STATUS_IDLE;         // Idle (Parado)
+END_IF;
+
+
+(*
+
+// Master drive
+IF masterVfdFaultFeedback THEN
+    masterStatusCode := STATUS_FAULT;
+ELSIF masterVfdRunFeedback THEN
+    masterStatusCode := STATUS_RUNNING;
+ELSE
+    masterStatusCode := STATUS_IDLE;
+END_IF;
+
+// Slave drive
+IF slaveVfdFaultFeedback THEN
+    slaveStatusCode := STATUS_FAULT;
+ELSIF slaveVfdRunFeedback THEN
+    slaveStatusCode := STATUS_RUNNING;
+ELSE
+    slaveStatusCode := STATUS_IDLE;
+END_IF;
+
+*)
+
+
+
+
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_InputFilter" Id="{4aa8fa4b-0820-4207-81b9-d3a6bf443b9b}">
+      <Declaration><![CDATA[// ============================================================================
+// METHOD: _InputFilter
+// OSCAT PT1 filter for PV, with enable/disable and bumpless behavior.
+// When disabled, the filter tracks input quickly (tiny T) to avoid bumps.
+// ============================================================================
+METHOD PRIVATE _InputFilter
+VAR_INPUT
+    enableFilter   : BOOL;  // TRUE=apply PT1, FALSE=bypass
+    rawValue       : REAL;  // Input value to be filtered
+    filterTime     : TIME;  // PT1 time constant
+    filterGainK    : REAL;  // PT1 gain, typically 1.0
+END_VAR
+VAR_OUTPUT
+    filteredValue  : REAL;  // Filtered (or bypassed) value
+END_VAR
+VAR
+    kUse           : REAL;
+    tUse           : TIME;
+    yPT1           : REAL;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[
+
+IF enableFilter THEN
+    kUse := filterGainK;
+    tUse := filterTime;
+ELSE
+    // Track input closely for bumpless re-enable
+    kUse := 1.0;
+    tUse := T#10ms;
+END_IF;
+
+instsFT_PT1TInputFilter(
+    in  := rawValue,
+//    T   := tUse,
+    T   := T#8s,
+
+    K   := kUse,
+    out => yPT1
+);
+
+// Output selection
+IF enableFilter THEN
+    filteredValue := yPT1;
+ELSE
+    filteredValue := rawValue;
+END_IF;
+
+//Display filtered value output
+headBoxMMH2ORead := yPT1;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_JetToWire" Id="{60ca93db-e8aa-4982-b876-5595ad853a13}">
+      <Declaration><![CDATA[// ============================================================================
+// METHOD: _JetToWire
+// Computes jet speed from wire speed and ratio, then maps to pressure SP (mmH2O).
+// Dynamic head: H[mmH2O] = (v^2 / (2*g)) * 1000, with g = 9.80665 m/s^2.
+// A tunable gain/offset is applied; SP is clamped to min/max bounds.
+// ============================================================================
+METHOD PRIVATE _JetToWire
+VAR_INPUT
+    wireSpeedMPM        : REAL;  // Wire speed [m/min]
+    ratio               : REAL;  // Jet/Wire ratio (unitless), e.g., 1.05
+    gainK               : REAL;  // Gain on computed head
+    offset_mmH2O        : REAL;  // Offset added to head [mmH2O]
+    minSP_mmH2O         : REAL;  // SP lower bound [mmH2O]
+    maxSP_mmH2O         : REAL;  // SP upper bound [mmH2O]
+END_VAR
+VAR_OUTPUT
+    jetSpeed_mps        : REAL;  // Jet speed [m/s]
+    autoSetpoint_mmH2O  : REAL;  // Pressure SP [mmH2O]
+END_VAR
+VAR
+    wire_mps            : REAL;
+    rUse                : REAL;
+    dynHead_mmH2O       : REAL;
+    cHeadCoeff          : REAL := 50.988; // 1000/(2*g), g=9.80665
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// Sanitize ratio
+rUse := ratio;
+IF rUse < 0.0 THEN rUse := 0.0; END_IF;
+
+// Convert wire speed to m/s
+wire_mps := wireSpeedMPM / 60.0;
+
+// Jet speed and dynamic head
+jetSpeed_mps := rUse * wire_mps;
+dynHead_mmH2O := cHeadCoeff * (jetSpeed_mps * jetSpeed_mps);
+
+// Apply gain/offset and clamp
+autoSetpoint_mmH2O := gainK * dynHead_mmH2O + offset_mmH2O;
+IF autoSetpoint_mmH2O < minSP_mmH2O THEN autoSetpoint_mmH2O := minSP_mmH2O; END_IF;
+IF autoSetpoint_mmH2O > maxSP_mmH2O THEN autoSetpoint_mmH2O := maxSP_mmH2O; END_IF;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_SetpointInputControl" Id="{0de0ff1d-4634-40d4-b4ae-f1e6d36446f3}">
+      <Declaration><![CDATA[// ============================================================================
+// METHOD: _SetpointInputControl
+// Purpose: Handle HMI writes and button nudges for both ratio and manual SP,
+//          using OSCAT TUNE2 instances. External writes trigger a one-scan
+//          SET pulse; SU/SD remain active every scan.
+// Objetivo: Tratar escritas da HMI e botões ↑/↓ para razão e SP manual,
+//           usando TUNE2. Escritas externas disparam SET por 1 varredura;
+//           SU/SD permanecem ativos a cada ciclo.
+// ============================================================================
+
+METHOD PRIVATE _SetpointInputControl]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[
+// ─────────────────────────── Jet-to-Wire Ratio (Razão) ─────────────────────────
+// External change detection: if HMI/ADS writes a value larger than the step,
+// pulse SET to push it into TUNE2.
+// Detecção de mudança externa: se HMI/ADS gravar valor maior que o passo,
+// pulsar SET para aplicar no TUNE2.
+IF ABS(jetToWireRatio - jetToWireRatioOld) > instTUNE2RatioSetpoint.SS THEN
+    // Clamp to tuner limits (garante limites)
+    // One-scan SET pulse to sync internal setpoint (pulso SET de 1 ciclo)
+    instTUNE2RatioSetpoint(
+        SET_val := jetToWireRatio,
+        SET     := TRUE
+    );
+    instTUNE2RatioSetpoint(SET := FALSE);
+
+    // Remember applied value (memoriza valor aplicado)
+END_IF;
+
+// Track last seen value (rastreia último valor observado)
+jetToWireRatioOld := jetToWireRatio;
+
+// Normal SU/SD operation (operação normal dos botões ↑/↓)
+instTUNE2RatioSetpoint(
+    SET      := FALSE,               // No direct set here (sem SET contínuo)
+    SU       := jetToWireRatioInc,   // Increment button (↑)
+    SD       := jetToWireRatioDec,   // Decrement button (↓)
+    RST      := FALSE,               // Optional external reset (reset opcional)
+    SS       := jetToWireRatioStep,  // Small step per press (passo fino)
+    FS       := 0.0,                 // Fast step (unused) (passo rápido, não usado)
+    LIMIT_L  := jetToWireRatioMin,   // Lower bound (limite inferior)
+    LIMIT_H  := jetToWireRatioMax,   // Upper bound (limite superior)
+    Y        => jetToWireRatio       // Current ratio output (saída da razão)
+);
+
+
+// ─────────────────────────── Manual Setpoint (SP Manual) ───────────────────────
+// Same pattern: detect external write > step, pulse SET, then keep SU/SD active.
+// Mesmo padrão: detectar escrita externa > passo, pulsar SET, manter SU/SD ativo.
+IF ABS(manualSetpoint - manualSetpointOld) > instTUNE2ManSetpoint.SS THEN
+    // Clamp to tuner limits (garante limites)
+    // One-scan SET pulse to sync internal setpoint (pulso SET de 1 ciclo)
+    instTUNE2ManSetpoint(
+        SET_val := manualSetpoint,
+        SET     := TRUE
+    );
+    instTUNE2ManSetpoint(SET := FALSE);
+
+    // Remember applied value (memoriza valor aplicado)
+END_IF;
+
+// Track last seen value (rastreia último valor observado)
+manualSetpointOld := manualSetpoint;
+
+// Normal SU/SD operation (operação normal dos botões ↑/↓)
+instTUNE2ManSetpoint(
+    SET      := FALSE,               // No direct set here (sem SET contínuo)
+    SU       := manualSetpointInc,   // Increment button (↑)
+    SD       := manualSetpointDec,   // Decrement button (↓)
+    RST      := FALSE,               // Optional external reset (reset opcional)
+    SS       := 0.1,                 // Small step per press (passo fino)
+    FS       := 0.0,                 // Fast step (unused) (passo rápido, não usado)
+    LIMIT_L  := 0.0,                 // Lower bound (limite inferior)
+    LIMIT_H  := 100,                 // Upper bound (limite superior)
+    Y        => manualSetpoint       // Current manual SP output (saída do SP manual)
+);
+]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_MixPumpControl_V1">
+      <LineId Id="2795" Count="6" />
+      <LineId Id="3057" Count="0" />
+      <LineId Id="2802" Count="0" />
+      <LineId Id="3060" Count="0" />
+      <LineId Id="2803" Count="202" />
+      <LineId Id="3241" Count="0" />
+      <LineId Id="3006" Count="0" />
+      <LineId Id="3009" Count="7" />
+      <LineId Id="3236" Count="0" />
+      <LineId Id="3244" Count="0" />
+      <LineId Id="3243" Count="0" />
+      <LineId Id="3238" Count="0" />
+      <LineId Id="3237" Count="0" />
+      <LineId Id="3017" Count="0" />
+      <LineId Id="3248" Count="0" />
+      <LineId Id="3018" Count="0" />
+      <LineId Id="3246" Count="0" />
+      <LineId Id="3245" Count="0" />
+      <LineId Id="3247" Count="0" />
+      <LineId Id="3019" Count="27" />
+      <LineId Id="9" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_MixPumpControl_V1._FeedbackDisplay">
+      <LineId Id="12" Count="24" />
+      <LineId Id="81" Count="5" />
+      <LineId Id="89" Count="1" />
+      <LineId Id="48" Count="3" />
+      <LineId Id="62" Count="0" />
+      <LineId Id="65" Count="15" />
+      <LineId Id="63" Count="1" />
+      <LineId Id="61" Count="0" />
+      <LineId Id="52" Count="3" />
+      <LineId Id="47" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_MixPumpControl_V1._InputFilter">
+      <LineId Id="286" Count="9" />
+      <LineId Id="224" Count="3" />
+      <LineId Id="337" Count="0" />
+      <LineId Id="336" Count="0" />
+      <LineId Id="228" Count="9" />
+      <LineId Id="315" Count="1" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_MixPumpControl_V1._JetToWire">
+      <LineId Id="208" Count="13" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_MixPumpControl_V1._SetpointInputControl">
+      <LineId Id="178" Count="64" />
+      <LineId Id="69" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

@@ -1,0 +1,16 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.15">
+  <DUT Name="EL3204_CHANNEL" Id="{c36bfb25-0587-4158-9a33-3cb367871b30}">
+    <Declaration><![CDATA[TYPE EL3204_CHANNEL :
+	STRUCT
+		
+	
+	Status 	AT %I* : EL3204_DEV_STATUS;
+	Value 	AT %I* : INT;
+	
+	
+	END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

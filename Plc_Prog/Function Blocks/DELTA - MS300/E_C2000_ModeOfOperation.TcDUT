@@ -1,0 +1,23 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.15">
+  <DUT Name="E_C2000_ModeOfOperation" Id="{c11df83c-7183-445f-9378-212a470ef4e1}">
+    <Declaration><![CDATA[{attribute 'qualified_only'}
+{attribute 'strict'}
+TYPE E_C2000_ModeOfOperation :
+(
+    Reserved_0                      := 0,  // Reserved
+    ProfilePositionMode             := 1,  // Profile Position Mode
+    VelocityMode                    := 2,  // Velocity Mode
+    Reserved_3                      := 3,  // Reserved
+    ProfileTorqueMode               := 4,  // Profile Torque Mode
+    Reserved_5                      := 5,  // Reserved
+    HomingMode                      := 6,  // Homing Mode
+    Reserved_7                      := 7,  // Reserved (not listed but keeps alignment)
+    CyclicSynchronousPositionMode   := 8,  // Cyclic Synchronous Position Mode
+    Reserved_9                      := 9,  // Reserved
+    CyclicSynchronousTorqueMode     := 10  // Cyclic Synchronous Torque Mode
+);
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

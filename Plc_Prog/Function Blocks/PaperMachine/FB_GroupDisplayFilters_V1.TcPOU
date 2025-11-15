@@ -1,0 +1,191 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.15">
+  <POU Name="FB_GroupDisplayFilters_V1" Id="{189be075-eb54-4bf8-ba6f-31510d5b38f8}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_GroupDisplayFilters_V1
+VAR_INPUT
+    //----------------------------------------------------------------------
+    // RAW FEEDBACKS (from drives or sensors)
+    //----------------------------------------------------------------------
+    group1MasterSpeedFeedback     : REAL;   // [RPM]
+    group1Slave1SpeedFeedback     : REAL;   // [RPM]
+    group1Slave2SpeedFeedback     : REAL;   // [RPM]
+    group2MasterSpeedFeedback     : REAL;   // [RPM]
+    group2Slave1SpeedFeedback     : REAL;   // [RPM]
+    group2Slave2SpeedFeedback     : REAL;   // [RPM]
+
+    group1MasterTorqueFeedback    : REAL;
+    group1Slave1TorqueFeedback    : REAL;
+    group1Slave2TorqueFeedback    : REAL;
+    group2MasterTorqueFeedback    : REAL;
+    group2Slave1TorqueFeedback    : REAL;
+    group2Slave2TorqueFeedback    : REAL;
+
+    //----------------------------------------------------------------------
+    // DIAMETERS (used to convert RPM → MPM)
+    //----------------------------------------------------------------------
+    group1MasterDiameter          : REAL;   // [mm]
+    group1Slave1Diameter          : REAL;   // [mm]
+    group1Slave2Diameter          : REAL;   // [mm]
+    group2MasterDiameter          : REAL;   // [mm]
+    group2Slave1Diameter          : REAL;   // [mm]
+    group2Slave2Diameter          : REAL;   // [mm]
+
+    //----------------------------------------------------------------------
+    // FILTER PARAMETERS
+    //----------------------------------------------------------------------
+    displayFilterTime             : TIME := T#1S;   // EN: Time constant [s]
+                                                    // PT: Constante de tempo [s]
+
+    //----------------------------------------------------------------------
+    // ENABLE FLAGS (TRUE = filter active)
+    //----------------------------------------------------------------------
+    enableGroup1Slave1            : BOOL := TRUE;
+    enableGroup1Slave2            : BOOL := TRUE;
+    enableGroup2Slave1            : BOOL := TRUE;
+    enableGroup2Slave2            : BOOL := TRUE;
+END_VAR
+
+
+VAR_OUTPUT
+    //----------------------------------------------------------------------
+    // SPEEDS IN MPM (converted and filtered)
+    //----------------------------------------------------------------------
+    group1MasterSpeedMPM : REAL;   // [m/min]
+    group1Slave1SpeedMPM : REAL;   // [m/min]
+    group1Slave2SpeedMPM : REAL;   // [m/min]
+    group2MasterSpeedMPM : REAL;   // [m/min]
+    group2Slave1SpeedMPM : REAL;   // [m/min]
+    group2Slave2SpeedMPM : REAL;   // [m/min]
+
+    //----------------------------------------------------------------------
+    // SPEEDS IN RPM (filtered)
+    //----------------------------------------------------------------------
+    group1MasterSpeedRPM : REAL;   // [RPM]
+    group1Slave1SpeedRPM : REAL;   // [RPM]
+    group1Slave2SpeedRPM : REAL;   // [RPM]
+    group2MasterSpeedRPM : REAL;   // [RPM]
+    group2Slave1SpeedRPM : REAL;   // [RPM]
+    group2Slave2SpeedRPM : REAL;   // [RPM]
+
+    //----------------------------------------------------------------------
+    // TORQUES (filtered)
+    //----------------------------------------------------------------------
+    group1MasterTorque : REAL;
+    group1Slave1Torque : REAL;
+    group1Slave2Torque : REAL;
+    group2MasterTorque : REAL;
+    group2Slave1Torque : REAL;
+    group2Slave2Torque : REAL;
+END_VAR
+
+
+VAR
+    //----------------------------------------------------------------------
+    // PT1 filter instances
+    //----------------------------------------------------------------------
+    instPT1_Group1MasterSpeed     : FT_PT1;
+    instPT1_Group1Slave1Speed     : FT_PT1;
+    instPT1_Group1Slave2Speed     : FT_PT1;
+    instPT1_Group2MasterSpeed     : FT_PT1;
+    instPT1_Group2Slave1Speed     : FT_PT1;
+    instPT1_Group2Slave2Speed     : FT_PT1;
+
+    instPT1_Group1MasterTorque    : FT_PT1;
+    instPT1_Group1Slave1Torque    : FT_PT1;
+    instPT1_Group1Slave2Torque    : FT_PT1;
+    instPT1_Group2MasterTorque    : FT_PT1;
+    instPT1_Group2Slave1Torque    : FT_PT1;
+    instPT1_Group2Slave2Torque    : FT_PT1;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[//────────────────────────────────────────────────────────────
+// GROUP 1 — SPEED FILTERS (MPM and RPM)
+//────────────────────────────────────────────────────────────
+instPT1_Group1MasterSpeed( 
+    in := group1MasterSpeedFeedback, 
+    T := displayFilterTime, K := 1.0, 
+    out => group1MasterSpeedRPM );
+group1MasterSpeedMPM := group1MasterSpeedRPM * (group1MasterDiameter * PI / 1000.0);
+
+IF enableGroup1Slave1 THEN
+    instPT1_Group1Slave1Speed( in := group1Slave1SpeedFeedback, T := displayFilterTime, K := 1.0, out => group1Slave1SpeedRPM );
+ELSE
+    group1Slave1SpeedRPM := group1Slave1SpeedFeedback;
+END_IF;
+group1Slave1SpeedMPM := group1Slave1SpeedRPM * (group1Slave1Diameter * PI / 1000.0);
+
+IF enableGroup1Slave2 THEN
+    instPT1_Group1Slave2Speed( in := group1Slave2SpeedFeedback, T := displayFilterTime, K := 1.0, out => group1Slave2SpeedRPM );
+ELSE
+    group1Slave2SpeedRPM := group1Slave2SpeedFeedback;
+END_IF;
+group1Slave2SpeedMPM := group1Slave2SpeedRPM * (group1Slave2Diameter * PI / 1000.0);
+
+
+//────────────────────────────────────────────────────────────
+// GROUP 2 — SPEED FILTERS (MPM and RPM)
+//────────────────────────────────────────────────────────────
+instPT1_Group2MasterSpeed( 
+    in := group2MasterSpeedFeedback, 
+    T := displayFilterTime, K := 1.0, 
+    out => group2MasterSpeedRPM );
+group2MasterSpeedMPM := group2MasterSpeedRPM * (group2MasterDiameter * PI / 1000.0);
+
+IF enableGroup2Slave1 THEN
+    instPT1_Group2Slave1Speed( in := group2Slave1SpeedFeedback, T := displayFilterTime, K := 1.0, out => group2Slave1SpeedRPM );
+ELSE
+    group2Slave1SpeedRPM := group2Slave1SpeedFeedback;
+END_IF;
+group2Slave1SpeedMPM := group2Slave1SpeedRPM * (group2Slave1Diameter * PI / 1000.0);
+
+IF enableGroup2Slave2 THEN
+    instPT1_Group2Slave2Speed( in := group2Slave2SpeedFeedback, T := displayFilterTime, K := 1.0, out => group2Slave2SpeedRPM );
+ELSE
+    group2Slave2SpeedRPM := group2Slave2SpeedFeedback;
+END_IF;
+group2Slave2SpeedMPM := group2Slave2SpeedRPM * (group2Slave2Diameter * PI / 1000.0);
+
+
+//────────────────────────────────────────────────────────────
+// GROUP 1 — TORQUE FILTERS
+//────────────────────────────────────────────────────────────
+instPT1_Group1MasterTorque( in := group1MasterTorqueFeedback, T := displayFilterTime, K := 1.0, out => group1MasterTorque );
+
+IF enableGroup1Slave1 THEN
+    instPT1_Group1Slave1Torque( in := group1Slave1TorqueFeedback, T := displayFilterTime, K := 1.0, out => group1Slave1Torque );
+ELSE
+    group1Slave1Torque := group1Slave1TorqueFeedback;
+END_IF;
+
+IF enableGroup1Slave2 THEN
+    instPT1_Group1Slave2Torque( in := group1Slave2TorqueFeedback, T := displayFilterTime, K := 1.0, out => group1Slave2Torque );
+ELSE
+    group1Slave2Torque := group1Slave2TorqueFeedback;
+END_IF;
+
+
+//────────────────────────────────────────────────────────────
+// GROUP 2 — TORQUE FILTERS
+//────────────────────────────────────────────────────────────
+instPT1_Group2MasterTorque( in := group2MasterTorqueFeedback, T := displayFilterTime, K := 1.0, out => group2MasterTorque );
+
+IF enableGroup2Slave1 THEN
+    instPT1_Group2Slave1Torque( in := group2Slave1TorqueFeedback, T := displayFilterTime, K := 1.0, out => group2Slave1Torque );
+ELSE
+    group2Slave1Torque := group2Slave1TorqueFeedback;
+END_IF;
+
+IF enableGroup2Slave2 THEN
+    instPT1_Group2Slave2Torque( in := group2Slave2TorqueFeedback, T := displayFilterTime, K := 1.0, out => group2Slave2Torque );
+ELSE
+    group2Slave2Torque := group2Slave2TorqueFeedback;
+END_IF;
+]]></ST>
+    </Implementation>
+    <LineIds Name="FB_GroupDisplayFilters_V1">
+      <LineId Id="347" Count="81" />
+      <LineId Id="9" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

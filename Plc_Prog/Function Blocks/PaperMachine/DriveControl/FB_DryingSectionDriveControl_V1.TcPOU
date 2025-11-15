@@ -1,0 +1,1851 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.15">
+  <POU Name="FB_DryingSectionDriveControl_V1" Id="{1062ca84-d5b2-44de-98f9-96a294389ff7}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_DryingSectionDriveControl_V1
+VAR_INPUT
+    //==============================================================
+    // GROUP / INTERLOCKS
+    //==============================================================
+    startGroup                      : BOOL;  // EN: Start command (pulse / rising edge) / PT: Comando de partida (pulso / borda de subida)
+    stopGroup                       : BOOL;  // EN: Stop command (level / maintained) / PT: Comando de parada (nível / mantido)
+    groupReset                      : BOOL;  // EN: Reset group faults (HMI / operator reset) / PT: Reset das falhas do grupo (HMI / operador)
+
+	groupFastStop					: BOOL;
+
+    groupNumber                     : INT := 1;   // EN: Group number (1 = first drying group / 2 = second...) / PT: Número do grupo (1 = 1º grupo de secagem / 2 = 2º ...)
+
+    //==============================================================
+    // DRIVE STATUS INPUTS (VFDs) — UPPER GROUP
+    //==============================================================
+    upperMasterReady                : BOOL;  // EN: Upper master ready (no trip) = TRUE / PT: Mestre superior pronto (sem trip) = TRUE
+    upperMasterVfdRunFeedback       : BOOL;  // EN: Upper master RUN feedback = running / PT: Retorno de RUN do mestre superior = rodando
+    upperMasterVfdFaultFeedback     : BOOL;  // EN: Upper master fault/alarm = TRUE when drive has fault / PT: Falha/alarme do mestre superior = TRUE quando drive falhar
+    upperSlave1VfdReady             : BOOL;  // EN: Upper slave 1 ready / PT: Escravo 1 superior pronto
+    upperSlave1VfdRunFeedback       : BOOL;  // EN: Upper slave 1 RUN feedback / PT: Retorno de RUN do escravo 1 superior
+    upperSlave1VfdFaultFeedback     : BOOL;  // EN: Upper slave 1 fault/alarm / PT: Falha/alarme do escravo 1 superior
+    upperSlave2VfdReady             : BOOL;  // EN: Upper slave 2 ready / PT: Escravo 2 superior pronto
+    upperSlave2VfdRunFeedback       : BOOL;  // EN: Upper slave 2 RUN feedback / PT: Retorno de RUN do escravo 2 superior
+    upperSlave2VfdFaultFeedback     : BOOL;  // EN: Upper slave 2 fault/alarm / PT: Falha/alarme do escravo 2 superior
+
+    //==============================================================
+    // DRIVE STATUS INPUTS (VFDs) — LOWER GROUP
+    //==============================================================
+    lowerMasterReady                : BOOL;  // EN: Lower master ready (no trip) = TRUE / PT: Mestre inferior pronto (sem trip) = TRUE
+    lowerMasterVfdRunFeedback       : BOOL;  // EN: Lower master RUN feedback / PT: Retorno de RUN do mestre inferior
+    lowerMasterVfdFaultFeedback     : BOOL;  // EN: Lower master fault/alarm / PT: Falha/alarme do mestre inferior
+    lowerSlave1VfdReady             : BOOL;  // EN: Lower slave 1 ready / PT: Escravo 1 inferior pronto
+    lowerSlave1VfdRunFeedback       : BOOL;  // EN: Lower slave 1 RUN feedback / PT: Retorno de RUN do escravo 1 inferior
+    lowerSlave1VfdFaultFeedback     : BOOL;  // EN: Lower slave 1 fault/alarm / PT: Falha/alarme do escravo 1 inferior
+    lowerSlave2VfdReady             : BOOL;  // EN: Lower slave 2 ready / PT: Escravo 2 inferior pronto
+    lowerSlave2VfdRunFeedback       : BOOL;  // EN: Lower slave 2 RUN feedback / PT: Retorno de RUN do escravo 2 inferior
+    lowerSlave2VfdFaultFeedback     : BOOL;  // EN: Lower slave 2 fault/alarm / PT: Falha/alarme do escravo 2 inferior
+
+    //==============================================================
+    // DRYING SECTION — COOLING MOTOR FAULTS (PER DRIVE)
+    //==============================================================
+    upperMasterCoolingMotorFault    : BOOL;  // EN: Cooling motor fault for upper master / PT: Falha do motor de ventilação do mestre superior
+    upperSlave1CoolingMotorFault    : BOOL;  // EN: Cooling motor fault for upper slave 1 / PT: Falha do motor de ventilação do escravo 1 superior
+    upperSlave2CoolingMotorFault    : BOOL;  // EN: Cooling motor fault for upper slave 2 / PT: Falha do motor de ventilação do escravo 2 superior
+
+    lowerMasterCoolingMotorFault    : BOOL;  // EN: Cooling motor fault for lower master / PT: Falha do motor de ventilação do mestre inferior
+    lowerSlave1CoolingMotorFault    : BOOL;  // EN: Cooling motor fault for lower slave 1 / PT: Falha do motor de ventilação do escravo 1 inferior
+    lowerSlave2CoolingMotorFault    : BOOL;  // EN: Cooling motor fault for lower slave 2 / PT: Falha do motor de ventilação do escravo 2 inferior
+
+    //==============================================================
+    // FABRIC / WIRE STRETCHERS (ACTUATORS)
+    //==============================================================
+    upperDryingSectionFabricStretcherMotorFault : BOOL;  // EN: Upper fabric/wire stretcher motor fault / PT: Falha no motor de estiramento da tela superior
+    lowerDryingSectionFabricStretcherMotorFault : BOOL;  // EN: Lower fabric/wire stretcher motor fault / PT: Falha no motor de estiramento da tela inferior
+
+    upperDryingSectionFabricStretchCmd     : BOOL;  // EN: Command to stretch upper fabric / PT: Comando para esticar a tela superior
+    upperDryingSectionFabricUnstretchCmd   : BOOL;  // EN: Command to unstretch upper fabric / PT: Comando para afrouxar a tela superior
+    lowerDryingSectionFabricStretchCmd     : BOOL;  // EN: Command to stretch lower fabric / PT: Comando para esticar a tela inferior
+    lowerDryingSectionFabricUnstretchCmd   : BOOL;  // EN: Command to unstretch lower fabric / PT: Comando para afrouxar a tela inferior
+
+    //==============================================================
+    // FABRIC / WIRE OVERRUN SENSORS
+    //==============================================================
+    upperDryingSectionFabricOverrunOperatorSideSensor : BOOL;  // EN: Upper fabric overrun sensor — operator side / PT: Sensor de sobrecurso da tela superior — lado operador
+    upperDryingSectionFabricOverrunDriveSideSensor    : BOOL;  // EN: Upper fabric overrun sensor — drive side / PT: Sensor de sobrecurso da tela superior — lado acionamento
+    lowerDryingSectionFabricOverrunOperatorSideSensor : BOOL;  // EN: Lower fabric overrun sensor — operator side / PT: Sensor de sobrecurso da tela inferior — lado operador
+    lowerDryingSectionFabricOverrunDriveSideSensor    : BOOL;  // EN: Lower fabric overrun sensor — drive side / PT: Sensor de sobrecurso da tela inferior — lado acionamento
+
+    //────────────────────────────────────────────
+    // PICK-UP ROLL POSITIONER / POSICIONADOR DO ROLO PICK-UP
+    //────────────────────────────────────────────
+    pickUpRollPosCmdFwd              : BOOL; // EN: Command to move pick-up roll forward / PT: Comando para avançar o rolo pick-up
+    pickUpRollPosCmdRev              : BOOL; // EN: Command to move pick-up roll reverse / PT: Comando para recuar o rolo pick-up
+    pickUpRollPosFault               : BOOL; // EN: Positioner fault (hydraulic/pneumatic/electric) / PT: Falha no atuador de posicionamento
+    pickUpRollPosLimitFwd            : BOOL; // EN: Forward end-limit switch / PT: Fim de curso frontal
+    pickUpRollPosLimitRev            : BOOL; // EN: Reverse end-limit switch / PT: Fim de curso traseiro
+
+    //────────────────────────────────────────────
+    // BABYDRYER SCRAPER OSCILLATOR
+    //────────────────────────────────────────────
+    babyDryerScraperOscCmd           : BOOL; // EN: Start baby dryer scraper oscillation / PT: Comando de partida da oscilação da raspa do babydryer
+    babyDryerScraperOscFault         : BOOL; // EN: Baby dryer scraper oscillator fault / PT: Falha no oscilador da raspa do babydryer
+    babyDryerScraperOscRunning       : BOOL; // EN: Baby dryer scraper oscillator running / PT: Oscilador da raspa do babydryer em movimento
+
+    //────────────────────────────────────────────
+    // UPPER GROUP SCRAPER OSCILLATOR
+    //────────────────────────────────────────────
+    upperGroupScraperOscCmd          : BOOL; // EN: Start upper group scraper oscillation / PT: Comando de oscilação da raspa do grupo superior
+    upperGroupScraperOscFault        : BOOL; // EN: Upper group scraper oscillator fault / PT: Falha no oscilador da raspa do grupo superior
+    upperGroupScraperOscRunning      : BOOL; // EN: Upper group scraper oscillator running / PT: Oscilador da raspa do grupo superior em movimento
+
+    //────────────────────────────────────────────
+    // LOWER GROUP SCRAPER OSCILLATOR
+    //────────────────────────────────────────────
+    lowerGroupScraperOscCmd          : BOOL; // EN: Start lower group scraper oscillation / PT: Comando de oscilação da raspa do grupo inferior
+    lowerGroupScraperOscFault        : BOOL; // EN: Lower group scraper oscillator fault / PT: Falha no oscilador da raspa do grupo inferior
+    lowerGroupScraperOscRunning      : BOOL; // EN: Lower group scraper oscillator running / PT: Oscilador da raspa do grupo inferior em movimento
+
+    //==============================================================
+    // SPEED SETPOINTS / MODE
+    //==============================================================
+    groupAutoSpeedMPM                : REAL;  // EN: Auto speed setpoint [m/min] / PT: Setpoint de velocidade em automático [m/min]
+    groupManualSpeedMPM              : REAL := 50.0;   // EN: Manual speed reference [m/min] / PT: Velocidade em manual [m/min]
+    groupMaxSpeed                    : REAL := 600.0;  // EN: Max allowed line speed [m/min] / PT: Velocidade máxima permitida da linha [m/min]
+    groupSpeedAutoMan                : BOOL;           // EN: 0 = Manual, 1 = Auto / PT: 0 = Manual, 1 = Automático
+
+    //==============================================================
+    // FEEDBACKS (FROM DRIVES / SENSORS)
+    //==============================================================
+    // Upper group
+    upperMasterSpeedFeedback         : REAL;  // EN: Upper master speed feedback [m/min or %] / PT: Retorno de velocidade do mestre superior [m/min ou %]
+    upperMasterTorqueFeedback        : REAL;  // EN: Upper master torque feedback [% or Nm] / PT: Retorno de torque do mestre superior [% ou Nm]
+    upperSlave1SpeedFeedback         : REAL;  // EN: Upper slave 1 speed feedback / PT: Retorno de velocidade do escravo 1 superior
+    upperSlave1TorqueFeedback        : REAL;  // EN: Upper slave 1 torque feedback / PT: Retorno de torque do escravo 1 superior
+    upperSlave2SpeedFeedback         : REAL;  // EN: Upper slave 2 speed feedback / PT: Retorno de velocidade do escravo 2 superior
+    upperSlave2TorqueFeedback        : REAL;  // EN: Upper slave 2 torque feedback / PT: Retorno de torque do escravo 2 superior
+
+    // Lower group
+    lowerMasterSpeedFeedback         : REAL;  // EN: Lower master speed feedback / PT: Retorno de velocidade do mestre inferior
+    lowerMasterTorqueFeedback        : REAL;  // EN: Lower master torque feedback / PT: Retorno de torque do mestre inferior
+    lowerSlave1SpeedFeedback         : REAL;  // EN: Lower slave 1 speed feedback / PT: Retorno de velocidade do escravo 1 inferior
+    lowerSlave1TorqueFeedback        : REAL;  // EN: Lower slave 1 torque feedback / PT: Retorno de torque do escravo 1 inferior
+    lowerSlave2SpeedFeedback         : REAL;  // EN: Lower slave 2 speed feedback / PT: Retorno de velocidade do escravo 2 inferior
+    lowerSlave2TorqueFeedback        : REAL;  // EN: Lower slave 2 torque feedback / PT: Retorno de torque do escravo 2 inferior
+
+    //==============================================================
+    // RATIO / OFFSETS (FOLLOWING / TRIM LOGIC)
+    //==============================================================
+    masterSlaveGearRatio             : REAL := 1.0;   // EN: Slave/master speed ratio (XXX: "diference" in original) / PT: Relação de velocidade escravo/mestre (XXX: "diference" no original)
+    interGroupGearRatio              : REAL := 1.0;   // EN: Speed ratio between groups / PT: Relação de velocidade entre grupos
+    slaveTorqueOfsset                : REAL := 0.0;   // EN: XXX: "Ofsset" → torque trim offset applied to slaves [% or Nm] / PT: XXX: "Ofsset" → offset de torque aplicado aos escravos [% ou Nm]
+    slaveSpeedOffset                 : REAL := 10.0;  // EN: Speed offset between master and slaves [% of master] / PT: Offset de velocidade entre mestre e escravos [% do mestre]
+    upperAndLowerSpeedOffset         : REAL := 1.0;   // EN: XXX: "uper" → Speed offset between upper and lower groups [%] / PT: XXX: "uper" → Offset de velocidade entre grupo superior e inferior [%]
+
+    groupRecoverSpeedCmd             : BOOL;          // EN: Command to temporarily recover group speed / PT: Comando para recuperar temporariamente a velocidade do grupo
+    groupRecoverIncrement            : REAL := 5.0;   // EN: Recovery speed increment [m/min or %] / PT: Incremento de recuperação de velocidade [m/min ou %]
+
+    groupSpeedDifInc                 : BOOL;          // EN: Increment group-to-group speed difference / PT: Incrementa diferença de velocidade entre grupos
+    groupSpeedDifDec                 : BOOL;          // EN: Decrement group-to-group speed difference / PT: Decrementa diferença de velocidade entre grupos
+    groupSpeedDifLimHigh             : REAL := 20.0;  // EN: Upper limit for group speed difference [%] / PT: Limite superior da diferença de velocidade entre grupos [%]
+    groupSpeedDifLimLow              : REAL := -20.0; // EN: Lower limit for group speed difference [%] / PT: Limite inferior da diferença de velocidade entre grupos [%]
+
+    //==============================================================
+    // TORQUE CONTROL / LIMITS
+    //==============================================================
+    enableTorquePid                  : BOOL := FALSE; // EN: Enable torque trim PID (OSCAT) / PT: Habilita o PID de trim de torque (OSCAT)
+    torqueTrimLimit                  : REAL := 10.0;  // EN: Max magnitude for torque trim (|trim| ≤ value) / PT: Limite máximo para o trim de torque (|trim| ≤ valor)
+    torqueLimitMinPct                : REAL := 0.0;   // EN: Min torque limit for slaves [%] / PT: Limite mínimo de torque para escravos [%]
+    torqueLimitMaxPct                : REAL := 150.0; // EN: Max torque limit for slaves [%] / PT: Limite máximo de torque para escravos [%]
+    torqueDeadbandPct                : REAL := 1.0;   // EN: Deadband for torque error [%] / PT: Banda morta para erro de torque [%]
+    torqueFilterTime                 : TIME := T#5MS; // EN: Time constant for torque measurement filter / PT: Constante de tempo do filtro da medição de torque
+    displayFilterTime                : TIME := T#20ms;// EN: Time constant for HMI display filter / PT: Constante de tempo do filtro de exibição para HMI
+
+    //----- OSCAT CTRL_PID parameters (torque trim) -----
+    torqueCtrlKp                     : REAL := 1.0;   // EN: Proportional gain / PT: Ganho proporcional
+    torqueCtrlTn                     : REAL := 8.0;   // EN: Integral time [s] / PT: Tempo integral [s]
+    torqueCtrlTv                     : REAL := 0.0;   // EN: Derivative time [s] / PT: Tempo derivativo [s]
+
+    //==============================================================
+    // DYNAMICS / LIMITS
+    //==============================================================
+    rampRate                         : REAL := 0.01;  // EN: Reference acceleration rate for ramp block [%/s] / PT: Taxa de aceleração da rampa de referência [%/s]
+    speedDiferenceLimit              : REAL := 5.0;   // EN: XXX: "Diference" → Max allowed speed difference between groups/slaves [%] / PT: XXX: "Diference" → Diferença máx. de velocidade permitida entre grupos/escravos [%]
+
+
+	
+	steamPressureAutoMan				: BOOL;
+	steamPressureAutoSetpoint			: REAL;
+	steamPressureManualSetpoint			: REAL;
+	steamPressureFeedback				: REAL;
+
+	steamPressureKp : REAL := 1.0;  // PID Kp for Group 1 steam pressure
+	steamPressureTn : REAL := 8.0;  // PID Tn for Group 1 steam pressure
+	steamPressureTv : REAL := 0.0;  // PID Tv for Group 1 steam pressure	
+	
+	
+
+END_VAR
+
+
+VAR_OUTPUT
+    //==============================================================
+    // STATE / DIAGNOSTICS
+    //==============================================================
+    deviceState                      : STRING;        // EN: Current human-readable device/group state / PT: Estado atual do dispositivo/grupo (texto)
+    groupFault                       : BOOL;          // EN: Group fault present (interlock) / PT: Falha do grupo presente (intertravamento)
+
+    statusCode                       : INT;           // EN: 0=Idle, 1=Starting, 2=Running, 3=Fault / PT: 0=Parado, 1=Partindo, 2=Rodando, 3=Falha
+    currentSpeedDifence              : REAL;          // EN: XXX: "Difence" → Current group-to-group speed difference [%] / PT: XXX: "Difence" → Diferença de velocidade atual entre grupos [%]
+    groupSpeedOffset                 : REAL := 0.0;   // EN: Current group speed offset vs previous group [%] / PT: Offset de velocidade atual do grupo em relação ao grupo anterior [%]
+
+    //==============================================================
+    // SPEED REFERENCES (TO DRIVES) — 0..100%
+    //==============================================================
+    upperMasterDriveSpeedRefPct      : REAL;  // EN: Speed reference for upper master drive [%] / PT: Referência de velocidade para o drive mestre superior [%]
+    upperSlave1DriveSpeedRefPct      : REAL;  // EN: Speed reference for upper slave 1 [%] / PT: Referência de velocidade para o drive escravo 1 superior [%]
+    upperSlave2DriveSpeedRefPct      : REAL;  // EN: Speed reference for upper slave 2 [%] / PT: Referência de velocidade para o drive escravo 2 superior [%]
+    lowerMasterDriveSpeedRefPct      : REAL;  // EN: Speed reference for lower master [%] / PT: Referência de velocidade para o drive mestre inferior [%]
+    lowerSlave1DriveSpeedRefPct      : REAL;  // EN: Speed reference for lower slave 1 [%] / PT: Referência de velocidade para o drive escravo 1 inferior [%]
+    lowerSlave2DriveSpeedRefPct      : REAL;  // EN: Speed reference for lower slave 2 [%] / PT: Referência de velocidade para o drive escravo 2 inferior [%]
+    nextGroupSpeedRefPct             : REAL;  // EN: Suggested speed ref for next downstream group [%] / PT: Velocidade sugerida para o próximo grupo à jusante [%]
+    nextGroupSpeedRefMPM             : REAL;  // EN: Suggested speed ref for next downstream group [m/min] / PT: Velocidade sugerida para o próximo grupo à jusante [m/min]
+
+    //==============================================================
+    // TORQUE REFERENCES / LIMITS (TO SLAVE DRIVES)
+    //==============================================================
+    upperSlave1DriveTorqueRefPct     : REAL;  // EN: Torque reference for upper slave 1 [% or Nm] / PT: Referência de torque para o escravo 1 superior [% ou Nm]
+    upperSlave2DriveTorqueRefPct     : REAL;  // EN: Torque reference for upper slave 2 [% or Nm] / PT: Referência de torque para o escravo 2 superior [% ou Nm]
+    lowerSlave1DriveTorqueRefPct     : REAL;  // EN: Torque reference for lower slave 1 [% or Nm] / PT: Referência de torque para o escravo 1 inferior [% ou Nm]
+    lowerSlave2DriveTorqueRefPct     : REAL;  // EN: Torque reference for lower slave 2 [% or Nm] / PT: Referência de torque para o escravo 2 inferior [% ou Nm]
+    slaveDriveTorqueLimit            : REAL;  // EN: Common torque limit applied to all slave drives [% or Nm] / PT: Limite de torque comum aplicado a todos os drives escravos [% ou Nm]
+
+    //==============================================================
+    // DRIVE COMMANDS (ENABLE / RESET)
+    //==============================================================
+    upperMasterDriveEnable           : BOOL;  // EN: Enable cmd to upper master drive / PT: Comando de habilitar para o drive mestre superior
+    upperMasterDriveReset            : BOOL;  // EN: Reset cmd (pulse) to clear upper master fault / PT: Comando de reset (pulso) para limpar falha do mestre superior
+    upperSlave1DriveEnable           : BOOL;  // EN: Enable cmd to upper slave 1 / PT: Comando de habilitar para o escravo 1 superior
+    upperSlave1DriveReset            : BOOL;  // EN: Reset cmd to upper slave 1 / PT: Comando de reset para o escravo 1 superior
+    upperSlave2DriveEnable           : BOOL;  // EN: Enable cmd to upper slave 2 / PT: Comando de habilitar para o escravo 2 superior
+    upperSlave2DriveReset            : BOOL;  // EN: Reset cmd to upper slave 2 / PT: Comando de reset para o escravo 2 superior
+
+    lowerMasterDriveEnable           : BOOL;  // EN: Enable cmd to lower master / PT: Comando de habilitar para o mestre inferior
+    lowerMasterDriveReset            : BOOL;  // EN: Reset cmd to lower master / PT: Comando de reset para o mestre inferior
+    lowerSlave1DriveEnable           : BOOL;  // EN: Enable cmd to lower slave 1 / PT: Comando de habilitar para o escravo 1 inferior
+    lowerSlave1DriveReset            : BOOL;  // EN: Reset cmd to lower slave 1 / PT: Comando de reset para o escravo 1 inferior
+    lowerSlave2DriveEnable           : BOOL;  // EN: Enable cmd to lower slave 2 / PT: Comando de habilitar para o escravo 2 inferior
+    lowerSlave2DriveReset            : BOOL;  // EN: Reset cmd to lower slave 2 / PT: Comando de reset para o escravo 2 inferior
+
+    //==============================================================
+    // HMI — FILTERED DISPLAYS
+    //==============================================================
+    upperMasterSpeedMPMFilteredDisplay : REAL; // EN: Filtered upper master speed for HMI [m/min] / PT: Velocidade filtrada do mestre superior para HMI [m/min]
+    upperSlave1SpeedMPMFilteredDisplay : REAL; // EN: Filtered upper slave 1 speed for HMI [m/min] / PT: Velocidade filtrada do escravo 1 superior para HMI [m/min]
+    upperSlave2SpeedMPMFilteredDisplay : REAL; // EN: Filtered upper slave 2 speed for HMI [m/min] / PT: Velocidade filtrada do escravo 2 superior para HMI [m/min]
+    lowerMasterSpeedMPMFilteredDisplay : REAL; // EN: Filtered lower master speed for HMI [m/min] / PT: Velocidade filtrada do mestre inferior para HMI [m/min]
+    lowerSlave1SpeedMPMFilteredDisplay : REAL; // EN: Filtered lower slave 1 speed for HMI [m/min] / PT: Velocidade filtrada do escravo 1 inferior para HMI [m/min]
+    lowerSlave2SpeedMPMFilteredDisplay : REAL; // EN: Filtered lower slave 2 speed for HMI [m/min] / PT: Velocidade filtrada do escravo 2 inferior para HMI [m/min]
+
+    upperMasterTorqueFilteredDisplay   : REAL; // EN: Filtered upper master torque for HMI / PT: Torque filtrado do mestre superior para HMI
+    upperSlave1TorqueFilteredDisplay   : REAL; // EN: Filtered upper slave 1 torque for HMI / PT: Torque filtrado do escravo 1 superior para HMI
+    upperSlave2TorqueFilteredDisplay   : REAL; // EN: Filtered upper slave 2 torque for HMI / PT: Torque filtrado do escravo 2 superior para HMI
+    lowerMasterTorqueFilteredDisplay   : REAL; // EN: Filtered lower master torque for HMI / PT: Torque filtrado do mestre inferior para HMI
+    lowerSlave1TorqueFilteredDisplay   : REAL; // EN: Filtered lower slave 1 torque for HMI / PT: Torque filtrado do escravo 1 inferior para HMI
+    lowerSlave2TorqueFilteredDisplay   : REAL; // EN: Filtered lower slave 2 torque for HMI / PT: Torque filtrado do escravo 2 inferior para HMI
+
+    //==============================================================
+    // PER-DRIVE STATUS CODES (HMI)
+    //==============================================================
+    upperMasterStatusCode            : INT;  // EN: Upper master status (0=Idle,1=Start,2=Run,3=Fault) / PT: Status do mestre superior (0=Parado,1=Partida,2=Rodando,3=Falha)
+    upperSlave1StatusCode            : INT;  // EN: Upper slave 1 status / PT: Status do escravo 1 superior
+    upperSlave2StatusCode            : INT;  // EN: Upper slave 2 status / PT: Status do escravo 2 superior
+    lowerMasterStatusCode            : INT;  // EN: Lower master status / PT: Status do mestre inferior
+    lowerSlave1StatusCode            : INT;  // EN: Lower slave 1 status / PT: Status do escravo 1 inferior
+    lowerSlave2StatusCode            : INT;  // EN: Lower slave 2 status / PT: Status do escravo 2 inferior
+
+    //==============================================================
+    // FABRIC / WIRE STRETCHER OUTPUTS
+    //==============================================================
+    upperDryingSectionFabricStretch   : BOOL; // EN: Output to stretch upper fabric (actuator ON fwd) / PT: Saída para esticar a tela superior (acionar atuador para frente)
+    upperDryingSectionFabricUnstretch : BOOL; // EN: Output to unstretch upper fabric (actuator ON rev) / PT: Saída para afrouxar a tela superior (acionar atuador para trás)
+    lowerDryingSectionFabricStretch   : BOOL; // EN: Output to stretch lower fabric / PT: Saída para esticar a tela inferior
+    lowerDryingSectionFabricUnstretch : BOOL; // EN: Output to unstretch lower fabric / PT: Saída para afrouxar a tela inferior
+
+    //────────────────────────────────────────────
+    // PICK-UP ROLL POSITIONER / POSICIONADOR DO ROLO PICK-UP
+    //────────────────────────────────────────────
+    pickUpRollPosRunFwd               : BOOL; // EN: Run pick-up positioner forward / PT: Acionar posicionador do pick-up para frente
+    pickUpRollPosRunRev               : BOOL; // EN: Run pick-up positioner reverse / PT: Acionar posicionador do pick-up para trás
+
+    //────────────────────────────────────────────
+    // BABYDRYER SCRAPER OSCILLATOR / OSCILADOR DA RASPA BABYDRYER
+    //────────────────────────────────────────────
+    babyDryerScraperOscRun            : BOOL; // EN: Activate baby dryer scraper oscillator / PT: Acionar oscilador da raspa do babydryer
+
+    //────────────────────────────────────────────
+    // UPPER GROUP SCRAPER OSCILLATOR / OSCILADOR DA RASPA GRUPO SUPERIOR
+    //────────────────────────────────────────────
+    upperGroupScraperOscRun           : BOOL; // EN: Activate upper group scraper oscillator / PT: Acionar oscilador da raspa do grupo superior
+
+    //────────────────────────────────────────────
+    // LOWER GROUP SCRAPER OSCILLATOR / OSCILADOR DA RASPA GRUPO INFERIOR
+    //────────────────────────────────────────────
+    lowerGroupScraperOscRun           : BOOL; // EN: Activate lower group scraper oscillator / PT: Acionar oscilador da raspa do grupo inferior
+
+   
+
+	steamPressureControllerOutput		: REAL;
+
+
+	 //==============================================================
+    // HMI ALARMS STRUCT
+    //==============================================================
+    hmiAlarms                          : PaperMachine_TypeHmiAlarms;  // EN: HMI alarms structure for drying section / PT: Estrutura de alarmes da HMI para a seção de secagem
+END_VAR
+
+
+VAR
+    //==============================================================
+    // INTERNAL — STATE / EDGE DETECTION
+    //==============================================================
+    state                           : INT;   // EN: Internal state (0=IDLE,1=ENABLE,2=WAIT_EN,3=RAMP_EN,4=RUN,5=STOPPING,10=FAULT) / PT: Estado interno (0=IDLE,1=HABILITA,2=ESPERA_HAB,3=RAMPA,4=RODANDO,5=PARANDO,10=FALHA)
+    startGroupOld                   : BOOL;  // EN: Previous cycle value of startGroup / PT: Valor do ciclo anterior de startGroup
+    stopGroupOld                    : BOOL;  // EN: Previous cycle value of stopGroup / PT: Valor do ciclo anterior de stopGroup
+    rStart                          : BOOL;  // EN: Rising edge of startGroup / PT: Borda de subida do startGroup
+    rStop                           : BOOL;  // EN: Rising edge of stopGroup / PT: Borda de subida do stopGroup
+
+    //==============================================================
+    // INTERNAL — RAMP / REFERENCE SHAPING
+    //==============================================================
+    rampTargetPct                   : REAL;        // EN: Target reference for S-ramp [0..100%] / PT: Referência alvo para a rampa S [0..100%]
+    instFB_Gen_SRamp                : FB_Gen_SRamp;// EN: S-ramp block instance / PT: Instância do bloco de rampa S
+    rampReset                       : BOOL;        // EN: Reset ramp (force output to 0) / PT: Resetar rampa (força saída para 0)
+    useRamp                         : BOOL;        // EN: TRUE = apply ramp, FALSE = direct feed-through / PT: TRUE = aplica rampa, FALSE = passa direto
+
+    //==============================================================
+    // INTERNAL — TIMERS / THRESHOLDS
+    //==============================================================
+    instTONEnableWait               : TON;         // EN: Timer to wait drives ready / PT: Temporizador para aguardar drives prontos
+    instTONStopWait                 : TON;         // EN: Timer to wait drives stop / PT: Temporizador para aguardar parada dos drives
+    enableTimeout                   : TIME := T#5s;// EN: Max allowed time to get ready / PT: Tempo máximo para habilitar
+    stopTimeout                     : TIME := T#8s;// EN: Max allowed time to stop / PT: Tempo máximo para parar
+    speedZeroThresholdPct           : REAL := 4.0; // EN: Consider speed = 0 when reference ≤ this [%] / PT: Considera velocidade = 0 quando referência ≤ este valor [%]
+    epsRefPct                       : REAL := 0.05;// EN: Small epsilon to avoid chattering / PT: Pequeno epsilon para evitar oscilações
+
+    //==============================================================
+    // INTERNAL — TORQUE FILTERING
+    //==============================================================
+    torqueFiltY                     : REAL;        // EN: Internal filtered torque value / PT: Valor interno de torque filtrado
+    torqueFiltInit                  : BOOL;        // EN: One-shot flag to init filter / PT: Flag de um ciclo para iniciar o filtro
+    instsFT_PT1UpperTorqueFilter    : FT_PT1;      // EN: PT1 filter for upper group torque / PT: Filtro PT1 para torque do grupo superior
+    instsFT_PT1LowerTorqueFilter    : FT_PT1;      // EN: PT1 filter for lower group torque / PT: Filtro PT1 para torque do grupo inferior
+
+    //==============================================================
+    // INTERNAL — SUPERVISION
+    //==============================================================
+    instTONSpeedDifDelay            : TON;         // EN: Delay before raising speed-difference alarm / PT: Atraso antes de levantar alarme de diferença de velocidade
+
+    //==============================================================
+    // HMI FILTERS — PT1 (DISPLAY ONLY)
+    //==============================================================
+    instPT1_UpperMasterSpeedDisplay : FT_PT1;      // EN: Display filter for upper master speed / PT: Filtro de exibição para velocidade do mestre superior
+    instPT1_UpperMasterTorqueDisplay: FT_PT1;      // EN: Display filter for upper master torque / PT: Filtro de exibição para torque do mestre superior
+    instPT1_UpperSlave1SpeedDisplay : FT_PT1;      // EN: Display filter for upper slave 1 speed / PT: Filtro de exibição para velocidade do escravo 1 superior
+    instPT1_UpperSlave1TorqueDisplay: FT_PT1;      // EN: Display filter for upper slave 1 torque / PT: Filtro de exibição para torque do escravo 1 superior
+    instPT1_UpperSlave2SpeedDisplay : FT_PT1;      // EN: Display filter for upper slave 2 speed / PT: Filtro de exibição para velocidade do escravo 2 superior
+    instPT1_UpperSlave2TorqueDisplay: FT_PT1;      // EN: Display filter for upper slave 2 torque / PT: Filtro de exibição para torque do escravo 2 superior
+    instPT1_LowerMasterSpeedDisplay : FT_PT1;      // EN: Display filter for lower master speed / PT: Filtro de exibição para velocidade do mestre inferior
+    instPT1_LowerMasterTorqueDisplay: FT_PT1;      // EN: Display filter for lower master torque / PT: Filtro de exibição para torque do mestre inferior
+    instPT1_LowerSlave1SpeedDisplay : FT_PT1;      // EN: Display filter for lower slave 1 speed / PT: Filtro de exibição para velocidade do escravo 1 inferior
+    instPT1_LowerSlave1TorqueDisplay: FT_PT1;      // EN: Display filter for lower slave 1 torque / PT: Filtro de exibição para torque do escravo 1 inferior
+    instPT1_LowerSlave2SpeedDisplay : FT_PT1;      // EN: Display filter for lower slave 2 speed / PT: Filtro de exibição para velocidade do escravo 2 inferior
+    instPT1_LowerSlave2TorqueDisplay: FT_PT1;      // EN: Display filter for lower slave 2 torque / PT: Filtro de exibição para torque do escravo 2 inferior
+
+    //==============================================================
+    // INTERNAL — TORQUE TRIM PID (OSCAT CTRL_PID)
+    //==============================================================
+    instCTRL_PID_UpperTorqueTrim    : CTRL_PID;    // EN: PID instance for upper group torque trim / PT: Instância PID para trim de torque do grupo superior
+    instCTRL_PID_LowerTorqueTrim    : CTRL_PID;    // EN: PID instance for lower group torque trim / PT: Instância PID para trim de torque do grupo inferior
+
+    instCTRL_PID_TemperatureController    : CTRL_PID;    
+	
+	
+	
+END_VAR
+
+
+VAR PERSISTENT
+    //==============================================================
+    // PERSISTENT — TUNING / ADJUSTMENTS
+    //==============================================================
+    instTUNE2_GroupSpeedDiference   : TUNE2;       // EN: XXX: "Diference" → Manual tuning helper for group speed difference / PT: XXX: "Diference" → Auxiliar de ajuste manual da diferença de velocidade do grupo
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[// ─────────────────────────────────────────────────────────────────────────────
+// MAIN CALL SEQUENCE
+// ─────────────────────────────────────────────────────────────────────────────
+_FeedbackDisplay();
+_GroupControl();          // 1) State machine: edges, enables, stop modes
+_ReferenceGenerator();    // 2) Build master/slave references with ramp
+_TorqueReference();       // 3) Legacy torque transfer (kept)
+_StateDisplay();
+
+_SpeedDifferenceCheck();  // 4) Speed difference monitor & trip
+_alarmsDisplay();
+
+_auxiliaryControls();
+
+_SteamPressureControl();]]></ST>
+    </Implementation>
+    <Method Name="_alarmsDisplay" Id="{4d609455-773d-4eb1-802d-bf103a49c573}">
+      <Declaration><![CDATA[METHOD _alarmsDisplay
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[(*CASE groupNumber OF
+
+    //==============================================================
+    // DRYING SECTION GROUP 1 (GR1)
+    //==============================================================
+    1:
+        //----------------------------
+        // DRIVES — UPPER (GR1)
+        //----------------------------
+        hmiAlarms.dryingSectionGroup1UpperMasterFaultAlarm := upperMasterVfdFaultFeedback;
+        hmiAlarms.dryingSectionGroup1UpperSlave1FaultAlarm := upperSlave1VfdFaultFeedback;
+        hmiAlarms.dryingSectionGroup1UpperSlave2FaultAlarm := upperSlave2VfdFaultFeedback;
+
+        //----------------------------
+        // COOLING MOTORS — UPPER (GR1)
+        //----------------------------
+        hmiAlarms.dryingSectionGroup1UpperMasterCoolingFaultAlarm := upperMasterCoolingMotorFault;
+        hmiAlarms.dryingSectionGroup1UpperSlave1CoolingFaultAlarm := upperSlave1CoolingMotorFault;
+        hmiAlarms.dryingSectionGroup1UpperSlave2CoolingFaultAlarm := upperSlave2CoolingMotorFault;
+
+        //----------------------------
+        // DRIVES — LOWER (GR1)
+        //----------------------------
+        hmiAlarms.dryingSectionGroup1LowerMasterFaultAlarm := lowerMasterVfdFaultFeedback;
+        hmiAlarms.dryingSectionGroup1LowerSlave1FaultAlarm := lowerSlave1VfdFaultFeedback;
+        hmiAlarms.dryingSectionGroup1LowerSlave2FaultAlarm := lowerSlave2VfdFaultFeedback;
+
+        //----------------------------
+        // COOLING MOTORS — LOWER (GR1)
+        //----------------------------
+        hmiAlarms.dryingSectionGroup1LowerMasterCoolingFaultAlarm := lowerMasterCoolingMotorFault;
+        hmiAlarms.dryingSectionGroup1LowerSlave1CoolingFaultAlarm := lowerSlave1CoolingMotorFault;
+        hmiAlarms.dryingSectionGroup1LowerSlave2CoolingFaultAlarm := lowerSlave2CoolingMotorFault;
+
+        //----------------------------
+        // FABRIC OVERRUN SENSORS (GR1)
+        //----------------------------
+        hmiAlarms.upperDryingSectionGroup1FabricOverrunOperatorSideAlarm := upperDryingSectionFabricOverrunOperatorSideSensor;
+        hmiAlarms.upperDryingSectionGroup1FabricOverrunDriveSideAlarm    := upperDryingSectionFabricOverrunDriveSideSensor;
+        hmiAlarms.lowerDryingSectionGroup1FabricOverrunOperatorSideAlarm := lowerDryingSectionFabricOverrunOperatorSideSensor; // corrigido
+        hmiAlarms.lowerDryingSectionGroup1FabricOverrunDriveSideAlarm    := lowerDryingSectionFabricOverrunDriveSideSensor;    // corrigido
+
+        //----------------------------
+        // FABRIC STRETCHER MOTOR FAULTS (GR1)
+        //----------------------------
+        hmiAlarms.upperDryingSectionGroup1FabricStretcherMotorFaultAlarm := upperDryingSectionFabricStretcherMotorFault;
+        hmiAlarms.lowerDryingSectionGroup1FabricStretcherMotorFaultAlarm := lowerDryingSectionFabricStretcherMotorFault;
+
+
+    //==============================================================
+    // DRYING SECTION GROUP 2 (GR2)
+    //==============================================================
+    2:
+        //----------------------------
+        // DRIVES — UPPER (GR2)
+        //----------------------------
+        hmiAlarms.dryingSectionGroup2UpperMasterFaultAlarm := upperMasterVfdFaultFeedback;
+        hmiAlarms.dryingSectionGroup2UpperSlave1FaultAlarm := upperSlave1VfdFaultFeedback;
+        hmiAlarms.dryingSectionGroup2UpperSlave2FaultAlarm := upperSlave2VfdFaultFeedback;
+
+        //----------------------------
+        // COOLING MOTORS — UPPER (GR2)
+        //----------------------------
+        hmiAlarms.dryingSectionGroup2UpperMasterCoolingFaultAlarm := upperMasterCoolingMotorFault;
+        hmiAlarms.dryingSectionGroup2UpperSlave1CoolingFaultAlarm := upperSlave1CoolingMotorFault;
+        hmiAlarms.dryingSectionGroup2UpperSlave2CoolingFaultAlarm := upperSlave2CoolingMotorFault;
+
+        //----------------------------
+        // DRIVES — LOWER (GR2)
+        //----------------------------
+        hmiAlarms.dryingSectionGroup2LowerMasterFaultAlarm := lowerMasterVfdFaultFeedback;
+        hmiAlarms.dryingSectionGroup2LowerSlave1FaultAlarm := lowerSlave1VfdFaultFeedback;
+        hmiAlarms.dryingSectionGroup2LowerSlave2FaultAlarm := lowerSlave2VfdFaultFeedback;
+
+        //----------------------------
+        // COOLING MOTORS — LOWER (GR2)
+        //----------------------------
+        hmiAlarms.dryingSectionGroup2LowerMasterCoolingFaultAlarm := lowerMasterCoolingMotorFault;
+        hmiAlarms.dryingSectionGroup2LowerSlave1CoolingFaultAlarm := lowerSlave1CoolingMotorFault;
+        hmiAlarms.dryingSectionGroup2LowerSlave2CoolingFaultAlarm := lowerSlave2CoolingMotorFault;
+
+        //----------------------------
+        // FABRIC OVERRUN SENSORS (GR2)
+        //----------------------------
+        hmiAlarms.upperDryingSectionGroup2FabricOverrunOperatorSideAlarm := upperDryingSectionFabricOverrunOperatorSideSensor;
+        hmiAlarms.upperDryingSectionGroup2FabricOverrunDriveSideAlarm    := upperDryingSectionFabricOverrunDriveSideSensor;
+        hmiAlarms.lowerDryingSectionGroup2FabricOverrunOperatorSideAlarm := lowerDryingSectionFabricOverrunOperatorSideSensor;
+        hmiAlarms.lowerDryingSectionGroup2FabricOverrunDriveSideAlarm    := lowerDryingSectionFabricOverrunDriveSideSensor;
+
+        //----------------------------
+        // FABRIC STRETCHER MOTOR FAULTS (GR2)
+        //----------------------------
+        hmiAlarms.upperDryingSectionGroup2FabricStretcherMotorFaultAlarm := upperDryingSectionFabricStretcherMotorFault;
+        hmiAlarms.lowerDryingSectionGroup2FabricStretcherMotorFaultAlarm := lowerDryingSectionFabricStretcherMotorFault;
+
+
+    //==============================================================
+    // DRYING SECTION GROUP 3 (GR3)
+    //==============================================================
+    3:
+        //----------------------------
+        // DRIVES — UPPER (GR3)
+        //----------------------------
+        hmiAlarms.dryingSectionGroup3UpperMasterFaultAlarm := upperMasterVfdFaultFeedback;
+        hmiAlarms.dryingSectionGroup3UpperSlave1FaultAlarm := upperSlave1VfdFaultFeedback;
+        hmiAlarms.dryingSectionGroup3UpperSlave2FaultAlarm := upperSlave2VfdFaultFeedback;
+
+        //----------------------------
+        // COOLING MOTORS — UPPER (GR3)
+        //----------------------------
+        hmiAlarms.dryingSectionGroup3UpperMasterCoolingFaultAlarm := upperMasterCoolingMotorFault;
+        hmiAlarms.dryingSectionGroup3UpperSlave1CoolingFaultAlarm := upperSlave1CoolingMotorFault;
+        hmiAlarms.dryingSectionGroup3UpperSlave2CoolingFaultAlarm := upperSlave2CoolingMotorFault;
+
+        //----------------------------
+        // DRIVES — LOWER (GR3)
+        //----------------------------
+        hmiAlarms.dryingSectionGroup3LowerMasterFaultAlarm := lowerMasterVfdFaultFeedback;
+        hmiAlarms.dryingSectionGroup3LowerSlave1FaultAlarm := lowerSlave1VfdFaultFeedback;
+        hmiAlarms.dryingSectionGroup3LowerSlave2FaultAlarm := lowerSlave2VfdFaultFeedback;
+
+        //----------------------------
+        // COOLING MOTORS — LOWER (GR3)
+        //----------------------------
+        hmiAlarms.dryingSectionGroup3LowerMasterCoolingFaultAlarm := lowerMasterCoolingMotorFault;
+        hmiAlarms.dryingSectionGroup3LowerSlave1CoolingFaultAlarm := lowerSlave1CoolingMotorFault;
+        hmiAlarms.dryingSectionGroup3LowerSlave2CoolingFaultAlarm := lowerSlave2CoolingMotorFault;
+
+        //----------------------------
+        // FABRIC OVERRUN SENSORS (GR3)
+        //----------------------------
+        hmiAlarms.upperDryingSectionGroup3FabricOverrunOperatorSideAlarm := upperDryingSectionFabricOverrunOperatorSideSensor;
+        hmiAlarms.upperDryingSectionGroup3FabricOverrunDriveSideAlarm    := upperDryingSectionFabricOverrunDriveSideSensor;
+        hmiAlarms.lowerDryingSectionGroup3FabricOverrunOperatorSideAlarm := lowerDryingSectionFabricOverrunOperatorSideSensor;
+        hmiAlarms.lowerDryingSectionGroup3FabricOverrunDriveSideAlarm    := lowerDryingSectionFabricOverrunDriveSideSensor;
+
+        //----------------------------
+        // FABRIC STRETCHER MOTOR FAULTS (GR3)
+        //----------------------------
+        hmiAlarms.upperDryingSectionGroup3FabricStretcherMotorFaultAlarm := upperDryingSectionFabricStretcherMotorFault;
+        hmiAlarms.lowerDryingSectionGroup3FabricStretcherMotorFaultAlarm := lowerDryingSectionFabricStretcherMotorFault;
+
+
+END_CASE;
+
+//==============================================================
+// GROUP FAULT — CURRENT GROUP (GR1..GR4)
+//==============================================================
+CASE groupNumber OF
+    1:
+        groupFault :=
+            hmiAlarms.dryingSectionGroup1UpperMasterFaultAlarm OR
+            hmiAlarms.dryingSectionGroup1UpperSlave1FaultAlarm OR
+            hmiAlarms.dryingSectionGroup1UpperSlave2FaultAlarm OR
+            hmiAlarms.dryingSectionGroup1LowerMasterFaultAlarm OR
+            hmiAlarms.dryingSectionGroup1LowerSlave1FaultAlarm OR
+            hmiAlarms.dryingSectionGroup1LowerSlave2FaultAlarm OR
+            hmiAlarms.upperDryingSectionGroup1FabricOverrunOperatorSideAlarm OR
+            hmiAlarms.upperDryingSectionGroup1FabricOverrunDriveSideAlarm OR
+            hmiAlarms.lowerDryingSectionGroup1FabricOverrunOperatorSideAlarm OR
+            hmiAlarms.lowerDryingSectionGroup1FabricOverrunDriveSideAlarm;
+
+    2:
+        groupFault :=
+            hmiAlarms.dryingSectionGroup2UpperMasterFaultAlarm OR
+            hmiAlarms.dryingSectionGroup2UpperSlave1FaultAlarm OR
+            hmiAlarms.dryingSectionGroup2UpperSlave2FaultAlarm OR
+            hmiAlarms.dryingSectionGroup2LowerMasterFaultAlarm OR
+            hmiAlarms.dryingSectionGroup2LowerSlave1FaultAlarm OR
+            hmiAlarms.dryingSectionGroup2LowerSlave2FaultAlarm OR
+            hmiAlarms.upperDryingSectionGroup2FabricOverrunOperatorSideAlarm OR
+            hmiAlarms.upperDryingSectionGroup2FabricOverrunDriveSideAlarm OR
+            hmiAlarms.lowerDryingSectionGroup2FabricOverrunOperatorSideAlarm OR
+            hmiAlarms.lowerDryingSectionGroup2FabricOverrunDriveSideAlarm;
+
+    3:
+        groupFault :=
+            hmiAlarms.dryingSectionGroup3UpperMasterFaultAlarm OR
+            hmiAlarms.dryingSectionGroup3UpperSlave1FaultAlarm OR
+            hmiAlarms.dryingSectionGroup3UpperSlave2FaultAlarm OR
+            hmiAlarms.dryingSectionGroup3LowerMasterFaultAlarm OR
+            hmiAlarms.dryingSectionGroup3LowerSlave1FaultAlarm OR
+            hmiAlarms.dryingSectionGroup3LowerSlave2FaultAlarm OR
+            hmiAlarms.upperDryingSectionGroup3FabricOverrunOperatorSideAlarm OR
+            hmiAlarms.upperDryingSectionGroup3FabricOverrunDriveSideAlarm OR
+            hmiAlarms.lowerDryingSectionGroup3FabricOverrunOperatorSideAlarm OR
+            hmiAlarms.lowerDryingSectionGroup3FabricOverrunDriveSideAlarm;
+
+
+ELSE
+    // Se groupNumber inválido, force seguro
+    groupFault := TRUE;
+END_CASE;
+*)
+
+CASE groupNumber OF
+
+    //==============================================================
+    // DRYING SECTION GROUP 1 (GR1)
+    //==============================================================
+    1:
+        //----------------------------
+        // DRIVES — UPPER (GR1)
+        //----------------------------
+        hmiAlarms.dryingSectionGroup1UpperMasterFaultAlarm := upperMasterVfdFaultFeedback;
+        hmiAlarms.dryingSectionGroup1UpperSlave1FaultAlarm := upperSlave1VfdFaultFeedback;
+        hmiAlarms.dryingSectionGroup1UpperSlave2FaultAlarm := upperSlave2VfdFaultFeedback;
+
+        //----------------------------
+        // COOLING MOTORS — UPPER (GR1)
+        //----------------------------
+        hmiAlarms.dryingSectionGroup1UpperMasterCoolingFaultAlarm := upperMasterCoolingMotorFault;
+        hmiAlarms.dryingSectionGroup1UpperSlave1CoolingFaultAlarm := upperSlave1CoolingMotorFault;
+        hmiAlarms.dryingSectionGroup1UpperSlave2CoolingFaultAlarm := upperSlave2CoolingMotorFault;
+
+        //----------------------------
+        // DRIVES — LOWER (GR1)
+        //----------------------------
+        hmiAlarms.dryingSectionGroup1LowerMasterFaultAlarm := lowerMasterVfdFaultFeedback;
+        hmiAlarms.dryingSectionGroup1LowerSlave1FaultAlarm := lowerSlave1VfdFaultFeedback;
+        hmiAlarms.dryingSectionGroup1LowerSlave2FaultAlarm := lowerSlave2VfdFaultFeedback;
+
+        //----------------------------
+        // COOLING MOTORS — LOWER (GR1)
+        //----------------------------
+        hmiAlarms.dryingSectionGroup1LowerMasterCoolingFaultAlarm := lowerMasterCoolingMotorFault;
+        hmiAlarms.dryingSectionGroup1LowerSlave1CoolingFaultAlarm := lowerSlave1CoolingMotorFault;
+        hmiAlarms.dryingSectionGroup1LowerSlave2CoolingFaultAlarm := lowerSlave2CoolingMotorFault;
+
+        //----------------------------
+        // FABRIC OVERRUN SENSORS (GR1)
+        //----------------------------
+        hmiAlarms.upperDryingSectionGroup1FabricOverrunOperatorSideAlarm := upperDryingSectionFabricOverrunOperatorSideSensor;
+        hmiAlarms.upperDryingSectionGroup1FabricOverrunDriveSideAlarm    := upperDryingSectionFabricOverrunDriveSideSensor;
+        hmiAlarms.lowerDryingSectionGroup1FabricOverrunOperatorSideAlarm := lowerDryingSectionFabricOverrunOperatorSideSensor;
+        hmiAlarms.lowerDryingSectionGroup1FabricOverrunDriveSideAlarm    := lowerDryingSectionFabricOverrunDriveSideSensor;
+
+        //----------------------------
+        // FABRIC STRETCHER MOTOR FAULTS (GR1)
+        //----------------------------
+        hmiAlarms.upperDryingSectionGroup1FabricStretcherMotorFaultAlarm := upperDryingSectionFabricStretcherMotorFault;
+        hmiAlarms.lowerDryingSectionGroup1FabricStretcherMotorFaultAlarm := lowerDryingSectionFabricStretcherMotorFault;
+
+        //----------------------------
+        // PICK-UP ROLL POSITIONER (GR1)
+        //----------------------------
+        // EN: Pick-up positioner fault / PT: Falha do posicionador do pick-up
+        // XXX: criar em hmiAlarms: dryingSectionGroup1PickUpRollPosFaultAlarm
+        hmiAlarms.dryingSectionGroup1PickUpRollPosFaultAlarm := pickUpRollPosFault;
+
+        //----------------------------
+        // SCRAPER OSCILLATORS (GR1)
+        //----------------------------
+        // EN: Babydryer scraper oscillator fault / PT: Falha do oscilador da raspa do babydryer
+        // XXX: criar em hmiAlarms: dryingSectionGroup1BabyDryerScraperOscFaultAlarm
+        hmiAlarms.dryingSectionGroup1BabyDryerScraperOscFaultAlarm := babyDryerScraperOscFault;
+
+        // EN: Upper group scraper oscillator fault / PT: Falha do oscilador da raspa do grupo superior
+        // XXX: criar em hmiAlarms: dryingSectionGroup1UpperScraperOscFaultAlarm
+        hmiAlarms.dryingSectionGroup1UpperScraperOscFaultAlarm := upperGroupScraperOscFault;
+
+        // EN: Lower group scraper oscillator fault / PT: Falha do oscilador da raspa do grupo inferior
+        // XXX: criar em hmiAlarms: dryingSectionGroup1LowerScraperOscFaultAlarm
+        hmiAlarms.dryingSectionGroup1LowerScraperOscFaultAlarm := lowerGroupScraperOscFault;
+
+
+
+    //==============================================================
+    // DRYING SECTION GROUP 2 (GR2)
+    //==============================================================
+    2:
+        //----------------------------
+        // DRIVES — UPPER (GR2)
+        //----------------------------
+        hmiAlarms.dryingSectionGroup2UpperMasterFaultAlarm := upperMasterVfdFaultFeedback;
+        hmiAlarms.dryingSectionGroup2UpperSlave1FaultAlarm := upperSlave1VfdFaultFeedback;
+        hmiAlarms.dryingSectionGroup2UpperSlave2FaultAlarm := upperSlave2VfdFaultFeedback;
+
+        //----------------------------
+        // COOLING MOTORS — UPPER (GR2)
+        //----------------------------
+        hmiAlarms.dryingSectionGroup2UpperMasterCoolingFaultAlarm := upperMasterCoolingMotorFault;
+        hmiAlarms.dryingSectionGroup2UpperSlave1CoolingFaultAlarm := upperSlave1CoolingMotorFault;
+        hmiAlarms.dryingSectionGroup2UpperSlave2CoolingFaultAlarm := upperSlave2CoolingMotorFault;
+
+        //----------------------------
+        // DRIVES — LOWER (GR2)
+        //----------------------------
+        hmiAlarms.dryingSectionGroup2LowerMasterFaultAlarm := lowerMasterVfdFaultFeedback;
+        hmiAlarms.dryingSectionGroup2LowerSlave1FaultAlarm := lowerSlave1VfdFaultFeedback;
+        hmiAlarms.dryingSectionGroup2LowerSlave2FaultAlarm := lowerSlave2VfdFaultFeedback;
+
+        //----------------------------
+        // COOLING MOTORS — LOWER (GR2)
+        //----------------------------
+        hmiAlarms.dryingSectionGroup2LowerMasterCoolingFaultAlarm := lowerMasterCoolingMotorFault;
+        hmiAlarms.dryingSectionGroup2LowerSlave1CoolingFaultAlarm := lowerSlave1CoolingMotorFault;
+        hmiAlarms.dryingSectionGroup2LowerSlave2CoolingFaultAlarm := lowerSlave2CoolingMotorFault;
+
+        //----------------------------
+        // FABRIC OVERRUN SENSORS (GR2)
+        //----------------------------
+        hmiAlarms.upperDryingSectionGroup2FabricOverrunOperatorSideAlarm := upperDryingSectionFabricOverrunOperatorSideSensor;
+        hmiAlarms.upperDryingSectionGroup2FabricOverrunDriveSideAlarm    := upperDryingSectionFabricOverrunDriveSideSensor;
+        hmiAlarms.lowerDryingSectionGroup2FabricOverrunOperatorSideAlarm := lowerDryingSectionFabricOverrunOperatorSideSensor;
+        hmiAlarms.lowerDryingSectionGroup2FabricOverrunDriveSideAlarm    := lowerDryingSectionFabricOverrunDriveSideSensor;
+
+        //----------------------------
+        // FABRIC STRETCHER MOTOR FAULTS (GR2)
+        //----------------------------
+        hmiAlarms.upperDryingSectionGroup2FabricStretcherMotorFaultAlarm := upperDryingSectionFabricStretcherMotorFault;
+        hmiAlarms.lowerDryingSectionGroup2FabricStretcherMotorFaultAlarm := lowerDryingSectionFabricStretcherMotorFault;
+
+        //----------------------------
+        // PICK-UP ROLL POSITIONER (GR2)
+        //----------------------------
+        // EN: Pick-up positioner fault / PT: Falha do posicionador do pick-up
+        // XXX: criar em hmiAlarms: dryingSectionGroup2PickUpRollPosFaultAlarm
+        hmiAlarms.dryingSectionGroup2PickUpRollPosFaultAlarm := pickUpRollPosFault;
+
+        //----------------------------
+        // SCRAPER OSCILLATORS (GR2)
+        //----------------------------
+        // XXX: dryingSectionGroup2BabyDryerScraperOscFaultAlarm
+        hmiAlarms.dryingSectionGroup2BabyDryerScraperOscFaultAlarm := babyDryerScraperOscFault;
+        // XXX: dryingSectionGroup2UpperScraperOscFaultAlarm
+        hmiAlarms.dryingSectionGroup2UpperScraperOscFaultAlarm := upperGroupScraperOscFault;
+        // XXX: dryingSectionGroup2LowerScraperOscFaultAlarm
+        hmiAlarms.dryingSectionGroup2LowerScraperOscFaultAlarm := lowerGroupScraperOscFault;
+
+
+
+    //==============================================================
+    // DRYING SECTION GROUP 3 (GR3)
+    //==============================================================
+    3:
+        //----------------------------
+        // DRIVES — UPPER (GR3)
+        //----------------------------
+        hmiAlarms.dryingSectionGroup3UpperMasterFaultAlarm := upperMasterVfdFaultFeedback;
+        hmiAlarms.dryingSectionGroup3UpperSlave1FaultAlarm := upperSlave1VfdFaultFeedback;
+        hmiAlarms.dryingSectionGroup3UpperSlave2FaultAlarm := upperSlave2VfdFaultFeedback;
+
+        //----------------------------
+        // COOLING MOTORS — UPPER (GR3)
+        //----------------------------
+        hmiAlarms.dryingSectionGroup3UpperMasterCoolingFaultAlarm := upperMasterCoolingMotorFault;
+        hmiAlarms.dryingSectionGroup3UpperSlave1CoolingFaultAlarm := upperSlave1CoolingMotorFault;
+        hmiAlarms.dryingSectionGroup3UpperSlave2CoolingFaultAlarm := upperSlave2CoolingMotorFault;
+
+        //----------------------------
+        // DRIVES — LOWER (GR3)
+        //----------------------------
+        hmiAlarms.dryingSectionGroup3LowerMasterFaultAlarm := lowerMasterVfdFaultFeedback;
+        hmiAlarms.dryingSectionGroup3LowerSlave1FaultAlarm := lowerSlave1VfdFaultFeedback;
+        hmiAlarms.dryingSectionGroup3LowerSlave2FaultAlarm := lowerSlave2VfdFaultFeedback;
+
+        //----------------------------
+        // COOLING MOTORS — LOWER (GR3)
+        //----------------------------
+        hmiAlarms.dryingSectionGroup3LowerMasterCoolingFaultAlarm := lowerMasterCoolingMotorFault;
+        hmiAlarms.dryingSectionGroup3LowerSlave1CoolingFaultAlarm := lowerSlave1CoolingMotorFault;
+        hmiAlarms.dryingSectionGroup3LowerSlave2CoolingFaultAlarm := lowerSlave2CoolingMotorFault;
+
+        //----------------------------
+        // FABRIC OVERRUN SENSORS (GR3)
+        //----------------------------
+        hmiAlarms.upperDryingSectionGroup3FabricOverrunOperatorSideAlarm := upperDryingSectionFabricOverrunOperatorSideSensor;
+        hmiAlarms.upperDryingSectionGroup3FabricOverrunDriveSideAlarm    := upperDryingSectionFabricOverrunDriveSideSensor;
+        hmiAlarms.lowerDryingSectionGroup3FabricOverrunOperatorSideAlarm := lowerDryingSectionFabricOverrunOperatorSideSensor;
+        hmiAlarms.lowerDryingSectionGroup3FabricOverrunDriveSideAlarm    := lowerDryingSectionFabricOverrunDriveSideSensor;
+
+        //----------------------------
+        // FABRIC STRETCHER MOTOR FAULTS (GR3)
+        //----------------------------
+        hmiAlarms.upperDryingSectionGroup3FabricStretcherMotorFaultAlarm := upperDryingSectionFabricStretcherMotorFault;
+        hmiAlarms.lowerDryingSectionGroup3FabricStretcherMotorFaultAlarm := lowerDryingSectionFabricStretcherMotorFault;
+
+        //----------------------------
+        // PICK-UP ROLL POSITIONER (GR3)
+        //----------------------------
+        // XXX: dryingSectionGroup3PickUpRollPosFaultAlarm
+        hmiAlarms.dryingSectionGroup3PickUpRollPosFaultAlarm := pickUpRollPosFault;
+
+        //----------------------------
+        // SCRAPER OSCILLATORS (GR3)
+        //----------------------------
+        // XXX: dryingSectionGroup3BabyDryerScraperOscFaultAlarm
+        hmiAlarms.dryingSectionGroup3BabyDryerScraperOscFaultAlarm := babyDryerScraperOscFault;
+        // XXX: dryingSectionGroup3UpperScraperOscFaultAlarm
+        hmiAlarms.dryingSectionGroup3UpperScraperOscFaultAlarm := upperGroupScraperOscFault;
+        // XXX: dryingSectionGroup3LowerScraperOscFaultAlarm
+        hmiAlarms.dryingSectionGroup3LowerScraperOscFaultAlarm := lowerGroupScraperOscFault;
+
+END_CASE;
+
+
+//==============================================================
+// GROUP FAULT — CURRENT GROUP (GR1..GR3)
+//==============================================================
+CASE groupNumber OF
+    1:
+        groupFault :=
+            // Drives
+            hmiAlarms.dryingSectionGroup1UpperMasterFaultAlarm OR
+            hmiAlarms.dryingSectionGroup1UpperSlave1FaultAlarm OR
+            hmiAlarms.dryingSectionGroup1UpperSlave2FaultAlarm OR
+            hmiAlarms.dryingSectionGroup1LowerMasterFaultAlarm OR
+            hmiAlarms.dryingSectionGroup1LowerSlave1FaultAlarm OR
+            hmiAlarms.dryingSectionGroup1LowerSlave2FaultAlarm OR
+            // Wire overrun
+            hmiAlarms.upperDryingSectionGroup1FabricOverrunOperatorSideAlarm OR
+            hmiAlarms.upperDryingSectionGroup1FabricOverrunDriveSideAlarm OR
+            hmiAlarms.lowerDryingSectionGroup1FabricOverrunOperatorSideAlarm OR
+            hmiAlarms.lowerDryingSectionGroup1FabricOverrunDriveSideAlarm OR
+            // Fabric stretcher faults
+            hmiAlarms.upperDryingSectionGroup1FabricStretcherMotorFaultAlarm OR
+            hmiAlarms.lowerDryingSectionGroup1FabricStretcherMotorFaultAlarm OR
+            // Pick-up pos fault
+            // EN: Pick-up positioner fault should stop the group / PT: Falha do posicionador deve parar o grupo
+            hmiAlarms.dryingSectionGroup1PickUpRollPosFaultAlarm OR
+            // Scraper oscillators
+            hmiAlarms.dryingSectionGroup1BabyDryerScraperOscFaultAlarm OR
+            hmiAlarms.dryingSectionGroup1UpperScraperOscFaultAlarm OR
+            hmiAlarms.dryingSectionGroup1LowerScraperOscFaultAlarm;
+
+    2:
+        groupFault :=
+            hmiAlarms.dryingSectionGroup2UpperMasterFaultAlarm OR
+            hmiAlarms.dryingSectionGroup2UpperSlave1FaultAlarm OR
+            hmiAlarms.dryingSectionGroup2UpperSlave2FaultAlarm OR
+            hmiAlarms.dryingSectionGroup2LowerMasterFaultAlarm OR
+            hmiAlarms.dryingSectionGroup2LowerSlave1FaultAlarm OR
+            hmiAlarms.dryingSectionGroup2LowerSlave2FaultAlarm OR
+            hmiAlarms.upperDryingSectionGroup2FabricOverrunOperatorSideAlarm OR
+            hmiAlarms.upperDryingSectionGroup2FabricOverrunDriveSideAlarm OR
+            hmiAlarms.lowerDryingSectionGroup2FabricOverrunOperatorSideAlarm OR
+            hmiAlarms.lowerDryingSectionGroup2FabricOverrunDriveSideAlarm;
+
+    3:
+        groupFault :=
+            hmiAlarms.dryingSectionGroup3UpperMasterFaultAlarm OR
+            hmiAlarms.dryingSectionGroup3UpperSlave1FaultAlarm OR
+            hmiAlarms.dryingSectionGroup3UpperSlave2FaultAlarm OR
+            hmiAlarms.dryingSectionGroup3LowerMasterFaultAlarm OR
+            hmiAlarms.dryingSectionGroup3LowerSlave1FaultAlarm OR
+            hmiAlarms.dryingSectionGroup3LowerSlave2FaultAlarm OR
+            hmiAlarms.upperDryingSectionGroup3FabricOverrunOperatorSideAlarm OR
+            hmiAlarms.upperDryingSectionGroup3FabricOverrunDriveSideAlarm OR
+            hmiAlarms.lowerDryingSectionGroup3FabricOverrunOperatorSideAlarm OR
+            hmiAlarms.lowerDryingSectionGroup3FabricOverrunDriveSideAlarm;
+
+ELSE
+    // EN: Invalid groupNumber → force safe / PT: groupNumber inválido → força seguro
+    groupFault := TRUE;
+END_CASE;
+
+
+
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_auxiliaryControls" Id="{0144e3c6-e87f-488f-8ee5-5e00c33e444f}">
+      <Declaration><![CDATA[METHOD _auxiliaryControls
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[//==============================================
+// DRYING SECTION FABRIC STRETCH / UNSTRETCH
+//  - Upper & Lower groups
+//  - Safe behavior: any overrun sensor blocks motion
+//  - XXX: groupFault can also be added to block everything
+//==============================================
+
+
+//-----------------------------
+// UPPER FABRIC STRETCHER
+//-----------------------------
+// EN: Block if motor fault OR any overrun (OS/DS)
+//* PT: Bloqueia se falha de motor OU se detectar sobrecurso (LO/LA) */
+IF NOT upperDryingSectionFabricStretcherMotorFault
+   AND NOT upperDryingSectionFabricOverrunOperatorSideSensor
+   AND NOT upperDryingSectionFabricOverrunDriveSideSensor THEN
+
+    // Stretch
+    IF upperDryingSectionFabricStretchCmd
+       AND NOT upperDryingSectionFabricUnstretchCmd THEN
+        upperDryingSectionFabricStretch := TRUE;
+    ELSE
+        upperDryingSectionFabricStretch := FALSE;
+    END_IF;
+
+    // Unstretch
+    IF upperDryingSectionFabricUnstretchCmd
+       AND NOT upperDryingSectionFabricStretchCmd THEN
+        upperDryingSectionFabricUnstretch := TRUE;
+    ELSE
+        upperDryingSectionFabricUnstretch := FALSE;
+    END_IF;
+ELSE
+    // Motor fault or overrun → force safe
+    upperDryingSectionFabricStretch   := FALSE;
+    upperDryingSectionFabricUnstretch := FALSE;
+END_IF;
+
+
+//-----------------------------
+// LOWER FABRIC STRETCHER
+//-----------------------------
+// EN: Block if motor fault OR any overrun (OS/DS)
+//* PT: Bloqueia se falha de motor OU se detectar sobrecurso (LO/LA) */
+IF NOT lowerDryingSectionFabricStretcherMotorFault
+   AND NOT lowerDryingSectionFabricOverrunOperatorSideSensor
+   AND NOT lowerDryingSectionFabricOverrunDriveSideSensor THEN
+
+    // Stretch
+    IF lowerDryingSectionFabricStretchCmd
+       AND NOT lowerDryingSectionFabricUnstretchCmd THEN
+        lowerDryingSectionFabricStretch := TRUE;
+    ELSE
+        lowerDryingSectionFabricStretch := FALSE;
+    END_IF;
+
+    // Unstretch
+    IF lowerDryingSectionFabricUnstretchCmd
+       AND NOT lowerDryingSectionFabricStretchCmd THEN
+        lowerDryingSectionFabricUnstretch := TRUE;
+    ELSE
+        lowerDryingSectionFabricUnstretch := FALSE;
+    END_IF;
+ELSE
+    // Motor fault or overrun → force safe
+    lowerDryingSectionFabricStretch   := FALSE;
+    lowerDryingSectionFabricUnstretch := FALSE;
+END_IF;
+
+
+
+//==============================================
+// PICK-UP ROLL POSITIONER
+//  - Uses: pickUpRollPosCmdFwd / pickUpRollPosCmdRev
+//  - Safety: fault or limit reached → stop
+//  - Safety (optional): if both cmds = TRUE, stop
+//==============================================
+IF NOT pickUpRollPosFault THEN
+    // Forward
+    IF pickUpRollPosCmdFwd
+       AND NOT pickUpRollPosCmdRev
+       AND NOT pickUpRollPosLimitFwd THEN
+        // EN: run forward / PT: avança
+        pickUpRollPosRunFwd := TRUE;
+    ELSE
+        pickUpRollPosRunFwd := FALSE;
+    END_IF;
+
+    // Reverse
+    IF pickUpRollPosCmdRev
+       AND NOT pickUpRollPosCmdFwd
+       AND NOT pickUpRollPosLimitRev THEN
+        // EN: run reverse / PT: recua
+        pickUpRollPosRunRev := TRUE;
+    ELSE
+        pickUpRollPosRunRev := FALSE;
+    END_IF;
+ELSE
+    // EN: Fault → stop / PT: Falha → para
+    pickUpRollPosRunFwd := FALSE;
+    pickUpRollPosRunRev := FALSE;
+END_IF;
+
+
+
+//==============================================
+// SCRAPER OSCILLATORS
+//  - Babydryer
+//  - Upper group
+//  - Lower group
+//  - Safety: fault → stop output
+//==============================================
+
+//-----------------------------
+// BABYDRYER SCRAPER OSCILLATOR
+//-----------------------------
+IF NOT babyDryerScraperOscFault THEN
+    // EN: run only if command is active / PT: aciona somente se houver comando
+    IF babyDryerScraperOscCmd THEN
+        babyDryerScraperOscRun := TRUE;
+    ELSE
+        babyDryerScraperOscRun := FALSE;
+    END_IF;
+ELSE
+    // EN: fault → force off / PT: falha → força desligado
+    babyDryerScraperOscRun := FALSE;
+END_IF;
+
+
+//-----------------------------
+// UPPER GROUP SCRAPER OSCILLATOR
+//-----------------------------
+IF NOT upperGroupScraperOscFault THEN
+    IF upperGroupScraperOscCmd AND upperMasterSpeedMPMFilteredDisplay > 0 THEN
+        upperGroupScraperOscRun := TRUE;
+    ELSE
+        upperGroupScraperOscRun := FALSE;
+    END_IF;
+ELSE
+    upperGroupScraperOscRun := FALSE;
+END_IF;
+
+
+//-----------------------------
+// LOWER GROUP SCRAPER OSCILLATOR
+//-----------------------------
+IF NOT lowerGroupScraperOscFault AND lowerMasterSpeedMPMFilteredDisplay > 0 THEN
+    IF lowerGroupScraperOscCmd THEN
+        lowerGroupScraperOscRun := TRUE;
+    ELSE
+        lowerGroupScraperOscRun := FALSE;
+    END_IF;
+ELSE
+    lowerGroupScraperOscRun := FALSE;
+END_IF;
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_FeedbackDisplay" Id="{518aa556-24e4-499d-9623-659799ac6cbe}">
+      <Declaration><![CDATA[METHOD _FeedbackDisplay
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[
+// ── HMI display filters (PT1). Display-only; no control logic uses these values.
+
+// UPPER GROUP — SPEED
+instPT1_UpperMasterSpeedDisplay( in := upperMasterSpeedFeedback,  T := displayFilterTime, K := 1.0, out => upperMasterSpeedMPMFilteredDisplay );
+instPT1_UpperSlave1SpeedDisplay ( in := upperSlave1SpeedFeedback, T := displayFilterTime, K := 1.0, out => upperSlave1SpeedMPMFilteredDisplay );
+instPT1_UpperSlave2SpeedDisplay ( in := upperSlave2SpeedFeedback, T := displayFilterTime, K := 1.0, out => upperSlave2SpeedMPMFilteredDisplay );
+
+// UPPER GROUP — TORQUE
+instPT1_UpperMasterTorqueDisplay( in := upperMasterTorqueFeedback,  T := displayFilterTime, K := 1.0, out => upperMasterTorqueFilteredDisplay );
+instPT1_UpperSlave1TorqueDisplay ( in := upperSlave1TorqueFeedback, T := displayFilterTime, K := 1.0, out => upperSlave1TorqueFilteredDisplay );
+instPT1_UpperSlave2TorqueDisplay ( in := upperSlave2TorqueFeedback, T := displayFilterTime, K := 1.0, out => upperSlave2TorqueFilteredDisplay );
+
+// LOWER GROUP — SPEED
+instPT1_LowerMasterSpeedDisplay( in := lowerMasterSpeedFeedback,  T := displayFilterTime, K := 1.0, out => lowerMasterSpeedMPMFilteredDisplay );
+instPT1_LowerSlave1SpeedDisplay( in := lowerSlave1SpeedFeedback, T := displayFilterTime, K := 1.0, out => lowerSlave1SpeedMPMFilteredDisplay );
+instPT1_LowerSlave2SpeedDisplay( in := lowerSlave2SpeedFeedback, T := displayFilterTime, K := 1.0, out => lowerSlave2SpeedMPMFilteredDisplay );
+
+// LOWER GROUP — TORQUE
+instPT1_LowerMasterTorqueDisplay( in := lowerMasterTorqueFeedback,  T := displayFilterTime, K := 1.0, out => lowerMasterTorqueFilteredDisplay );
+instPT1_LowerSlave1TorqueDisplay ( in := lowerSlave1TorqueFeedback, T := displayFilterTime, K := 1.0, out => lowerSlave1TorqueFilteredDisplay );
+instPT1_LowerSlave2TorqueDisplay ( in := lowerSlave2TorqueFeedback, T := displayFilterTime, K := 1.0, out => lowerSlave2TorqueFilteredDisplay );
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_GroupControl" Id="{3ce911ea-9504-4a87-90a3-2c97c0349085}">
+      <Declaration><![CDATA[// ============================== Methods ==============================
+// 1) GROUP CONTROL
+METHOD _GroupControl
+VAR_INPUT
+END_VAR
+VAR
+    // Basic conditions
+    speedsNearZero  : BOOL; // All drives ~0 speed
+    refsNearZero    : BOOL; // Both masters ~0 ref
+    allReady        : BOOL; // All six drives ready
+    anyFault        : BOOL; // Any drive fault or external groupFault
+	
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[
+
+// ── Edge detection ────────────────────────────────────────────────────────────
+rStart := startGroup AND NOT startGroupOld;   // Start on pulse
+rStop  := stopGroup  AND NOT stopGroupOld;    // Stop edge
+startGroupOld := startGroup;
+stopGroupOld  := stopGroup;
+
+// ── Aggregate readiness / faults ──────────────────────────────────────────────
+allReady :=
+    upperMasterReady AND upperSlave1VfdReady AND upperSlave2VfdReady AND
+    lowerMasterReady AND lowerSlave1VfdReady AND lowerSlave2VfdReady;
+
+anyFault :=
+    groupFault OR
+    upperMasterVfdFaultFeedback OR upperSlave1VfdFaultFeedback OR upperSlave2VfdFaultFeedback OR
+    lowerMasterVfdFaultFeedback OR lowerSlave1VfdFaultFeedback OR lowerSlave2VfdFaultFeedback;
+
+// ── Near-zero checks (unit must match your speed signals) ─────────────────────
+speedsNearZero :=
+    (ABS(upperMasterSpeedFeedback) <= speedZeroThresholdPct) AND
+    (ABS(upperSlave1SpeedFeedback) <= speedZeroThresholdPct) AND
+    (ABS(upperSlave2SpeedFeedback) <= speedZeroThresholdPct) AND
+    (ABS(lowerMasterSpeedFeedback) <= speedZeroThresholdPct) AND
+    (ABS(lowerSlave1SpeedFeedback) <= speedZeroThresholdPct) AND
+    (ABS(lowerSlave2SpeedFeedback) <= speedZeroThresholdPct);
+
+// Masters’ references near zero (backup condition)
+refsNearZero :=
+    (ABS(upperMasterDriveSpeedRefPct) <= epsRefPct) AND
+    (ABS(lowerMasterDriveSpeedRefPct) <= epsRefPct);
+
+// ── State machine ─────────────────────────────────────────────────────────────
+CASE state OF
+    0: // IDLE
+        deviceState := 'IDLE';
+        rampReset   := TRUE;
+
+        // Ensure outputs are safe
+        upperMasterDriveEnable := FALSE;
+        upperSlave1DriveEnable := FALSE;
+        upperSlave2DriveEnable := FALSE;
+        lowerMasterDriveEnable := FALSE;
+        lowerSlave1DriveEnable := FALSE;
+        lowerSlave2DriveEnable := FALSE;
+
+        IF rStart AND NOT anyFault THEN
+            state := 1;
+        END_IF
+
+    1: // ENABLE_DRIVES
+        deviceState := 'ENABLE_DRIVES';
+        rampReset   := TRUE;
+
+        // Enable all six drives
+        upperMasterDriveEnable := TRUE;
+        upperSlave1DriveEnable := TRUE;
+        upperSlave2DriveEnable := TRUE;
+        lowerMasterDriveEnable := TRUE;
+        lowerSlave1DriveEnable := TRUE;
+        lowerSlave2DriveEnable := TRUE;
+
+        // Start enable wait timer
+        instTONEnableWait(IN := TRUE, PT := enableTimeout);
+
+        IF rStop OR stopGroup THEN
+            instTONEnableWait(IN := FALSE);
+            state := 5; // go to stopping
+        ELSE
+            state := 2; // proceed to wait feedback
+        END_IF
+
+    2: // WAIT_ENABLE_FEEDBACK
+        deviceState := 'WAIT_ENABLE_FEEDBACK';
+        rampReset   := TRUE;
+
+        // Keep enables on while waiting
+        upperMasterDriveEnable := TRUE;
+        upperSlave1DriveEnable := TRUE;
+        upperSlave2DriveEnable := TRUE;
+        lowerMasterDriveEnable := TRUE;
+        lowerSlave1DriveEnable := TRUE;
+        lowerSlave2DriveEnable := TRUE;
+
+        instTONEnableWait(IN := TRUE, PT := enableTimeout);
+
+        IF anyFault THEN
+            instTONEnableWait(IN := FALSE);
+            state := 10; // FAULT
+        ELSIF rStop OR stopGroup THEN
+            instTONEnableWait(IN := FALSE);
+            state := 5; // STOPPING
+        ELSIF allReady THEN
+            instTONEnableWait(IN := FALSE);
+            state := 3; // RAMP_ENABLE
+        ELSIF instTONEnableWait.Q THEN
+            instTONEnableWait(IN := FALSE);
+            state := 10; // fault: no enable feedback in time
+        END_IF
+
+    3: // RAMP_ENABLE (single-cycle gate to release ramp)
+        deviceState := 'RAMP_ENABLE';
+        rampReset   := FALSE; // release ramp now
+
+        // Keep enables on
+        upperMasterDriveEnable := TRUE;
+        upperSlave1DriveEnable := TRUE;
+        upperSlave2DriveEnable := TRUE;
+        lowerMasterDriveEnable := TRUE;
+        lowerSlave1DriveEnable := TRUE;
+        lowerSlave2DriveEnable := TRUE;
+
+        IF rStop OR stopGroup THEN
+            state := 5;
+        ELSE	
+		
+            state := 4; // RUN
+					
+        END_IF
+
+    4: // RUN
+        deviceState := SEL(groupSpeedAutoMan, 'RUN (Manual)', 'RUN (Auto)');
+        rampReset   := FALSE;
+
+        // Keep enables on during run
+        upperMasterDriveEnable := TRUE;
+        upperSlave1DriveEnable := TRUE;
+        upperSlave2DriveEnable := TRUE;
+        lowerMasterDriveEnable := TRUE;
+        lowerSlave1DriveEnable := TRUE;
+        lowerSlave2DriveEnable := TRUE;
+
+        IF anyFault THEN
+            state := 10; // FAULT
+        ELSIF rStop OR stopGroup THEN
+            state := 5;  // STOPPING
+        END_IF
+
+    5: // STOPPING (controlled decel)
+        deviceState := 'STOPPING';
+        rampReset   := FALSE; // allow ramp to drive refs down
+
+        // Keep enables TRUE for controlled decel
+        upperMasterDriveEnable := TRUE;
+        upperSlave1DriveEnable := TRUE;
+        upperSlave2DriveEnable := TRUE;
+        lowerMasterDriveEnable := TRUE;
+        lowerSlave1DriveEnable := TRUE;
+        lowerSlave2DriveEnable := TRUE;
+
+        // Optional: stop timeout (enable if you want a hard cutoff)
+        // instTONStopWait(IN := TRUE, PT := stopTimeout);
+
+        // Exit when speeds≈0 and refs≈0
+        IF anyFault THEN
+            // instTONStopWait(IN := FALSE);
+            state := 10;
+
+        ELSIF speedsNearZero AND refsNearZero THEN
+            // Disable all drives
+            upperMasterDriveEnable := FALSE;
+            upperSlave1DriveEnable := FALSE;
+            upperSlave2DriveEnable := FALSE;
+            lowerMasterDriveEnable := FALSE;
+            lowerSlave1DriveEnable := FALSE;
+            lowerSlave2DriveEnable := FALSE;
+
+            // instTONStopWait(IN := FALSE);
+            state := 0; // IDLE
+
+        ELSIF instTONStopWait.Q THEN
+            // Timeout path → force disable then fault
+            upperMasterDriveEnable := FALSE;
+            upperSlave1DriveEnable := FALSE;
+            upperSlave2DriveEnable := FALSE;
+            lowerMasterDriveEnable := FALSE;
+            lowerSlave1DriveEnable := FALSE;
+            lowerSlave2DriveEnable := FALSE;
+
+            instTONStopWait(IN := FALSE);
+            state := 10;
+        END_IF
+
+    10: // FAULT
+        deviceState := 'FAULT';
+        rampReset   := TRUE; // force ramp outputs to zero
+
+        // Disable all drives
+        upperMasterDriveEnable := FALSE;
+        upperSlave1DriveEnable := FALSE;
+        upperSlave2DriveEnable := FALSE;
+        lowerMasterDriveEnable := FALSE;
+        lowerSlave1DriveEnable := FALSE;
+        lowerSlave2DriveEnable := FALSE;
+
+        // Return to IDLE when faults clear and start released
+        IF (NOT anyFault) AND (NOT startGroup) THEN
+            state := 0;
+        END_IF
+END_CASE
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_ReferenceGenerator" Id="{02953a05-cd0e-47e4-a1ea-d9a916886887}">
+      <Declaration><![CDATA[// 2) REFERENCE GENERATOR
+// Applies:
+//   - groupSpeedOffset: added to ALL motors in this drying section (via ratio)
+//   - uperAndLowerSpeedOffset: additional bias between UPPER and LOWER groups only
+METHOD _ReferenceGenerator
+VAR
+    // ---------- Limits & helpers ----------
+    headroomEpsPct      : REAL := 0.20;     // anti-chatter near saturation (100%)
+    offsetPct           : REAL;             // slave speed offset as ratio (e.g., 10% -> 0.10)
+    denom               : REAL;             // gear + offset denominator guard
+    maxMasterBySlave    : REAL;             // master % at which a slave would hit 100%
+    allowedCapPct       : REAL;             // master upward cap (prevents slave > 100%)
+    cmdSpeedMPM         : REAL;             // selected command speed (m/min)
+    targetPct           : REAL;             // 0..100 scaled line reference before ramp
+
+    // ---------- Freeze upward overrun ----------
+    currMasterPct       : REAL;             // current ramp output for master (%)
+    currSlavePct        : REAL;             // current synthetic slave (%), for freeze check
+
+    // ---------- Group offsets ----------
+    groupDeltaRatioAll  : REAL;             // = 1 + (groupSpeedOffset / 100) → applies to ALL motors
+    upperLowerBiasRatio : REAL;             // = 1 + (uperAndLowerSpeedOffset / 100) → LOWER only
+
+    // ---------- Convenience ----------
+    baseMasterRefPct    : REAL;             // common master reference after ramp/cap (pre-offsets)
+    baseCmdSpeedMPM     : REAL;             // base command (auto/manual, pre-recover)
+
+
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[//==============================================================
+// 1) Determine base speed source (auto or manual) — only update
+//    when mode changes or Recover command not active
+//==============================================================
+
+// Base command from selected mode
+IF groupSpeedAutoMan THEN
+    baseCmdSpeedMPM := groupAutoSpeedMPM * interGroupGearRatio; // Auto reference (calibrated)
+ELSE
+    baseCmdSpeedMPM := groupManualSpeedMPM;                      // Manual reference (raw)
+END_IF
+
+//==============================================================
+// 2) Apply "Recover" temporary speed bump
+//==============================================================
+// If the Recover command is active, temporarily add the increment.
+// When released, return to the base command.
+IF groupRecoverSpeedCmd THEN
+    cmdSpeedMPM := baseCmdSpeedMPM + groupRecoverIncrement;     // Apply recover bump
+ELSE
+    cmdSpeedMPM := baseCmdSpeedMPM;                             // Normal operation
+END_IF
+
+
+//==============================================================
+// 2) Scale to 0..100% for the drives
+//==============================================================
+targetPct := _Scale(
+    X    := cmdSpeedMPM,
+    I_LO := 0.0,          I_HI := groupMaxSpeed,
+    O_LO := 0.0,          O_HI := 100.0);
+
+//==============================================================
+// 3) During STOPPING set target to 0 (still ramp down); otherwise track target
+//     state = 5  => STOPPING
+//==============================================================
+IF state = 5 THEN
+    rampTargetPct := 0.0;
+ELSE
+    rampTargetPct := targetPct;
+END_IF
+
+//==============================================================
+// 4) Pre-limit so a SLAVE cannot exceed 100% given gearRatio + slaveSpeedOffset
+//==============================================================
+offsetPct := slaveSpeedOffset * 0.01;                     // convert [%] -> ratio
+denom     := masterSlaveGearRatio + offsetPct;            // effective slave multiplier vs master
+
+// If denom <= 0 then no additional cap beyond 100%
+IF denom > 0.0 THEN
+    maxMasterBySlave := 100.0 / denom;                    // master % that would make slave hit 100%
+ELSE
+    maxMasterBySlave := 100.0;
+END_IF;
+
+// Cap the master command to protect the slave; also respect master’s 100%
+allowedCapPct := MIN(100.0, maxMasterBySlave);
+
+//==============================================================
+// 5) Freeze upward if currently at/near saturation (prevents chatter)
+//==============================================================
+currMasterPct := instFB_Gen_SRamp.Y;                               // current master ref (%)
+currSlavePct  := LIMIT(0.0, currMasterPct * (masterSlaveGearRatio + offsetPct), 100.0);
+
+IF (currMasterPct >= 100.0 - headroomEpsPct) OR
+   (currSlavePct  >= 100.0 - headroomEpsPct) THEN
+    // prevent increasing target above the current value; allow decreases
+    rampTargetPct := MIN(rampTargetPct, currMasterPct);
+END_IF
+
+//==============================================================
+// 6) Ramp (common line reference for this drying section) — gated
+//    Enable ramp only when the target change is “large enough”
+//==============================================================
+useRamp := (ABS(rampTargetPct - instFB_Gen_SRamp.Y) >= 2.0);
+
+// Always drive the ramp block so it tracks even when bypassed
+instFB_Gen_SRamp(
+    X          := rampTargetPct,
+    A_UP       := MAX(0.0, rampRate),
+    A_DN       := -MAX(0.0, rampRate),
+    VU_MAX     := 1000.0,
+    VD_MAX     := -1000.0,
+    LIMIT_HIGH := 100.0,
+    RST        := rampReset);
+
+IF state = 5 THEN
+    instFB_Gen_SRamp.LIMIT_LOW := 0.0;
+ELSE
+    instFB_Gen_SRamp.LIMIT_LOW := 3.5;                         // avoid too-low crawling in RUN/READY
+END_IF
+
+//==============================================================
+// 7) Base master reference (apply slave-protection cap; still NO offsets)
+//    If ramp is enabled, take ramp output; else take capped target directly
+//==============================================================
+IF useRamp THEN
+    baseMasterRefPct := MIN(instFB_Gen_SRamp.Y, allowedCapPct);
+ELSE
+    baseMasterRefPct := MIN(rampTargetPct,     allowedCapPct);
+END_IF
+baseMasterRefPct := LIMIT(0.0, baseMasterRefPct, 100.0);
+
+//==============================================================
+// 8) Operator-adjustable groupSpeedOffset using TUNE2
+//    - Applies to ALL motors of the group (upper+lower, master+slaves)
+//==============================================================
+instTUNE2_GroupSpeedDiference(
+    SET     := FALSE,               // keep last tuned value
+    SU      := groupSpeedDifInc,     // increment button
+    SD      := groupSpeedDifDec,     // decrement button
+    RST     := FALSE,               // optional HMI reset
+    SS      := 0.1,                 // small step per action [%]
+    FS      := 0.0,                 // fast step (unused)
+    LIMIT_L := groupSpeedDifLimLow,  // lower bound  [%]
+    LIMIT_H := groupSpeedDifLimHigh, // upper bound  [%]
+    Y       => groupSpeedOffset     // tuned value [%]
+);
+
+// Ratio that applies to ALL motors
+groupDeltaRatioAll  := 1.0 + (groupSpeedOffset * 0.01);
+
+// Additional fixed bias between upper and lower groups
+upperLowerBiasRatio := 1.0 + (upperAndLowerSpeedOffset * 0.01);
+
+//==============================================================
+// 9) MASTER references
+//    - Apply groupSpeedOffset to BOTH masters
+//    - Apply uperAndLowerSpeedOffset ONLY to the LOWER master
+//==============================================================
+// Upper master: only group-wide offset
+upperMasterDriveSpeedRefPct :=
+    LIMIT(0.0, MIN(baseMasterRefPct * groupDeltaRatioAll, allowedCapPct), 100.0);
+
+// Lower master: group-wide offset + intra-group bias
+lowerMasterDriveSpeedRefPct :=
+    LIMIT(0.0, MIN(baseMasterRefPct * groupDeltaRatioAll * upperLowerBiasRatio, allowedCapPct), 100.0);
+
+// Diagnostic: actual commanded difference (%)
+currentSpeedDifence := lowerMasterDriveSpeedRefPct - upperMasterDriveSpeedRefPct;
+
+//==============================================================
+// 10) SLAVE references — follow their respective master
+//     ref = master_ref * (gearRatio + offsetPct), then clamp 0..100
+//==============================================================
+// Upper slaves
+upperSlave1DriveSpeedRefPct :=
+    LIMIT(0.0, upperMasterDriveSpeedRefPct * (masterSlaveGearRatio + offsetPct), 100.0);
+upperSlave2DriveSpeedRefPct :=
+    LIMIT(0.0, upperMasterDriveSpeedRefPct * (masterSlaveGearRatio + offsetPct), 100.0);
+
+// Lower slaves
+lowerSlave1DriveSpeedRefPct :=
+    LIMIT(0.0, lowerMasterDriveSpeedRefPct * (masterSlaveGearRatio + offsetPct), 100.0);
+lowerSlave2DriveSpeedRefPct :=
+    LIMIT(0.0, lowerMasterDriveSpeedRefPct * (masterSlaveGearRatio + offsetPct), 100.0);
+
+//==============================================================
+// 11) Final clamps and downstream handoff
+//==============================================================
+upperMasterDriveSpeedRefPct := LIMIT(0.0, upperMasterDriveSpeedRefPct, 100.0);
+lowerMasterDriveSpeedRefPct := LIMIT(0.0, lowerMasterDriveSpeedRefPct, 100.0);
+
+// Suggest reference to next section/group (already includes all offsets)
+nextGroupSpeedRefPct := lowerMasterDriveSpeedRefPct;
+
+//==============================================================
+// 12) Also forward the next group reference in MPM (easy to replicate elsewhere)
+//==============================================================
+nextGroupSpeedRefMPM := _Scale(
+    X    := nextGroupSpeedRefPct,
+    I_LO := 0.0,          I_HI := 100.0,
+    O_LO := 0.0,          O_HI := groupMaxSpeed);
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_Scale" Id="{9d300e47-a5cf-40d8-b822-e39ebb606397}">
+      <Declaration><![CDATA[METHOD PRIVATE _Scale : REAL
+VAR_INPUT
+    X    : REAL;
+    I_LO : REAL;
+    I_HI : REAL;
+    O_LO : REAL;
+    O_HI : REAL;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF I_LO = I_HI THEN
+	_Scale := O_LO;
+ELSE
+	_Scale := (O_HI - O_LO) / (I_HI - I_LO) * (LIMIT(I_LO, X, I_HI) - I_LO) + O_LO;
+END_IF;
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_SpeedDifferenceCheck" Id="{85d1179a-cefa-49a0-ac4e-71278f075fbe}">
+      <Declaration><![CDATA[METHOD PRIVATE _SpeedDifferenceCheck
+VAR
+    diffUpper : REAL; // max |Master - Slave| in UPPER group
+    diffLower : REAL; // max |Master - Slave| in LOWER group
+    diffMax   : REAL; // worst-case across both groups
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[
+
+// ── Compare only within each group: Master ↔ Slaves (ignore cross-group) ──────
+// UPPER group (Master vs Slave1, Master vs Slave2)
+diffUpper :=
+    MAX(
+        ABS(upperMasterSpeedMPMFilteredDisplay - upperSlave1SpeedMPMFilteredDisplay),
+        ABS(upperMasterSpeedMPMFilteredDisplay - upperSlave2SpeedMPMFilteredDisplay)
+    );
+
+// LOWER group (Master vs Slave1, Master vs Slave2)
+diffLower :=
+    MAX(
+        ABS(lowerMasterSpeedMPMFilteredDisplay - lowerSlave1SpeedMPMFilteredDisplay),
+        ABS(lowerMasterSpeedMPMFilteredDisplay - lowerSlave2SpeedMPMFilteredDisplay)
+    );
+
+// Pick worst intra-group deviation and expose for diagnostics/HMI
+diffMax := MAX(diffUpper, diffLower);
+currentSpeedDifence := diffMax;
+
+// ── Trip logic with delay (debounce) ───────────────────────────────────────────
+instTONSpeedDifDelay(
+    IN := (diffMax > speedDiferenceLimit),
+    PT := T#2s
+);
+
+IF instTONSpeedDifDelay.Q THEN
+    state := 10; // FAULT
+    deviceState := 'FAULT: Intra-group speed difference exceeded';
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_StateDisplay" Id="{0ed26a01-e6c9-4c91-af12-1b4cc5e40b51}">
+      <Declaration><![CDATA[METHOD _StateDisplay
+VAR_INPUT
+END_VAR
+
+// ──────────────────────────────────────────────────────────────────────────────
+// _StateDisplay
+// Maps the internal machine "state" to a compact HMI status code and derives
+// per-drive motor status codes from VFD signals.
+//
+// statusCode / masterStatusCode / slaveStatusCode legend:
+//   0 = Idle, 1 = Starting, 2 = Running, 3 = Fault
+//
+// Machine "state" groups:
+//   0 = IDLE, 1 = ENABLE, 2 = WAIT_EN, 3 = RAMP_EN, 4 = RUN, 5 = STOPPING, 10 = FAULT
+// Priority rule (for motors): Fault > Running > Starting > Idle
+// ──────────────────────────────────────────────────────────────────────────────
+VAR CONSTANT
+    STATUS_IDLE     : INT := 0;
+    STATUS_STARTING : INT := 1;
+    STATUS_RUNNING  : INT := 1;
+    STATUS_FAULT    : INT := 2;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// ─────────────── Group machine states into a single HMI statusCode ───────────
+CASE state OF
+    10: // FAULT
+        statusCode := STATUS_FAULT;
+    4:  // RUN
+        statusCode := STATUS_RUNNING;
+    1, 2, 3: // ENABLE / WAIT_EN / RAMP_EN
+        statusCode := STATUS_STARTING;
+ELSE // IDLE, STOPPING, or any other
+        statusCode := STATUS_IDLE;
+END_CASE;
+
+
+// ─────────────── Per-drive status (priority: Fault > Running > Starting > Idle) ───────────────
+// UPPER — MASTER
+IF upperMasterVfdFaultFeedback THEN
+    upperMasterStatusCode := STATUS_FAULT;
+ELSIF upperMasterVfdRunFeedback THEN
+    upperMasterStatusCode := STATUS_RUNNING;
+ELSIF upperMasterDriveEnable THEN
+    upperMasterStatusCode := STATUS_STARTING;
+ELSE
+    upperMasterStatusCode := STATUS_IDLE;
+END_IF;
+
+// UPPER — SLAVE 1
+IF upperSlave1VfdFaultFeedback THEN
+    upperSlave1StatusCode := STATUS_FAULT;
+ELSIF upperSlave1VfdRunFeedback THEN
+    upperSlave1StatusCode := STATUS_RUNNING;
+ELSIF upperSlave1DriveEnable THEN
+    upperSlave1StatusCode := STATUS_STARTING;
+ELSE
+    upperSlave1StatusCode := STATUS_IDLE;
+END_IF;
+
+// UPPER — SLAVE 2
+IF upperSlave2VfdFaultFeedback THEN
+    upperSlave2StatusCode := STATUS_FAULT;
+ELSIF upperSlave2VfdRunFeedback THEN
+    upperSlave2StatusCode := STATUS_RUNNING;
+ELSIF upperSlave2DriveEnable THEN
+    upperSlave2StatusCode := STATUS_STARTING;
+ELSE
+    upperSlave2StatusCode := STATUS_IDLE;
+END_IF;
+
+// LOWER — MASTER
+IF lowerMasterVfdFaultFeedback THEN
+    lowerMasterStatusCode := STATUS_FAULT;
+ELSIF lowerMasterVfdRunFeedback THEN
+    lowerMasterStatusCode := STATUS_RUNNING;
+ELSIF lowerMasterDriveEnable THEN
+    lowerMasterStatusCode := STATUS_STARTING;
+ELSE
+    lowerMasterStatusCode := STATUS_IDLE;
+END_IF;
+
+// LOWER — SLAVE 1
+IF lowerSlave1VfdFaultFeedback THEN
+    lowerSlave1StatusCode := STATUS_FAULT;
+ELSIF lowerSlave1VfdRunFeedback THEN
+    lowerSlave1StatusCode := STATUS_RUNNING;
+ELSIF lowerSlave1DriveEnable THEN
+    lowerSlave1StatusCode := STATUS_STARTING;
+ELSE
+    lowerSlave1StatusCode := STATUS_IDLE;
+END_IF;
+
+// LOWER — SLAVE 2
+IF lowerSlave2VfdFaultFeedback THEN
+    lowerSlave2StatusCode := STATUS_FAULT;
+ELSIF lowerSlave2VfdRunFeedback THEN
+    lowerSlave2StatusCode := STATUS_RUNNING;
+ELSIF lowerSlave2DriveEnable THEN
+    lowerSlave2StatusCode := STATUS_STARTING;
+ELSE
+    lowerSlave2StatusCode := STATUS_IDLE;
+END_IF;
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_SteamPressureControl" Id="{056f7974-3ed9-497c-9dc6-8da856f54ec2}">
+      <Declaration><![CDATA[METHOD _SteamPressureControl
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[
+//────────────────────────────────────────────────────────────
+// PID — Steam Pressure Control
+//────────────────────────────────────────────────────────────
+instCTRL_PID_TemperatureController(
+    ACT := steamPressureFeedback,                          // Real-time feedback (PV)
+    SET := SEL(steamPressureAutoMan,                       // Setpoint selection
+               steamPressureManualSetpoint,                // Manual setpoint
+               steamPressureAutoSetpoint),                 // Auto setpoint
+    MAN := steamPressureAutoMan = FALSE,                   // Manual mode when AutoMan is FALSE
+    M_I := steamPressureManualSetpoint,                    // Tracks manual setpoint
+    RST := FALSE,                                          // No reset
+    KP  := steamPressureKp,                               
+    TN  := steamPressureTn,                               
+    TV  := steamPressureTv,                               
+    LL  := 0.0,                                            // Output lower limit
+    LH  := 100.0,                                          // Output upper limit [%]
+    Y   => steamPressureControllerOutput                   // PID output
+);
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_TorqueReference" Id="{1800a59d-5334-425c-96df-75e05cf8e74d}">
+      <Declaration><![CDATA[METHOD PRIVATE _TorqueReference
+VAR
+    // UPPER
+    rawTorqueUpper      : REAL;
+    filteredTorqueUpper : REAL;
+    capMasterUpper      : REAL; // ≤ master, ≤ global max
+    baseLimitUpper      : REAL; // (master + offset) capped by master
+    directTorqueUpper   : REAL; // direct write portion
+    avgTorqueUpper      : REAL;
+    trimUp              : REAL; // PID top-up (≥0)
+
+    // LOWER
+    rawTorqueLower      : REAL;
+    filteredTorqueLower : REAL;
+    capMasterLower      : REAL;
+    baseLimitLower      : REAL;
+    directTorqueLower   : REAL;
+    avgTorqueLower      : REAL;
+    trimLo              : REAL;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[
+
+// ── UPPER ─────────────────────────────────────────────────────────────────────
+rawTorqueUpper := upperMasterTorqueFeedback;
+instsFT_PT1UpperTorqueFilter( in := rawTorqueUpper, 
+							   T := torqueFilterTime, 
+							   K := 1.0, 
+							   out => filteredTorqueUpper );
+							   
+
+// Master cap and base limit (never exceed master)
+capMasterUpper := LIMIT(torqueLimitMinPct, filteredTorqueUpper, torqueLimitMaxPct);
+baseLimitUpper := MIN(
+    capMasterUpper,
+    LIMIT(torqueLimitMinPct, filteredTorqueUpper + slaveTorqueOfsset, torqueLimitMaxPct)
+);
+
+IF NOT enableTorquePid THEN
+    upperSlave1DriveTorqueRefPct := capMasterUpper;
+    upperSlave2DriveTorqueRefPct := capMasterUpper;
+ELSE
+    directTorqueUpper := LIMIT(torqueLimitMinPct, baseLimitUpper - torqueTrimLimit, capMasterUpper);
+    avgTorqueUpper    := 0.5 * (upperSlave1TorqueFeedback + upperSlave2TorqueFeedback);
+
+    instCTRL_PID_UpperTorqueTrim(
+        ACT := avgTorqueUpper,
+        SET := baseLimitUpper,
+        MAN := NOT enableTorquePid,   // manual when disabled (tracks 0)
+        M_I := 0.0,
+        RST := FALSE,
+        KP  := torqueCtrlKp,
+        TN  := torqueCtrlTn,
+        TV  := torqueCtrlTv,
+        LL  := 0.0,                   // unipolar: only add
+        LH  := torqueTrimLimit,
+        Y   => trimUp
+    );
+
+    upperSlave1DriveTorqueRefPct := LIMIT(torqueLimitMinPct, directTorqueUpper + trimUp, capMasterUpper);
+    upperSlave2DriveTorqueRefPct := LIMIT(torqueLimitMinPct, directTorqueUpper + trimUp, capMasterUpper);
+END_IF;
+
+
+// ── LOWER ─────────────────────────────────────────────────────────────────────
+rawTorqueLower := lowerMasterTorqueFeedback;
+instsFT_PT1LowerTorqueFilter( in := rawTorqueLower, T := torqueFilterTime, K := 1.0, out => filteredTorqueLower );
+
+capMasterLower := LIMIT(torqueLimitMinPct, filteredTorqueLower, torqueLimitMaxPct);
+baseLimitLower := MIN(
+    capMasterLower,
+    LIMIT(torqueLimitMinPct, filteredTorqueLower + slaveTorqueOfsset, torqueLimitMaxPct)
+);
+
+IF NOT enableTorquePid THEN
+    lowerSlave1DriveTorqueRefPct := capMasterLower;
+    lowerSlave2DriveTorqueRefPct := capMasterLower;
+ELSE
+    directTorqueLower := LIMIT(torqueLimitMinPct, baseLimitLower - torqueTrimLimit, capMasterLower);
+    avgTorqueLower    := 0.5 * (lowerSlave1TorqueFeedback + lowerSlave2TorqueFeedback);
+
+    instCTRL_PID_LowerTorqueTrim(
+        ACT := avgTorqueLower,
+        SET := baseLimitLower,
+        MAN := NOT enableTorquePid,
+        M_I := 0.0,
+        RST := FALSE,
+        KP  := torqueCtrlKp,
+        TN  := torqueCtrlTn,
+        TV  := torqueCtrlTv,
+        LL  := 0.0,
+        LH  := torqueTrimLimit,
+        Y   => trimLo
+    );
+
+    lowerSlave1DriveTorqueRefPct := LIMIT(torqueLimitMinPct, directTorqueLower + trimLo, capMasterLower);
+    lowerSlave2DriveTorqueRefPct := LIMIT(torqueLimitMinPct, directTorqueLower + trimLo, capMasterLower);
+END_IF;
+
+
+]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_DryingSectionDriveControl_V1">
+      <LineId Id="2920" Count="2" />
+      <LineId Id="3011" Count="0" />
+      <LineId Id="2923" Count="2" />
+      <LineId Id="2929" Count="0" />
+      <LineId Id="3013" Count="0" />
+      <LineId Id="2930" Count="1" />
+      <LineId Id="3010" Count="0" />
+      <LineId Id="1138" Count="0" />
+      <LineId Id="3398" Count="0" />
+      <LineId Id="3397" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_DryingSectionDriveControl_V1._alarmsDisplay">
+      <LineId Id="81" Count="140" />
+      <LineId Id="268" Count="45" />
+      <LineId Id="326" Count="4" />
+      <LineId Id="5" Count="0" />
+      <LineId Id="334" Count="0" />
+      <LineId Id="336" Count="0" />
+      <LineId Id="340" Count="241" />
+      <LineId Id="588" Count="12" />
+      <LineId Id="607" Count="5" />
+      <LineId Id="337" Count="2" />
+      <LineId Id="335" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_DryingSectionDriveControl_V1._auxiliaryControls">
+      <LineId Id="177" Count="154" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_DryingSectionDriveControl_V1._FeedbackDisplay">
+      <LineId Id="20" Count="21" />
+      <LineId Id="13" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_DryingSectionDriveControl_V1._GroupControl">
+      <LineId Id="703" Count="114" />
+      <LineId Id="915" Count="0" />
+      <LineId Id="818" Count="0" />
+      <LineId Id="916" Count="0" />
+      <LineId Id="819" Count="81" />
+      <LineId Id="128" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_DryingSectionDriveControl_V1._ReferenceGenerator">
+      <LineId Id="1378" Count="172" />
+      <LineId Id="20" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_DryingSectionDriveControl_V1._Scale">
+      <LineId Id="1" Count="5" />
+    </LineIds>
+    <LineIds Name="FB_DryingSectionDriveControl_V1._SpeedDifferenceCheck">
+      <LineId Id="339" Count="30" />
+      <LineId Id="27" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_DryingSectionDriveControl_V1._StateDisplay">
+      <LineId Id="126" Count="78" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_DryingSectionDriveControl_V1._SteamPressureControl">
+      <LineId Id="24" Count="0" />
+      <LineId Id="6" Count="17" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_DryingSectionDriveControl_V1._TorqueReference">
+      <LineId Id="634" Count="4" />
+      <LineId Id="735" Count="3" />
+      <LineId Id="639" Count="69" />
+      <LineId Id="159" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

@@ -1,0 +1,24 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.15">
+  <DUT Name="EL6910_ESTOP_DIGNOSTICS" Id="{54f5a271-766c-474a-9d0e-77c9e873e169}">
+    <Declaration><![CDATA[TYPE EL6910_ESTOP_DIGNOSTICS :
+STRUCT
+
+ 	discrepancyErrGroup1       : BOOL; // Discrepancy error input group 1 - BIT00
+    discrepancyErrGroup2       : BOOL; // Discrepancy error input group 2 - BIT01
+    discrepancyErrGroup3       : BOOL; // Discrepancy error input group 3 - BIT02
+    discrepancyErrGroup4       : BOOL; // Discrepancy error input group 4 - BIT03
+
+    edmMonitoringErr1          : BOOL; // EDM monitoring error EDM1 - BIT04
+    edmMonitoringErr2          : BOOL; // EDM monitoring error EDM2 - BIT05
+
+    discrepancyErrGroup1_Safe  : BOOL; // Discrepancy error input group 1 with "Safe Inputs after Disc Error" - BIT08
+    discrepancyErrGroup2_Safe  : BOOL; // Discrepancy error input group 2 with "Safe Inputs after Disc Error" - BIT09
+    discrepancyErrGroup3_Safe  : BOOL; // Discrepancy error input group 3 with "Safe Inputs after Disc Error" - BIT10
+    discrepancyErrGroup4_Safe  : BOOL; // Discrepancy error input group 4 with "Safe Inputs after Disc Error" - BIT11
+
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

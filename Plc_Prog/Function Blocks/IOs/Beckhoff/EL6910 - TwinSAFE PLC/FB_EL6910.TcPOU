@@ -1,0 +1,301 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.15">
+  <POU Name="FB_EL6910" Id="{76a8f04d-3648-4f4a-a214-7dab036a950a}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_EL6910
+VAR_INPUT
+	
+		errorAcknowledgement : BOOL;
+		run  : BOOL;
+		safetyReset : BOOL;
+
+END_VAR
+VAR_OUTPUT
+
+	eStop1Status	: EL6910_ESTOP_STATUS;
+	eStop1Diagnostics : EL6910_ESTOP_DIGNOSTICS;
+
+	eStop2Status	: EL6910_ESTOP_STATUS;
+	eStop2Diagnostics : EL6910_ESTOP_DIGNOSTICS;
+
+	eStop3Status	: EL6910_ESTOP_STATUS;
+	eStop3Diagnostics : EL6910_ESTOP_DIGNOSTICS;
+
+	eStop4Status	: EL6910_ESTOP_STATUS;
+	eStop4Diagnostics : EL6910_ESTOP_DIGNOSTICS;
+	
+
+END_VAR
+VAR
+	    PDOS : EL6910_PDOS; // Process Data Objects for EL6910 communication
+		EStop1DiagOld: INT;
+		EStop2DiagOld: INT;
+		EStop3DiagOld: INT;
+		EStop4DiagOld: INT;
+
+		
+		
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[
+_eStopDiagnostics();
+_eStopStatus();
+_SafetyPLC();]]></ST>
+    </Implementation>
+    <Method Name="_eStopDiagnostics" Id="{c01be1f6-255f-4011-8e8f-8473c214a079}">
+      <Declaration><![CDATA[METHOD PRIVATE _eStopDiagnostics
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[//==============================================================
+// E-STOP 1
+//==============================================================
+
+eStop1Diagnostics.discrepancyErrGroup1       := PDOS.HwToPLC.EStop1Diag.0;
+eStop1Diagnostics.discrepancyErrGroup2       := PDOS.HwToPLC.EStop1Diag.1;
+eStop1Diagnostics.discrepancyErrGroup3       := PDOS.HwToPLC.EStop1Diag.2;
+eStop1Diagnostics.discrepancyErrGroup4       := PDOS.HwToPLC.EStop1Diag.3;
+
+eStop1Diagnostics.edmMonitoringErr1          := PDOS.HwToPLC.EStop1Diag.4;
+eStop1Diagnostics.edmMonitoringErr2          := PDOS.HwToPLC.EStop1Diag.5;
+
+// Bits 6 and 7 are skipped (not used)
+
+eStop1Diagnostics.discrepancyErrGroup1_Safe  := PDOS.HwToPLC.EStop1Diag.8;
+eStop1Diagnostics.discrepancyErrGroup2_Safe  := PDOS.HwToPLC.EStop1Diag.9;
+eStop1Diagnostics.discrepancyErrGroup3_Safe  := PDOS.HwToPLC.EStop1Diag.10;
+eStop1Diagnostics.discrepancyErrGroup4_Safe  := PDOS.HwToPLC.EStop1Diag.11;
+
+
+//==============================================================
+// E-STOP 2
+//==============================================================
+eStop2Diagnostics.discrepancyErrGroup1       := PDOS.HwToPLC.EStop2Diag.0;
+eStop2Diagnostics.discrepancyErrGroup2       := PDOS.HwToPLC.EStop2Diag.1;
+eStop2Diagnostics.discrepancyErrGroup3       := PDOS.HwToPLC.EStop2Diag.2;
+eStop2Diagnostics.discrepancyErrGroup4       := PDOS.HwToPLC.EStop2Diag.3;
+
+eStop2Diagnostics.edmMonitoringErr1          := PDOS.HwToPLC.EStop2Diag.4;
+eStop2Diagnostics.edmMonitoringErr2          := PDOS.HwToPLC.EStop2Diag.5;
+
+// Bits 6 and 7 skipped (not used)
+
+eStop2Diagnostics.discrepancyErrGroup1_Safe  := PDOS.HwToPLC.EStop2Diag.8;
+eStop2Diagnostics.discrepancyErrGroup2_Safe  := PDOS.HwToPLC.EStop2Diag.9;
+eStop2Diagnostics.discrepancyErrGroup3_Safe  := PDOS.HwToPLC.EStop2Diag.10;
+eStop2Diagnostics.discrepancyErrGroup4_Safe  := PDOS.HwToPLC.EStop2Diag.11;
+
+
+//==============================================================
+// E-STOP 3
+//==============================================================
+eStop3Diagnostics.discrepancyErrGroup1       := PDOS.HwToPLC.EStop3Diag.0;
+eStop3Diagnostics.discrepancyErrGroup2       := PDOS.HwToPLC.EStop3Diag.1;
+eStop3Diagnostics.discrepancyErrGroup3       := PDOS.HwToPLC.EStop3Diag.2;
+eStop3Diagnostics.discrepancyErrGroup4       := PDOS.HwToPLC.EStop3Diag.3;
+
+eStop3Diagnostics.edmMonitoringErr1          := PDOS.HwToPLC.EStop3Diag.4;
+eStop3Diagnostics.edmMonitoringErr2          := PDOS.HwToPLC.EStop3Diag.5;
+
+// Bits 6 and 7 skipped (not used)
+
+eStop3Diagnostics.discrepancyErrGroup1_Safe  := PDOS.HwToPLC.EStop3Diag.8;
+eStop3Diagnostics.discrepancyErrGroup2_Safe  := PDOS.HwToPLC.EStop3Diag.9;
+eStop3Diagnostics.discrepancyErrGroup3_Safe  := PDOS.HwToPLC.EStop3Diag.10;
+eStop3Diagnostics.discrepancyErrGroup4_Safe  := PDOS.HwToPLC.EStop3Diag.11;
+
+
+//==============================================================
+// E-STOP 4
+//==============================================================
+eStop4Diagnostics.discrepancyErrGroup1       := PDOS.HwToPLC.EStop4Diag.0;
+eStop4Diagnostics.discrepancyErrGroup2       := PDOS.HwToPLC.EStop4Diag.1;
+eStop4Diagnostics.discrepancyErrGroup3       := PDOS.HwToPLC.EStop4Diag.2;
+eStop4Diagnostics.discrepancyErrGroup4       := PDOS.HwToPLC.EStop4Diag.3;
+
+eStop4Diagnostics.edmMonitoringErr1          := PDOS.HwToPLC.EStop4Diag.4;
+eStop4Diagnostics.edmMonitoringErr2          := PDOS.HwToPLC.EStop4Diag.5;
+
+// Bits 6 and 7 skipped (not used)
+
+eStop4Diagnostics.discrepancyErrGroup1_Safe  := PDOS.HwToPLC.EStop4Diag.8;
+eStop4Diagnostics.discrepancyErrGroup2_Safe  := PDOS.HwToPLC.EStop4Diag.9;
+eStop4Diagnostics.discrepancyErrGroup3_Safe  := PDOS.HwToPLC.EStop4Diag.10;
+eStop4Diagnostics.discrepancyErrGroup4_Safe  := PDOS.HwToPLC.EStop4Diag.11;
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_eStopStatus" Id="{f661cf50-5405-42e2-968b-436ab5418839}">
+      <Declaration><![CDATA[METHOD PRIVATE _eStopStatus
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[
+
+IF PDOS.HwToPLC.EStop1State <> EStop1DiagOld THEN
+	
+	// Reset all states to FALSE
+	eStop1Status.estopState_RUN        := FALSE;
+	eStop1Status.estopState_STOP       := FALSE;
+	eStop1Status.estopState_SAFE       := FALSE;
+	eStop1Status.estopState_ERROR      := FALSE;
+	eStop1Status.estopState_RESET      := FALSE;
+	eStop1Status.estopState_START      := FALSE;
+	eStop1Status.estopState_DELAYOUT   := FALSE;
+
+	CASE PDOS.HwToPLC.EStop1State OF
+		
+		1: eStop1Status.estopState_RUN        := TRUE;
+		2: eStop1Status.estopState_STOP       := TRUE;
+		3: eStop1Status.estopState_SAFE       := TRUE;
+		4: eStop1Status.estopState_ERROR      := TRUE;
+		5: eStop1Status.estopState_RESET      := TRUE;
+		6: eStop1Status.estopState_START      := TRUE;
+		8: eStop1Status.estopState_DELAYOUT   := TRUE;
+	
+	END_CASE
+END_IF
+	
+EStop1DiagOld := PDOS.HwToPLC.EStop1State;
+
+
+//==============================================================
+// E-STOP 2
+//==============================================================
+IF PDOS.HwToPLC.EStop2State <> EStop2DiagOld THEN
+
+    // Reset all states to FALSE
+    eStop2Status.estopState_RUN       := FALSE;
+    eStop2Status.estopState_STOP      := FALSE;
+    eStop2Status.estopState_SAFE      := FALSE;
+    eStop2Status.estopState_ERROR     := FALSE;
+    eStop2Status.estopState_RESET     := FALSE;
+    eStop2Status.estopState_START     := FALSE;
+    eStop2Status.estopState_DELAYOUT  := FALSE;
+
+    CASE PDOS.HwToPLC.EStop2State OF
+        1: eStop2Status.estopState_RUN      := TRUE;
+        2: eStop2Status.estopState_STOP     := TRUE;
+        3: eStop2Status.estopState_SAFE     := TRUE;
+        4: eStop2Status.estopState_ERROR    := TRUE;
+        5: eStop2Status.estopState_RESET    := TRUE;
+        6: eStop2Status.estopState_START    := TRUE;
+        8: eStop2Status.estopState_DELAYOUT := TRUE;
+    END_CASE
+END_IF;
+
+EStop2DiagOld := PDOS.HwToPLC.EStop2State;
+
+
+//==============================================================
+// E-STOP 3
+//==============================================================
+IF PDOS.HwToPLC.EStop3State <> EStop3DiagOld THEN
+
+    // Reset all states to FALSE
+    eStop3Status.estopState_RUN       := FALSE;
+    eStop3Status.estopState_STOP      := FALSE;
+    eStop3Status.estopState_SAFE      := FALSE;
+    eStop3Status.estopState_ERROR     := FALSE;
+    eStop3Status.estopState_RESET     := FALSE;
+    eStop3Status.estopState_START     := FALSE;
+    eStop3Status.estopState_DELAYOUT  := FALSE;
+
+    CASE PDOS.HwToPLC.EStop3State OF
+        1: eStop3Status.estopState_RUN      := TRUE;
+        2: eStop3Status.estopState_STOP     := TRUE;
+        3: eStop3Status.estopState_SAFE     := TRUE;
+        4: eStop3Status.estopState_ERROR    := TRUE;
+        5: eStop3Status.estopState_RESET    := TRUE;
+        6: eStop3Status.estopState_START    := TRUE;
+        8: eStop3Status.estopState_DELAYOUT := TRUE;
+    END_CASE
+END_IF;
+
+EStop3DiagOld := PDOS.HwToPLC.EStop3State;
+
+
+//==============================================================
+// E-STOP 4
+//==============================================================
+IF PDOS.HwToPLC.EStop4State <> EStop4DiagOld THEN
+
+    // Reset all states to FALSE
+    eStop4Status.estopState_RUN       := FALSE;
+    eStop4Status.estopState_STOP      := FALSE;
+    eStop4Status.estopState_SAFE      := FALSE;
+    eStop4Status.estopState_ERROR     := FALSE;
+    eStop4Status.estopState_RESET     := FALSE;
+    eStop4Status.estopState_START     := FALSE;
+    eStop4Status.estopState_DELAYOUT  := FALSE;
+
+    CASE PDOS.HwToPLC.EStop4State OF
+        1: eStop4Status.estopState_RUN      := TRUE;
+        2: eStop4Status.estopState_STOP     := TRUE;
+        3: eStop4Status.estopState_SAFE     := TRUE;
+        4: eStop4Status.estopState_ERROR    := TRUE;
+        5: eStop4Status.estopState_RESET    := TRUE;
+        6: eStop4Status.estopState_START    := TRUE;
+        8: eStop4Status.estopState_DELAYOUT := TRUE;
+    END_CASE
+END_IF;
+
+EStop4DiagOld := PDOS.HwToPLC.EStop4State;
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_SafetyPLC" Id="{daeb1c3f-9c82-4f71-8b6c-3688245639d2}">
+      <Declaration><![CDATA[METHOD PRIVATE _SafetyPLC
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[
+PDOS.PlcToHw.Run := run;
+PDOS.PlcToHw.safetyReset := safetyReset;
+
+PDOS.PlcToHw.ErrorAcknowledgement := errorAcknowledgement;]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_EL6910">
+      <LineId Id="3" Count="0" />
+      <LineId Id="2" Count="0" />
+      <LineId Id="72" Count="1" />
+    </LineIds>
+    <LineIds Name="FB_EL6910._eStopDiagnostics">
+      <LineId Id="82" Count="1" />
+      <LineId Id="80" Count="1" />
+      <LineId Id="6" Count="12" />
+      <LineId Id="5" Count="0" />
+      <LineId Id="23" Count="56" />
+      <LineId Id="22" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_EL6910._eStopStatus">
+      <LineId Id="38" Count="1" />
+      <LineId Id="37" Count="0" />
+      <LineId Id="43" Count="0" />
+      <LineId Id="29" Count="6" />
+      <LineId Id="12" Count="0" />
+      <LineId Id="36" Count="0" />
+      <LineId Id="13" Count="0" />
+      <LineId Id="28" Count="0" />
+      <LineId Id="22" Count="5" />
+      <LineId Id="21" Count="0" />
+      <LineId Id="15" Count="0" />
+      <LineId Id="14" Count="0" />
+      <LineId Id="40" Count="0" />
+      <LineId Id="42" Count="0" />
+      <LineId Id="41" Count="0" />
+      <LineId Id="48" Count="83" />
+      <LineId Id="47" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_EL6910._SafetyPLC">
+      <LineId Id="6" Count="1" />
+      <LineId Id="12" Count="0" />
+      <LineId Id="8" Count="0" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

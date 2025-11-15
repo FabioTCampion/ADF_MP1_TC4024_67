@@ -1,0 +1,259 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.15">
+  <POU Name="FB_GroupDriveControl_V1" Id="{c5a8b97e-1e21-49d0-98f4-a11438fd6cbc}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_GroupDriveControl_V1
+VAR_INPUT
+    //----------------------------------------------------------------------
+    // GROUP COMMANDS
+    //----------------------------------------------------------------------
+    startGroup              : BOOL;      // EN: Start command (pulse) / PT: Comando de partida (pulso)
+    stopGroup               : BOOL;      // EN: Stop command (maintained) / PT: Comando de parada (mantido)
+    groupFault              : BOOL;      // EN: External fault signal / PT: Falha externa do grupo
+    groupSpeedAutoMan       : BOOL;      // EN: Mode selector (TRUE=Auto / FALSE=Manual)
+    enableTimeout           : TIME := T#5s;   // EN: Timeout for enable feedback / PT: Tempo máx. para habilitação
+    stopTimeout             : TIME := T#10s;  // EN: Timeout for controlled stop / PT: Tempo máx. para parada
+
+    //----------------------------------------------------------------------
+    // DRIVE STATUS FEEDBACKS
+    //----------------------------------------------------------------------
+    group1MasterReady       : BOOL := TRUE;  
+    group1Slave1Ready       : BOOL := TRUE;  
+    group1Slave2Ready       : BOOL := TRUE;  
+    group2MasterReady       : BOOL := TRUE;  
+    group2Slave1Ready       : BOOL := TRUE;  
+    group2Slave2Ready       : BOOL := TRUE;  
+
+    //----------------------------------------------------------------------
+    // SPEED FEEDBACKS (RPM or %)
+    //----------------------------------------------------------------------
+    group1MasterSpeedFeedback : REAL;
+    group1Slave1SpeedFeedback : REAL;
+    group1Slave2SpeedFeedback : REAL;
+    group2MasterSpeedFeedback : REAL;
+    group2Slave1SpeedFeedback : REAL;
+    group2Slave2SpeedFeedback : REAL;
+
+    //----------------------------------------------------------------------
+    // DRIVE REFERENCE FEEDBACKS (for zero check)
+    //----------------------------------------------------------------------
+    group1MasterRefFeedback  : REAL;
+    group2MasterRefFeedback  : REAL;
+
+    //----------------------------------------------------------------------
+    // THRESHOLDS
+    //----------------------------------------------------------------------
+    speedZeroThreshold       : REAL := 1.0;   // EN: Threshold to consider stopped / PT: Limite para considerar parado
+    epsRefThreshold          : REAL := 1.0;   // EN: Threshold for null reference / PT: Limite de referência nula
+END_VAR
+
+
+VAR_OUTPUT
+    //----------------------------------------------------------------------
+    // DRIVE ENABLE OUTPUTS
+    //----------------------------------------------------------------------
+    group1MasterEnable       : BOOL;
+    group1Slave1Enable       : BOOL;
+    group1Slave2Enable       : BOOL;
+    group2MasterEnable       : BOOL;
+    group2Slave1Enable       : BOOL;
+    group2Slave2Enable       : BOOL;
+
+    //----------------------------------------------------------------------
+    // STATUS OUTPUTS
+    //----------------------------------------------------------------------
+    deviceState              : STRING;   // EN: Current textual state / PT: Estado atual em texto
+    rampReset                : BOOL;     // EN: Ramp reset output / PT: Saída de reset da rampa
+    state                    : INT;      // EN: Internal state / PT: Estado interno
+END_VAR
+
+
+VAR
+    //----------------------------------------------------------------------
+    // INTERNAL FLAGS AND TIMERS
+    //----------------------------------------------------------------------
+    rStart, rStop            : BOOL;
+    startGroupOld, stopGroupOld : BOOL;
+
+    allReady, anyFault       : BOOL;
+    speedsNearZero, refsNearZero : BOOL;
+
+    instTONEnableWait        : TON;
+    instTONStopWait          : TON;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[//────────────────────────────────────────────────────────────
+// 1) Edge detection for start/stop commands
+//────────────────────────────────────────────────────────────
+rStart := startGroup AND NOT startGroupOld;   // Rising edge → Start
+rStop  := stopGroup  AND NOT stopGroupOld;    // Rising edge → Stop
+startGroupOld := startGroup;
+stopGroupOld  := stopGroup;
+
+//────────────────────────────────────────────────────────────
+// 2) Group readiness and fault aggregation
+//────────────────────────────────────────────────────────────
+// EN: allReady = all drives are ready
+//     anyFault = any drive NOT ready OR external group fault
+// PT: allReady = todos os inversores prontos
+//     anyFault = algum inversor não pronto OU falha externa
+//────────────────────────────────────────────────────────────
+allReady :=
+    group1MasterReady AND group1Slave1Ready AND group1Slave2Ready AND
+    group2MasterReady AND group2Slave1Ready AND group2Slave2Ready;
+
+anyFault :=
+    groupFault OR
+    NOT group1MasterReady OR NOT group1Slave1Ready OR NOT group1Slave2Ready OR
+    NOT group2MasterReady OR NOT group2Slave1Ready OR NOT group2Slave2Ready;
+
+//────────────────────────────────────────────────────────────
+// 3) Speed and reference near-zero detection
+//────────────────────────────────────────────────────────────
+speedsNearZero :=
+    (ABS(group1MasterSpeedFeedback) <= speedZeroThreshold) AND
+    (ABS(group1Slave1SpeedFeedback) <= speedZeroThreshold) AND
+    (ABS(group1Slave2SpeedFeedback) <= speedZeroThreshold) AND
+    (ABS(group2MasterSpeedFeedback) <= speedZeroThreshold) AND
+    (ABS(group2Slave1SpeedFeedback) <= speedZeroThreshold) AND
+    (ABS(group2Slave2SpeedFeedback) <= speedZeroThreshold);
+
+refsNearZero :=
+    (ABS(group1MasterRefFeedback) <= epsRefThreshold) AND
+    (ABS(group2MasterRefFeedback) <= epsRefThreshold);
+
+//────────────────────────────────────────────────────────────
+// 4) State machine — generic dual-group drive controller
+//────────────────────────────────────────────────────────────
+CASE state OF
+
+    //------------------------------------------------------------------
+    0: // IDLE
+    //------------------------------------------------------------------
+        deviceState := 'IDLE';
+        rampReset   := TRUE;
+
+        group1MasterEnable := FALSE;
+        group1Slave1Enable := FALSE;
+        group1Slave2Enable := FALSE;
+        group2MasterEnable := FALSE;
+        group2Slave1Enable := FALSE;
+        group2Slave2Enable := FALSE;
+
+        IF rStart AND NOT anyFault THEN
+            state := 1;
+        END_IF
+
+    //------------------------------------------------------------------
+    1: // ENABLE_DRIVES
+    //------------------------------------------------------------------
+        deviceState := 'ENABLE_DRIVES';
+        rampReset   := TRUE;
+
+        group1MasterEnable := TRUE;
+        group1Slave1Enable := TRUE;
+        group1Slave2Enable := TRUE;
+        group2MasterEnable := TRUE;
+        group2Slave1Enable := TRUE;
+        group2Slave2Enable := TRUE;
+
+        instTONEnableWait(IN := TRUE, PT := enableTimeout);
+
+        IF rStop OR stopGroup THEN
+            instTONEnableWait(IN := FALSE);
+            state := 5;
+        ELSE
+            state := 2;
+        END_IF
+
+    //------------------------------------------------------------------
+    2: // WAIT_ENABLE_FEEDBACK
+    //------------------------------------------------------------------
+        deviceState := 'WAIT_ENABLE_FEEDBACK';
+        rampReset   := TRUE;
+
+        instTONEnableWait(IN := TRUE, PT := enableTimeout);
+
+        IF anyFault THEN
+            instTONEnableWait(IN := FALSE);
+            state := 10; // FAULT
+        ELSIF rStop OR stopGroup THEN
+            instTONEnableWait(IN := FALSE);
+            state := 5;  // STOPPING
+        ELSIF allReady THEN
+            instTONEnableWait(IN := FALSE);
+            state := 3;  // RAMP_ENABLE
+        ELSIF instTONEnableWait.Q THEN
+            instTONEnableWait(IN := FALSE);
+            state := 10; // Timeout fault
+        END_IF
+
+    //------------------------------------------------------------------
+    3: // RAMP_ENABLE
+    //------------------------------------------------------------------
+        deviceState := 'RAMP_ENABLE';
+        rampReset   := FALSE; // release ramp
+
+        IF rStop OR stopGroup THEN
+            state := 5;
+        ELSE
+            state := 4; // RUN
+        END_IF
+
+    //------------------------------------------------------------------
+    4: // RUN
+    //------------------------------------------------------------------
+        deviceState := SEL(groupSpeedAutoMan, 'RUN (Manual)', 'RUN (Auto)');
+        rampReset   := FALSE;
+
+        IF anyFault THEN
+            state := 10;
+        ELSIF rStop OR stopGroup THEN
+            state := 5;
+        END_IF
+
+    //------------------------------------------------------------------
+    5: // STOPPING (controlled deceleration)
+    //------------------------------------------------------------------
+        deviceState := 'STOPPING';
+        rampReset   := FALSE;
+
+        IF anyFault THEN
+            state := 10;
+        ELSIF speedsNearZero AND refsNearZero THEN
+            // Stop complete → disable drives
+            group1MasterEnable := FALSE;
+            group1Slave1Enable := FALSE;
+            group1Slave2Enable := FALSE;
+            group2MasterEnable := FALSE;
+            group2Slave1Enable := FALSE;
+            group2Slave2Enable := FALSE;
+            state := 0; // IDLE
+        END_IF
+
+    //------------------------------------------------------------------
+    10: // FAULT
+    //------------------------------------------------------------------
+        deviceState := 'FAULT';
+        rampReset   := TRUE;
+
+        group1MasterEnable := FALSE;
+        group1Slave1Enable := FALSE;
+        group1Slave2Enable := FALSE;
+        group2MasterEnable := FALSE;
+        group2Slave1Enable := FALSE;
+        group2Slave2Enable := FALSE;
+
+        // Return to IDLE when faults clear and start released
+        IF (NOT anyFault) AND (NOT startGroup) THEN
+            state := 0;
+        END_IF
+END_CASE
+]]></ST>
+    </Implementation>
+    <LineIds Name="FB_GroupDriveControl_V1">
+      <LineId Id="10" Count="166" />
+      <LineId Id="9" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

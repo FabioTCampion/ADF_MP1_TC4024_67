@@ -1,0 +1,23 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.15">
+  <DUT Name="EL3052_DEV_CONFIG" Id="{8c1b4ed4-8498-4ac3-9343-c620cff5951b}">
+    <Declaration><![CDATA[TYPE EL3052_DEV_CONFIG :
+    STRUCT
+   
+        // Setpoint scaling
+       	channel1InputLow        : REAL := 0.0;   // Minimum input value for setpoint		
+        channel1InputHigh       : REAL := 30518.0; // Maximum input value for setpoint
+        channel1OutputLow       : REAL := 0.0; // Minimum output value for setpoint
+        channel1OutputHigh      : REAL := 100.0; // Maximum output value for setpoint
+        // Setpoint scaling
+       	channe12InputLow        : REAL := 0.0;   // Minimum input value for setpoint		
+        channe12InputHigh       : REAL := 30518.0; // Maximum input value for setpoint
+        channe12OutputLow       : REAL := 0.0; // Minimum output value for setpoint
+        channe12OutputHigh      : REAL := 100.0; // Maximum output value for setpoint		
+
+    END_STRUCT
+END_TYPE
+
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

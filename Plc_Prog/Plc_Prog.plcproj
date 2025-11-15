@@ -1,0 +1,445 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <FileVersion>1.0.0.0</FileVersion>
+    <SchemaVersion>2.0</SchemaVersion>
+    <ProjectGuid>{1b0ecf96-ba46-432c-8d32-86f6f536df4a}</ProjectGuid>
+    <SubObjectsSortedByName>True</SubObjectsSortedByName>
+    <DownloadApplicationInfo>true</DownloadApplicationInfo>
+    <WriteProductVersion>true</WriteProductVersion>
+    <GenerateTpy>false</GenerateTpy>
+    <Name>Plc_Prog</Name>
+    <ProgramVersion>3.1.4024.0</ProgramVersion>
+    <Application>{3f52e98a-13d4-4a2f-b375-e87f6c9a2a4c}</Application>
+    <TypeSystem>{07e88f65-99dd-4d78-9862-02c8709cd90d}</TypeSystem>
+    <Implicit_Task_Info>{72248c53-099e-4226-8cff-aa20e24aa1a3}</Implicit_Task_Info>
+    <Implicit_KindOfTask>{1eb6d9f7-2e32-4369-98fd-0daaf51c4a3c}</Implicit_KindOfTask>
+    <Implicit_Jitter_Distribution>{542e6b68-79b8-4234-9796-7a0f98f41066}</Implicit_Jitter_Distribution>
+    <LibraryReferences>{b5fcc4bc-56bf-4e35-9b88-9f7a819510e6}</LibraryReferences>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="Function Blocks\DELTA - MS300\C2000_ANALOG_INPUTS.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Function Blocks\DELTA - MS300\C2000_ANALOG_OUTPUTS.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Function Blocks\DELTA - MS300\C2000_CONTROLWORD.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Function Blocks\DELTA - MS300\C2000_DEV_CONFIG.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Function Blocks\DELTA - MS300\C2000_DIGITAL_INPUTS.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Function Blocks\DELTA - MS300\C2000_DIGITAL_OUTPUTS.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Function Blocks\DELTA - MS300\C2000_DRVTOPLC_PDOS.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Function Blocks\DELTA - MS300\C2000_PDOS.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Function Blocks\DELTA - MS300\C2000_PLCTODRV_PDOS.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Function Blocks\DELTA - MS300\C2000_STATUSWORD.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Function Blocks\DELTA - MS300\E_C2000_ModeOfOperation.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Function Blocks\DELTA - MS300\FB_DELTA_C2000_ETC.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Function Blocks\IOs\Beckhoff\Common\FB_SavePersistentData.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Function Blocks\IOs\Beckhoff\EL1809 - Digital Inputs\DataTypes\EL1809_DEV_CONFIG.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Function Blocks\IOs\Beckhoff\EL1809 - Digital Inputs\DataTypes\EL1809_HWTOPLC_PDOS.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Function Blocks\IOs\Beckhoff\EL1809 - Digital Inputs\DataTypes\EL1809_PDOS.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Function Blocks\IOs\Beckhoff\EL1809 - Digital Inputs\FB_EL1809.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Function Blocks\IOs\Beckhoff\EL3052 - Ai 2 x 4-20MA - 12bit\DataTypes\EL3052_DEV_CONFIG.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Function Blocks\IOs\Beckhoff\EL3052 - Ai 2 x 4-20MA - 12bit\DataTypes\EL3052_DEV_STATUS.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Function Blocks\IOs\Beckhoff\EL3052 - Ai 2 x 4-20MA - 12bit\DataTypes\EL3052_HWTOPLC_PDOS.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Function Blocks\IOs\Beckhoff\EL3052 - Ai 2 x 4-20MA - 12bit\DataTypes\EL3052_CHANNEL.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Function Blocks\IOs\Beckhoff\EL3052 - Ai 2 x 4-20MA - 12bit\DataTypes\EL3052_PDOS.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Function Blocks\IOs\Beckhoff\EL3052 - Ai 2 x 4-20MA - 12bit\FB_EL3052.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Function Blocks\IOs\Beckhoff\EL2809 - Digital Outputs\DataTypes\EL2809_DEV_CONFIG.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Function Blocks\IOs\Beckhoff\EL2809 - Digital Outputs\DataTypes\EL2809_PDOS.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Function Blocks\IOs\Beckhoff\EL2809 - Digital Outputs\DataTypes\EL2809_PLCTOHW_PDOS.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Function Blocks\IOs\Beckhoff\EL2809 - Digital Outputs\FB_EL2809.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Function Blocks\IOs\Beckhoff\EL3152 - Ai 2 x 4-20MA - 16bit\DataTypes\EL3152_CHANNEL.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Function Blocks\IOs\Beckhoff\EL3152 - Ai 2 x 4-20MA - 16bit\DataTypes\EL3152_DEV_CONFIG.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Function Blocks\IOs\Beckhoff\EL3152 - Ai 2 x 4-20MA - 16bit\DataTypes\EL3152_DEV_STATUS.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Function Blocks\IOs\Beckhoff\EL3152 - Ai 2 x 4-20MA - 16bit\DataTypes\EL3152_HWTOPLC_PDOS.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Function Blocks\IOs\Beckhoff\EL3152 - Ai 2 x 4-20MA - 16bit\DataTypes\EL3152_PDOS.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Function Blocks\IOs\Beckhoff\EL3152 - Ai 2 x 4-20MA - 16bit\FB_EL3152.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Function Blocks\IOs\Beckhoff\EL3154 - Ai 4 x 4-20MA - 16bit\DataTypes\EL3154_CHANNEL.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Function Blocks\IOs\Beckhoff\EL3154 - Ai 4 x 4-20MA - 16bit\DataTypes\EL3154_DEV_CONFIG.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Function Blocks\IOs\Beckhoff\EL3154 - Ai 4 x 4-20MA - 16bit\DataTypes\EL3154_DEV_STATUS.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Function Blocks\IOs\Beckhoff\EL3154 - Ai 4 x 4-20MA - 16bit\DataTypes\EL3154_HWTOPLC_PDOS.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Function Blocks\IOs\Beckhoff\EL3154 - Ai 4 x 4-20MA - 16bit\DataTypes\EL3154_PDOS.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Function Blocks\IOs\Beckhoff\EL3154 - Ai 4 x 4-20MA - 16bit\FB_EL3154.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Function Blocks\IOs\Beckhoff\EL3204 - Ai 4 x PT100 %28RTD%29\DataTypes\EL3204_DEV_CONFIG.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Function Blocks\IOs\Beckhoff\EL3204 - Ai 4 x PT100 %28RTD%29\DataTypes\EL3204_CHANNEL.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Function Blocks\IOs\Beckhoff\EL3204 - Ai 4 x PT100 %28RTD%29\DataTypes\EL3204_DEV_STATUS.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Function Blocks\IOs\Beckhoff\EL3204 - Ai 4 x PT100 %28RTD%29\DataTypes\EL3204_HWTOPLC_PDOS.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Function Blocks\IOs\Beckhoff\EL3204 - Ai 4 x PT100 %28RTD%29\DataTypes\EL3204_PDOS.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Function Blocks\IOs\Beckhoff\EL3204 - Ai 4 x PT100 %28RTD%29\FB_EL3204.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Function Blocks\IOs\Beckhoff\EL4024 - AQ 4 x 4-20MA\DataTypes\EL4024_DEV_CONFIG.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Function Blocks\IOs\Beckhoff\EL4024 - AQ 4 x 4-20MA\DataTypes\EL4024_HWTOPLC_PDOS.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Function Blocks\IOs\Beckhoff\EL4024 - AQ 4 x 4-20MA\DataTypes\EL4024_PDOS.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Function Blocks\IOs\Beckhoff\EL4024 - AQ 4 x 4-20MA\FB_EL4024.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Function Blocks\IOs\Beckhoff\EL6910 - TwinSAFE PLC\EL6910_ESTOP.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Function Blocks\IOs\Beckhoff\EL6910 - TwinSAFE PLC\EL6910_ESTOP_DIGNOSTICS.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Function Blocks\IOs\Beckhoff\EL6910 - TwinSAFE PLC\EL6910_ESTOP_STATUS.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Function Blocks\IOs\Beckhoff\EL6910 - TwinSAFE PLC\EL6910_HWTOPLC_PDOS.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Function Blocks\IOs\Beckhoff\EL6910 - TwinSAFE PLC\EL6910_PDOS.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Function Blocks\IOs\Beckhoff\EL6910 - TwinSAFE PLC\EL6910_PLCTOHW_PDOS.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Function Blocks\IOs\Beckhoff\EL6910 - TwinSAFE PLC\FB_EL6910.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Function Blocks\PaperMachine\Auxiliary\FB_FormingBoardDriveControl.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Function Blocks\PaperMachine\Auxiliary\FB_FormingBoardRollUpDown.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Function Blocks\PaperMachine\Auxiliary\FB_FormingBoardWireStretchControl.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Function Blocks\PaperMachine\Auxiliary\FB_Gen_SRamp.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Function Blocks\PaperMachine\Auxiliary\FB_HeadboxLipsPWMControl.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Function Blocks\PaperMachine\Auxiliary\FB_LevelControl.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Function Blocks\PaperMachine\Auxiliary\FB_LevelControl_V2.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Function Blocks\PaperMachine\Auxiliary\FB_MixPumpControl.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Function Blocks\PaperMachine\Auxiliary\FB_MixPumpControl_V1.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Function Blocks\PaperMachine\Auxiliary\FB_PaperMachine.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Function Blocks\PaperMachine\Auxiliary\FB_PressureControl.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Function Blocks\PaperMachine\Auxiliary\FB_PressureControl_V1.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Function Blocks\PaperMachine\Auxiliary\FB_ProcessControler.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Function Blocks\PaperMachine\Auxiliary\FB_SimpleMotorStart.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Function Blocks\PaperMachine\Auxiliary\FB_SimpleMotorStart_V2.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Function Blocks\PaperMachine\Auxiliary\FB_SimpleMotorStart_V3.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Function Blocks\PaperMachine\Auxiliary\FB_SoftstarterSimple.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Function Blocks\PaperMachine\Auxiliary\FB_SoftstarterWithBypass.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Function Blocks\PaperMachine\Auxiliary\FB_SoftstarterWithBypass_V1.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Function Blocks\PaperMachine\Auxiliary\FB_SpeedDroopControl.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Function Blocks\PaperMachine\Auxiliary\FB_SpeedDroopControl_1.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Function Blocks\PaperMachine\DataTypes\PaperMachine_TypeHmiConfig.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Function Blocks\PaperMachine\DataTypes\PaperMachine_TypeHmiCommands.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Function Blocks\PaperMachine\DataTypes\PaperMachine_TypeHmiStatus.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Function Blocks\PaperMachine\DataTypes\PaperMachine_TypeHmiAlarms.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Function Blocks\PaperMachine\DriveControl\FB_DryingSectionDriveControl_V1.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Function Blocks\PaperMachine\DriveControl\FB_DryingSectionDriveControl_V2.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Function Blocks\PaperMachine\DriveControl\FB_DryingSectionDriveControl_V3.TcPOU">
+      <SubType>Code</SubType>
+      <ExcludeFromBuild>false</ExcludeFromBuild>
+    </Compile>
+    <Compile Include="Function Blocks\PaperMachine\DriveControl\FB_FormingBoardControl_V3.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Function Blocks\PaperMachine\DriveControl\FB_WinderDriveControl_V1.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Function Blocks\PaperMachine\DriveControl\FB_DryingSectionLubrificationControl_V1.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Function Blocks\PaperMachine\DriveControl\FB_DryingSectionPressureControl.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Function Blocks\PaperMachine\DriveControl\FB_FormingBoardControl_V1.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Function Blocks\PaperMachine\DriveControl\FB_PressSectionDriveControl_V1.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Function Blocks\PaperMachine\DriveControl\FB_PressSectionDriveControl_V2.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Function Blocks\PaperMachine\FB_GroupDisplayFilters_V1.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Function Blocks\PaperMachine\FB_GroupDriveControl_V1.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Function Blocks\PaperMachine\FB_GroupSpeedControl_V1.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Function Blocks\PaperMachine\FB_GroupTorqueTrimControl_V1.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Function Blocks\PaperMachine\FB_GroupTorqueTrimControl_V2.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Function Blocks\Rewinder\DataTypes\RewinderConfig_TypeStruct.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Function Blocks\Rewinder\DataTypes\Rewinder_TypePressRoll.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Function Blocks\Rewinder\DataTypes\Rewinder_TypeBrakeControl.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Function Blocks\Rewinder\FB_RewinderControl_V1.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="GVLs\GVL_Hw.TcGVL">
+      <SubType>Code</SubType>
+      <LinkAlways>true</LinkAlways>
+    </Compile>
+    <Compile Include="PlcTask.TcTTO">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\Implicit Checks\CheckBounds.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\Implicit Checks\CheckDivDInt.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\Implicit Checks\CheckDivLInt.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\Implicit Checks\CheckDivLReal.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\Implicit Checks\CheckDivReal.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\Implicit Checks\CheckLRangeSigned.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\Implicit Checks\CheckLRangeUnsigned.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\Implicit Checks\CheckPointer.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\Implicit Checks\CheckRangeSigned.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\Implicit Checks\CheckRangeUnsigned.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\MAIN.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="DUTs" />
+    <Folder Include="Function Blocks\DELTA - MS300" />
+    <Folder Include="Function Blocks\IOs" />
+    <Folder Include="Function Blocks\IOs\Beckhoff" />
+    <Folder Include="Function Blocks\IOs\Beckhoff\Common" />
+    <Folder Include="Function Blocks\IOs\Beckhoff\EL1809 - Digital Inputs" />
+    <Folder Include="Function Blocks\IOs\Beckhoff\EL1809 - Digital Inputs\DataTypes" />
+    <Folder Include="Function Blocks\IOs\Beckhoff\EL3052 - Ai 2 x 4-20MA - 12bit" />
+    <Folder Include="Function Blocks\IOs\Beckhoff\EL3052 - Ai 2 x 4-20MA - 12bit\DataTypes" />
+    <Folder Include="Function Blocks\IOs\Beckhoff\EL2809 - Digital Outputs" />
+    <Folder Include="Function Blocks\IOs\Beckhoff\EL2809 - Digital Outputs\DataTypes" />
+    <Folder Include="Function Blocks\IOs\Beckhoff\EL3152 - Ai 2 x 4-20MA - 16bit" />
+    <Folder Include="Function Blocks\IOs\Beckhoff\EL3152 - Ai 2 x 4-20MA - 16bit\DataTypes" />
+    <Folder Include="Function Blocks\IOs\Beckhoff\EL3154 - Ai 4 x 4-20MA - 16bit" />
+    <Folder Include="Function Blocks\IOs\Beckhoff\EL3154 - Ai 4 x 4-20MA - 16bit\DataTypes" />
+    <Folder Include="Function Blocks\IOs\Beckhoff\EL3204 - Ai 4 x PT100 %28RTD%29" />
+    <Folder Include="Function Blocks\IOs\Beckhoff\EL3204 - Ai 4 x PT100 %28RTD%29\DataTypes" />
+    <Folder Include="Function Blocks\IOs\Beckhoff\EL4024 - AQ 4 x 4-20MA" />
+    <Folder Include="Function Blocks\IOs\Beckhoff\EL4024 - AQ 4 x 4-20MA\DataTypes" />
+    <Folder Include="Function Blocks\IOs\Beckhoff\EL6910 - TwinSAFE PLC" />
+    <Folder Include="Function Blocks\Rewinder" />
+    <Folder Include="Function Blocks\PaperMachine" />
+    <Folder Include="Function Blocks\PaperMachine\DataTypes" />
+    <Folder Include="Function Blocks\PaperMachine\DriveControl" />
+    <Folder Include="Function Blocks\PaperMachine\Auxiliary" />
+    <Folder Include="Function Blocks\Rewinder\DataTypes" />
+    <Folder Include="GVLs" />
+    <Folder Include="Function Blocks" />
+    <Folder Include="POUs\Implicit Checks" />
+    <Folder Include="VISUs" />
+    <Folder Include="POUs" />
+  </ItemGroup>
+  <ItemGroup>
+    <PlaceholderReference Include="CPNTeck - OSCAT BASIC">
+      <DefaultResolution>CPNTeck - OSCAT BASIC, * (CPNTeck - Automação Industrial)</DefaultResolution>
+      <Namespace>CPNTeck_OSCAT_BASIC</Namespace>
+    </PlaceholderReference>
+    <PlaceholderReference Include="Tc2_Standard">
+      <DefaultResolution>Tc2_Standard, * (Beckhoff Automation GmbH)</DefaultResolution>
+      <Namespace>Tc2_Standard</Namespace>
+    </PlaceholderReference>
+    <PlaceholderReference Include="Tc2_SUPS">
+      <DefaultResolution>Tc2_SUPS, * (Beckhoff Automation GmbH)</DefaultResolution>
+      <Namespace>Tc2_SUPS</Namespace>
+    </PlaceholderReference>
+    <PlaceholderReference Include="Tc2_System">
+      <DefaultResolution>Tc2_System, * (Beckhoff Automation GmbH)</DefaultResolution>
+      <Namespace>Tc2_System</Namespace>
+    </PlaceholderReference>
+    <PlaceholderReference Include="Tc2_Utilities">
+      <DefaultResolution>Tc2_Utilities, * (Beckhoff Automation GmbH)</DefaultResolution>
+      <Namespace>Tc2_Utilities</Namespace>
+    </PlaceholderReference>
+    <PlaceholderReference Include="Tc3_Module">
+      <DefaultResolution>Tc3_Module, * (Beckhoff Automation GmbH)</DefaultResolution>
+      <Namespace>Tc3_Module</Namespace>
+    </PlaceholderReference>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Plc_Prog.tmc">
+      <SubType>Content</SubType>
+    </None>
+  </ItemGroup>
+  <ProjectExtensions>
+    <PlcProjectOptions>
+      <XmlArchive>
+        <Data>
+          <o xml:space="preserve" t="OptionKey">
+      <v n="Name">"&lt;ProjectRoot&gt;"</v>
+      <d n="SubKeys" t="Hashtable" />
+      <d n="Values" t="Hashtable" />
+    </o>
+        </Data>
+        <TypeList>
+          <Type n="Hashtable">System.Collections.Hashtable</Type>
+          <Type n="OptionKey">{54dd0eac-a6d8-46f2-8c27-2f43c7e49861}</Type>
+          <Type n="String">System.String</Type>
+        </TypeList>
+      </XmlArchive>
+    </PlcProjectOptions>
+  </ProjectExtensions>
+</Project>

@@ -1,0 +1,77 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.15">
+  <POU Name="FB_FormingBoardWireStretchControl" Id="{8271c73e-f046-4270-b46a-8c94896fd5c1}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_FormingBoardWireStretchControl
+VAR_INPUT
+    stretchCmd           : BOOL;   // Jog command to stretch (increase tension)
+    unstretchCmd         : BOOL;   // Jog command to unstretch (decrease tension)
+    limitStretchSensor   : BOOL;   // TRUE when at maximum stretch limit
+    limitUnstretchSensor : BOOL;   // TRUE when at minimum stretch limit
+    fault                : BOOL;   // External fault interlock
+END_VAR
+VAR_OUTPUT
+    stretch     : BOOL;           // Motor output: stretch direction
+    unstretch   : BOOL;           // Motor output: unstretch direction
+    busy        : BOOL;           // TRUE when motor running in any direction
+    deviceState : STRING(80);     // Human-readable status for HMI
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[// ============================ MAIN EXECUTION ============================
+
+// Safety: External fault forces outputs OFF
+IF fault THEN
+    stretch := FALSE;
+    unstretch := FALSE;
+    busy := FALSE;
+    deviceState := 'Fault active';
+
+ELSE
+    // Conflict handling: both commands pressed
+    IF stretchCmd AND unstretchCmd THEN
+        stretch := FALSE;
+        unstretch := FALSE;
+        busy := FALSE;
+        deviceState := 'Conflict: both commands pressed';
+
+    ELSE
+        // ======================= STRETCH control ========================
+        IF stretchCmd AND NOT limitStretchSensor AND NOT unstretchCmd THEN
+            stretch := TRUE;
+        ELSE
+            stretch := FALSE;
+        END_IF
+
+        // ======================= UNSTRETCH control ======================
+        IF unstretchCmd AND NOT limitUnstretchSensor AND NOT stretchCmd THEN
+            unstretch := TRUE;
+        ELSE
+            unstretch := FALSE;
+        END_IF
+
+        // ======================= State / Busy flag ======================
+        busy := stretch OR unstretch;
+
+        IF stretch THEN
+            IF limitStretchSensor THEN
+                deviceState := 'Stretch blocked: max limit';
+            ELSE
+                deviceState := 'Stretching...';
+            END_IF
+        ELSIF unstretch THEN
+            IF limitUnstretchSensor THEN
+                deviceState := 'Unstretch blocked: min limit';
+            ELSE
+                deviceState := 'Unstretching...';
+            END_IF
+        ELSE
+            deviceState := 'Idle';
+        END_IF
+    END_IF
+END_IF]]></ST>
+    </Implementation>
+    <LineIds Name="FB_FormingBoardWireStretchControl">
+      <LineId Id="123" Count="50" />
+      <LineId Id="27" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

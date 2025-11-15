@@ -1,0 +1,14 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.15">
+  <DUT Name="Rewinder_TypePressRoll" Id="{24438356-d3ec-409c-80af-ec6b73481061}">
+    <Declaration><![CDATA[TYPE Rewinder_TypePressRoll :
+	STRUCT
+			
+		rollDiameter	: REAL := 0.00;			//Forming board manual speed (Slow speed)
+		pressureSetpoint	: REAL := 0.00;			//Forming board manual speed (Slow speed)
+				
+	END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

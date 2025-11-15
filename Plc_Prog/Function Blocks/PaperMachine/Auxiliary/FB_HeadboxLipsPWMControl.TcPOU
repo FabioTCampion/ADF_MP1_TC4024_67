@@ -1,0 +1,543 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.15">
+  <POU Name="FB_HeadboxLipsPWMControl" Id="{0d02549c-0fed-47e6-9a07-19cae635e0c8}" SpecialFunc="None">
+    <Declaration><![CDATA[(*
+    FB_HeadboxLipsPWMControl
+    Purpose:
+      - Control headbox lips opening using ON/OFF modulation (PWM), no analog speed output.
+      - Manual: open/close while buttons are pressed (jog).
+      - Automatic: operator types a target opening [mm] and presses "adjust"; the FB drives
+        the lips toward the target using PWM duty proportional to position error magnitude.
+      - If manualOpenCmd or manualCloseCmd is pressed during automatic positioning, the FB
+        immediately returns to manual mode.
+
+    Features:
+      - Position units in millimeters (mm).
+      - Limit sensors (limitMaxSensor / limitMinSensor) inhibit motion.
+      - PWM duty [%] from |positionError| with clamps (min/max duty).
+      - Minimum ON time per direction (minOnTime) to protect contactors.
+      - Stall detection and travel timeout.
+      - Exclusive actuation (never open & close simultaneously).
+      - Human-readable deviceState.
+
+    Notes:
+      - Single PWM generator; direction is applied by gating its pulse.
+      - Target is clamped to [posMin_mm .. posMax_mm].
+*)
+
+FUNCTION_BLOCK FB_HeadboxLipsPWMControl
+VAR_INPUT
+    // Position feedback and limits (mm)
+    positionFeedback_mm     : REAL;          // Actual opening [mm]
+    posMin_mm               : REAL := 0.0;   // Minimum allowed opening [mm]
+    posMax_mm               : REAL := 25.0;  // Maximum allowed opening [mm]
+
+    // Limit sensors
+    limitMaxSensor          : BOOL;          // TRUE when fully open (max) limit is active
+    limitMinSensor          : BOOL;          // TRUE when fully closed (min) limit is active
+
+    // Manual jog commands (assume manual operation)
+    manualOpenCmd           : BOOL;          // Jog open while pressed
+    manualCloseCmd          : BOOL;          // Jog close while pressed
+
+    // Automatic setpoint entry (assume automatic operation when pressed)
+    autoTargetInput_mm      : REAL;          // Operator desired opening [mm]
+    autoAdjustCmd           : BOOL;          // Pulse to start automatic positioning
+
+    // Positioning behavior
+    tolerance_mm            : REAL := 0.10;  // Position tolerance to finish [mm]
+
+    // PWM behavior (OSCAT PWM_DC)
+    pwmPeriod               : TIME := T#500ms; // PWM period
+    pwmGainPct_per_mm       : REAL := 10.0;    // Duty slope: [% duty] per mm error
+    pwmMinDutyPct           : REAL := 10.0;    // Minimum duty when moving [%]
+    pwmMaxDutyPct           : REAL := 100.0;   // Maximum duty [%]
+
+    // Contactor-friendly pulse shaping
+    minOnTime               : TIME := T#300ms; // Minimum ON time per pulse/direction
+
+    // Fault supervision
+    stallDeltaMin_mm        : REAL := 0.02;    // Minimum position change to consider progress [mm]
+    stallTimeout            : TIME := T#5s;    // No-progress duration => stall fault
+    travelTimeout           : TIME := T#30s;   // Max time allowed to reach target => timeout fault
+END_VAR
+
+VAR_OUTPUT
+    // Drive outputs (modulated by PWM in automatic mode)
+    openingCmd              : BOOL;          // Command: open direction (PWM-modulated in Auto)
+    closingCmd              : BOOL;          // Command: close direction (PWM-modulated in Auto)
+
+    // Status
+    busy                    : BOOL;          // TRUE while moving (Auto or Manual jog)
+    done                    : BOOL;          // TRUE after successful auto positioning
+    faultActive             : BOOL;          // Latched fault
+    deviceState             : STRING(80);    // Human-readable state
+
+    // Diagnostics
+    target_mm               : REAL;          // Current target used [mm]
+    positionError_mm        : REAL;          // Target - Feedback [mm]
+    position_mm     : REAL;          			// Actual position [mm]	
+    pwmDutyPct              : REAL;          // Current PWM duty commanded [%]
+END_VAR
+
+VAR
+    // Mode / edges
+    autoActive              : BOOL;          // Latched automatic mode (set by autoAdjustCmd, dropped by manual)
+    autoAdjustOld           : BOOL;
+    rAutoAdjust             : BOOL;
+
+    // State machine
+    step                    : INT;           // 0=Idle, 10=ManualOpen, 11=ManualClose, 20=AutoRun
+
+    // Supervision
+    lastPos_mm              : REAL;
+    tonStall                : TON;
+    tonTravel               : TON;
+
+    // Helpers
+    desiredTarget_mm        : REAL;          // Latched target on autoAdjust
+    pwmPulse                : BOOL;          // PWM gate from OSCAT
+    pwmEnable               : BOOL;          // Enable to PWM block
+    needOpen                : BOOL;          // Direction: open (error > 0)
+    needClose               : BOOL;          // Direction: close (error < 0)
+    openPulseAllowed        : BOOL;          // PWM pulse after max limit check
+    closePulseAllowed       : BOOL;          // PWM pulse after min limit check
+
+    // Min-ON time timers per direction
+    tonMinOnOpen            : TON;
+    tonMinOnClose           : TON;
+
+    // OSCAT instance
+    instPWM                 : CTRL_PWM;        // Duty-cycle PWM generator (period-based)
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[// ============================== MAIN EXECUTION ==============================
+rAutoAdjust := autoAdjustCmd AND NOT autoAdjustOld;
+autoAdjustOld := autoAdjustCmd;
+
+// Manual commands override automatic mode immediately
+IF manualOpenCmd OR manualCloseCmd THEN
+    autoActive := FALSE;            // leave automatic if any manual is pressed
+END_IF;
+
+// Latch automatic mode on adjust press
+IF rAutoAdjust THEN
+    autoActive := TRUE;
+END_IF;
+
+// Clear "done" on new auto adjust
+IF rAutoAdjust THEN
+    done := FALSE;
+END_IF;
+
+// Clear fault when fully idle (no manual pressed and not in auto)
+IF (NOT manualOpenCmd) AND (NOT manualCloseCmd) AND (NOT autoActive) THEN
+    faultActive := FALSE;
+END_IF;
+
+// Defaults
+deviceState := 'Idle';
+positionError_mm := target_mm - positionFeedback_mm;
+
+// Abort on fault: de-energize outputs and stay idle
+IF faultActive THEN
+    _DriveNone();
+    busy := FALSE;
+    deviceState := 'Fault active';
+    tonStall(IN:=FALSE);
+    tonTravel(IN:=FALSE);
+    tonMinOnOpen(IN:=FALSE);
+    tonMinOnClose(IN:=FALSE);
+ELSE
+    // ========================== MANUAL OPERATION ==========================
+    IF (manualOpenCmd XOR manualCloseCmd) AND (NOT autoActive) THEN
+        // Only one manual command pressed => jog
+        busy := TRUE;
+
+		IF manualOpenCmd THEN
+			IF limitMaxSensor OR (positionFeedback_mm >= posMax_mm) THEN
+				_DriveNone();
+				deviceState := 'Manual opening blocked: max limit (sensor/pos)';
+			ELSE
+				openingCmd := TRUE;
+				closingCmd := FALSE;
+				deviceState := 'Manual opening (jog)';
+			END_IF
+		
+		ELSIF manualCloseCmd THEN
+			IF limitMinSensor OR (positionFeedback_mm <= posMin_mm) THEN
+				_DriveNone();
+				deviceState := 'Manual closing blocked: min limit (sensor/pos)';
+			ELSE
+				closingCmd := TRUE;
+				openingCmd := FALSE;
+				deviceState := 'Manual closing (jog)';
+			END_IF
+		END_IF
+
+        // Stop supervision in manual
+        tonStall(IN:=FALSE);
+        tonTravel(IN:=FALSE);
+        tonMinOnOpen(IN:=FALSE);
+        tonMinOnClose(IN:=FALSE);
+        pwmDutyPct := 100.0; // purely diagnostic in manual jog
+
+    ELSIF manualOpenCmd AND manualCloseCmd AND (NOT autoActive) THEN
+        // Both pressed: conflict => stop
+        busy := FALSE;
+        _DriveNone();
+        deviceState := 'Manual conflict (both pressed)';
+
+        tonStall(IN:=FALSE);
+        tonTravel(IN:=FALSE);
+        tonMinOnOpen(IN:=FALSE);
+        tonMinOnClose(IN:=FALSE);
+        pwmDutyPct := 0.0;
+
+    // ========================== AUTOMATIC OPERATION =======================
+    ELSIF autoActive THEN
+        // Latch target on rising edge of autoAdjust
+        IF rAutoAdjust THEN
+            desiredTarget_mm := _ClampReal(autoTargetInput_mm, posMin_mm, posMax_mm);
+            target_mm := desiredTarget_mm;
+            tonTravel(IN:=TRUE, PT:=travelTimeout);  // start travel timeout
+            tonStall(IN:=FALSE);                     // arm stall after first measurement
+            lastPos_mm := positionFeedback_mm;
+        END_IF
+
+        busy := TRUE;
+
+        // Finish if within tolerance (no PWM pulses)
+        IF _InTolerance(positionFeedback_mm, target_mm, tolerance_mm) THEN
+            _DriveNone();
+            busy := FALSE;
+            done := TRUE;
+            autoActive := FALSE; // auto move finished
+            deviceState := 'Auto: in position';
+            pwmDutyPct := 0.0;
+            tonTravel(IN:=FALSE);
+            tonStall(IN:=FALSE);
+            tonMinOnOpen(IN:=FALSE);
+            tonMinOnClose(IN:=FALSE);
+
+        ELSE
+            // Direction logic from error sign
+            positionError_mm := target_mm - positionFeedback_mm;
+            needOpen  := (positionError_mm > 0.0);
+            needClose := (positionError_mm < 0.0);
+
+            // Compute duty from error magnitude and clamp
+            pwmDutyPct := _ErrorToDuty(ABS(positionError_mm), pwmGainPct_per_mm, pwmMinDutyPct, pwmMaxDutyPct);
+
+            // Update PWM block (single generator, direction gating)
+            pwmEnable := TRUE;
+            _PwmUpdate(enable := pwmEnable, period := pwmPeriod, dutyPct := pwmDutyPct, pulse => pwmPulse);
+
+            // Gate by limit sensors
+            openPulseAllowed  := (needOpen  AND (NOT limitMaxSensor))  AND pwmPulse;
+            closePulseAllowed := (needClose AND (NOT limitMinSensor)) AND pwmPulse;
+
+            // Apply min-ON-time gating with exclusivity
+            _ApplyMinOnGate(
+                openPulseAllowed  := openPulseAllowed,
+                closePulseAllowed := closePulseAllowed,
+                minOnTime         := minOnTime,
+                openingCmd        => openingCmd,
+                closingCmd        => closingCmd
+            );
+
+            // Device state messages
+            IF needOpen AND limitMaxSensor THEN
+                deviceState := 'Auto opening blocked: max limit active';
+            ELSIF needClose AND limitMinSensor THEN
+                deviceState := 'Auto closing blocked: min limit active';
+            ELSE
+                IF needOpen THEN
+                    deviceState := CONCAT('Auto opening (PWM ', REAL_TO_STRING(pwmDutyPct));
+                ELSE
+                    deviceState := CONCAT('Auto closing (PWM ', REAL_TO_STRING(pwmDutyPct));
+                END_IF
+            END_IF
+
+            // Travel timeout supervision
+            tonTravel(IN:=TRUE);
+
+            // Stall detection: run timer when movement is too small
+            IF ABS(positionFeedback_mm - lastPos_mm) < stallDeltaMin_mm THEN
+                tonStall(IN:=TRUE, PT:=stallTimeout);
+            ELSE
+                tonStall(IN:=FALSE);
+                lastPos_mm := positionFeedback_mm;
+            END_IF
+
+            // Faults
+            IF tonTravel.Q THEN
+                faultActive := TRUE;
+                deviceState := 'Fault: travel timeout';
+                _DriveNone();
+                busy := FALSE;
+                autoActive := FALSE;
+                tonStall(IN:=FALSE);
+                tonTravel(IN:=FALSE);
+                tonMinOnOpen(IN:=FALSE);
+                tonMinOnClose(IN:=FALSE);
+
+            ELSIF tonStall.Q THEN
+                faultActive := TRUE;
+                deviceState := 'Fault: stall (no movement)';
+                _DriveNone();
+                busy := FALSE;
+                autoActive := FALSE;
+                tonStall(IN:=FALSE);
+                tonTravel(IN:=FALSE);
+                tonMinOnOpen(IN:=FALSE);
+                tonMinOnClose(IN:=FALSE);
+            END_IF
+        END_IF
+
+    // ========================== IDLE (no commands) ========================
+    ELSE
+        busy := FALSE;
+        _DriveNone();
+        deviceState := 'Idle';
+        tonStall(IN:=FALSE);
+        tonTravel(IN:=FALSE);
+        tonMinOnOpen(IN:=FALSE);
+        tonMinOnClose(IN:=FALSE);
+        pwmDutyPct := 0.0;
+    END_IF
+END_IF
+
+
+position_mm := positionFeedback_mm;]]></ST>
+    </Implementation>
+    <Method Name="_ApplyMinOnGate" Id="{0d779014-d2ae-4857-83e4-59018591dbed}">
+      <Declaration><![CDATA[// ============================================================================
+// METHOD: _ApplyMinOnGate
+// Enforces a minimum ON-time for each direction and ensures exclusivity.
+// - openPulseAllowed / closePulseAllowed are the post-limit PWM pulses.
+// - Once a direction output turns ON, it stays ON for at least minOnTime.
+// - While one direction is ON and still within its min ON-time, the other
+//   direction cannot start (exclusivity).
+// ============================================================================
+METHOD PRIVATE _ApplyMinOnGate
+VAR_INPUT
+    openPulseAllowed   : BOOL;   // PWM pulse for OPEN, after limit check
+    closePulseAllowed  : BOOL;   // PWM pulse for CLOSE, after limit check
+    minOnTime          : TIME;   // Minimum ON time
+END_VAR
+VAR_OUTPUT
+    openingCmd         : BOOL;   // Resulting OPEN command (after gating)
+    closingCmd         : BOOL;   // Resulting CLOSE command (after gating)
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// ---- OPEN direction gating ----
+IF NOT openingCmd THEN
+    // Eligible to start OPEN only if allowed pulse and CLOSE is not currently ON
+    IF openPulseAllowed AND (NOT closingCmd) THEN
+        openingCmd := TRUE;
+        tonMinOnOpen(IN := TRUE, PT := minOnTime);
+    ELSE
+        openingCmd := FALSE;
+        tonMinOnOpen(IN := FALSE);
+    END_IF
+ELSE
+    // Currently ON: hold until min-ON elapsed; then follow pulse
+    IF (NOT openPulseAllowed) AND tonMinOnOpen.Q THEN
+        openingCmd := FALSE;
+        tonMinOnOpen(IN := FALSE);
+    ELSE
+        // keep ON (either still within min-ON or pulse still present)
+        tonMinOnOpen(IN := TRUE); // keep running; PT is ignored while already TRUE
+    END_IF
+END_IF
+
+// Ensure exclusivity: if OPEN active, CLOSE must be off
+IF openingCmd THEN
+    closingCmd := FALSE;
+    tonMinOnClose(IN := FALSE);
+ELSE
+    // ---- CLOSE direction gating (only if OPEN is not active) ----
+    IF NOT closingCmd THEN
+        IF closePulseAllowed AND (NOT openingCmd) THEN
+            closingCmd := TRUE;
+            tonMinOnClose(IN := TRUE, PT := minOnTime);
+        ELSE
+            closingCmd := FALSE;
+            tonMinOnClose(IN := FALSE);
+        END_IF
+    ELSE
+        IF (NOT closePulseAllowed) AND tonMinOnClose.Q THEN
+            closingCmd := FALSE;
+            tonMinOnClose(IN := FALSE);
+        ELSE
+            tonMinOnClose(IN := TRUE);
+        END_IF
+    END_IF
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_ClampReal" Id="{8163bcca-6c27-4060-b398-f77c1e2070bd}">
+      <Declaration><![CDATA[// ============================================================================
+// METHOD: _ClampReal
+// Returns val clamped to [lo..hi].
+// ============================================================================
+METHOD PRIVATE _ClampReal : REAL
+VAR_INPUT
+    val : REAL;
+    lo  : REAL;
+    hi  : REAL;
+END_VAR
+VAR
+    v : REAL;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[
+
+v := val;
+IF v < lo THEN v := lo; END_IF;
+IF v > hi THEN v := hi; END_IF;
+_ClampReal := v;
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_DriveNone" Id="{158613ba-1981-44aa-abcf-fd67f7535380}">
+      <Declaration><![CDATA[// ============================================================================
+// METHOD: _DriveNone
+// De-energize both outputs (exclusive safety).
+// ============================================================================
+METHOD PRIVATE _DriveNone
+VAR_INPUT
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[
+openingCmd := FALSE;
+closingCmd := FALSE;
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_ErrorToDuty" Id="{07cba5a7-46c3-4bc7-beda-a77fafc4ef34}">
+      <Declaration><![CDATA[// ============================================================================
+// METHOD: _ErrorToDuty
+// Maps absolute error [mm] to PWM duty [%], with min/max clamps.
+// duty = clamp( gain[%/mm] * absError_mm, minDuty%, maxDuty% )
+// ============================================================================
+METHOD PRIVATE _ErrorToDuty : REAL
+VAR_INPUT
+    absError_mm  : REAL;   // absolute position error [mm]
+    gainPctPerMm : REAL;   // slope [% per mm]
+    minDutyPct   : REAL;   // minimum duty [%]
+    maxDutyPct   : REAL;   // maximum duty [%]
+END_VAR
+VAR
+    d : REAL;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[
+
+d := gainPctPerMm * absError_mm;
+IF d < minDutyPct THEN d := minDutyPct; END_IF;
+IF d > maxDutyPct THEN d := maxDutyPct; END_IF;
+_ErrorToDuty := d;
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_InTolerance" Id="{e5f8da66-6cf0-4707-8504-103de79eb782}">
+      <Declaration><![CDATA[
+
+// ============================================================================
+// METHOD: _InTolerance
+// Returns TRUE when |value - target| <= tol
+// ============================================================================
+METHOD PRIVATE _InTolerance : BOOL
+VAR_INPUT
+    value   : REAL;
+    target  : REAL;
+    tol     : REAL;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[
+_InTolerance := (ABS(value - target) <= tol);
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_PwmUpdate" Id="{e8225f8d-c084-4bf5-a988-e37eb8bc48ef}">
+      <Declaration><![CDATA[// ============================================================================
+// METHOD: _PwmUpdate
+// Updates OSCAT PWM_DC with enable, period and duty[%]. Returns pulse.
+// NOTE: Adjust parameter names/types below if your OSCAT 'PWM_DC' signature differs.
+// Common forms are: PWM_DC(EN, DC[% or 0..1], T, OUT) or (IN, DC, T, Q).
+// ============================================================================
+METHOD PRIVATE _PwmUpdate
+VAR_INPUT
+    enable   : BOOL;   // TRUE: PWM active, FALSE: output low
+    period   : TIME;   // PWM period
+    dutyPct  : REAL;   // Duty [%], 0..100
+END_VAR
+VAR_OUTPUT
+    pulse    : BOOL;   // PWM output (TRUE during ON time)
+END_VAR
+VAR
+    dcUse : REAL;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[
+
+// Bound duty into 0..100%
+dcUse := dutyPct;
+IF dcUse < 0.0 THEN dcUse := 0.0; END_IF;
+IF dcUse > 100.0 THEN dcUse := 100.0; END_IF;
+
+// Call OSCAT PWM_DC
+// If your PWM_DC expects 0..1 duty, divide by 100.0 here.
+//instPWM(
+//    EN := enable,          // enable
+//    DC := dcUse,          // duty in percent (change to dcUse/100.0 if library expects 0..1)
+//    T  := period,          // period
+//    Q=> pulse            // boolean PWM output
+//);
+
+instPWM(
+	CI:= dcUse * 0.01, 
+	F:= 0.5, 
+	Q=> pulse);]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_HeadboxLipsPWMControl">
+      <LineId Id="604" Count="42" />
+      <LineId Id="907" Count="18" />
+      <LineId Id="666" Count="132" />
+      <LineId Id="9" Count="0" />
+      <LineId Id="1037" Count="1" />
+      <LineId Id="1036" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_HeadboxLipsPWMControl._ApplyMinOnGate">
+      <LineId Id="25" Count="42" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_HeadboxLipsPWMControl._ClampReal">
+      <LineId Id="18" Count="5" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_HeadboxLipsPWMControl._DriveNone">
+      <LineId Id="12" Count="2" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_HeadboxLipsPWMControl._ErrorToDuty">
+      <LineId Id="23" Count="5" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_HeadboxLipsPWMControl._InTolerance">
+      <LineId Id="17" Count="1" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_HeadboxLipsPWMControl._PwmUpdate">
+      <LineId Id="52" Count="13" />
+      <LineId Id="5" Count="0" />
+      <LineId Id="84" Count="2" />
+      <LineId Id="89" Count="0" />
+      <LineId Id="83" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

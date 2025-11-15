@@ -1,0 +1,150 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.15">
+  <DUT Name="PaperMachine_TypeHmiConfig" Id="{fe8df8f9-464e-03d2-26bc-298e9c45982e}">
+    <Declaration><![CDATA[TYPE PaperMachine_TypeHmiConfig :
+	STRUCT
+		
+	
+	machineRampUPRate	: REAL := 0.01;			//Forming board manual speed (Slow speed)
+	machineRampDownRate	: REAL := 0.01;			//Forming board manual speed (Slow speed)
+	
+    groupSpeedDifLimLow        : REAL := -15.0;  // Min offset [%]
+    groupSpeedDifLimHigh       : REAL := 15.0;  // Max offset [%]
+
+    groupRecoverIncrement : REAL := 2.0;
+	
+	
+	
+
+	
+	
+	
+	dryingSectionGroup1SteamPressureKp : REAL := 1.0;  // PID Kp for Group 1 steam pressure
+	dryingSectionGroup1SteamPressureTn : REAL := 8.0;  // PID Tn for Group 1 steam pressure
+	dryingSectionGroup1SteamPressureTv : REAL := 0.0;  // PID Tv for Group 1 steam pressure
+	
+	dryingSectionGroup2SteamPressureKp : REAL := 1.0;  // PID Kp for Group 1 steam pressure
+	dryingSectionGroup2SteamPressureTn : REAL := 8.0;  // PID Tn for Group 1 steam pressure
+	dryingSectionGroup2SteamPressureTv : REAL := 0.0;  // PID Tv for Group 1 steam pressure
+	
+	dryingSectionGroup3SteamPressureKp : REAL := 1.0;  // PID Kp for Group 1 steam pressure
+	dryingSectionGroup3SteamPressureTn : REAL := 8.0;  // PID Tn for Group 1 steam pressure
+	dryingSectionGroup3SteamPressureTv : REAL := 0.0;  // PID Tv for Group 1 steam pressure	
+
+	
+	dryingSectionGroup1TorqueKp : REAL := 1.0;  // PID Kp for Group 1 steam pressure
+	dryingSectionGroup1TorqueTn : REAL := 8.0;  // PID Tn for Group 1 steam pressure
+	dryingSectionGroup1TorqueTv : REAL := 0.0;  // PID Tv for Group 1 steam pressure
+	
+	dryingSectionGroup2TorqueKp : REAL := 1.0;  // PID Kp for Group 1 steam pressure
+	dryingSectionGroup2TorqueTn : REAL := 8.0;  // PID Tn for Group 1 steam pressure
+	dryingSectionGroup2TorqueTv : REAL := 0.0;  // PID Tv for Group 1 steam pressure
+	
+	dryingSectionGroup3TorqueKp : REAL := 1.0;  // PID Kp for Group 1 steam pressure
+	dryingSectionGroup3TorqueTn : REAL := 8.0;  // PID Tn for Group 1 steam pressure
+	dryingSectionGroup3TorqueTv : REAL := 0.0;  // PID Tv for Group 1 steam pressure
+	
+	
+		
+	firstPressDiameter	: REAL := 531.0;
+	secondPressDiameter	: REAL := 800.9;	
+
+	formingBoardSuctionRollDiameter		: REAL := 530.0;
+	formingBoardTractionRollDiameter	: REAL := 580.0;
+
+	formingBoardSuctionRollMotorRPM		: REAL := 329.3;
+	formingBoardTractionRollMotorRPM	: REAL := 360.4;
+
+	
+	    //----------------------------------------------------------------------
+    // PID GAINS
+    //----------------------------------------------------------------------
+    formingBoardTorquePIDCtrlKp                   : REAL := 2.0;
+    formingBoardTorquePIDCtrlTn                   : REAL := 8.0;
+    formingBoardTorquePIDCtrlTv                   : REAL := 0.0;
+    formingBoardTorqueLimit                   : REAL := 100.0;
+	
+	
+    pressTorquePIDCtrlKp                   : REAL := 2.0;
+    pressTorquePIDCtrlTn                   : REAL := 8.0;
+    pressTorquePIDCtrlTv                   : REAL := 0.0;	
+    pressTorqueLimit                   	: REAL := 100.0;	
+	
+    dryingSectionGroup1TorquePIDCtrlKp		: REAL := 2.0;
+    dryingSectionGroup1TorquePIDCtrlTn	: REAL := 8.0;
+    dryingSectionGroup1TorquePIDCtrlTv	: REAL := 0.0;
+    dryingSectionGroup1TorqueLimit	: REAL := 100.0;
+
+		
+    dryingSectionGroup2TorquePIDCtrlKp	: REAL := 2.0;
+    dryingSectionGroup2TorquePIDCtrlTn	: REAL := 8.0;
+    dryingSectionGroup2TorquePIDCtrlTv	: REAL := 0.0;
+    dryingSectionGroup2TorqueLimit	: REAL := 100.0;
+			
+	dryingSectionGroup3TorquePIDCtrlKp	: REAL := 2.0;
+    dryingSectionGroup3TorquePIDCtrlTn	: REAL := 8.0;
+    dryingSectionGroup3TorquePIDCtrlTv	: REAL := 0.0;
+    dryingSectionGroup3TorqueLimit	: REAL := 100.0;
+		
+		
+	
+	dryingSectionGroup1UpperMasterDiameter	: REAL := 263.878;
+	dryingSectionGroup1UpperSlave1Diameter	: REAL := 1200.980;
+	dryingSectionGroup1LowerMasterDiameter	: REAL := 263.241;
+	dryingSectionGroup1LowerSlave1Diameter	: REAL := 263.241;
+	dryingSectionGroup2UpperMasterDiameter	: REAL := 264.196;
+	dryingSectionGroup2UpperSlave1Diameter	: REAL := 264.196;
+	dryingSectionGroup2LowerMasterDiameter	: REAL := 264.196;
+	dryingSectionGroup2LowerSlave1Diameter	: REAL := 264.196;	
+	dryingSectionGroup3UpperMasterDiameter	: REAL := 264.196;
+	dryingSectionGroup3UpperSlave1Diameter	: REAL := 263.878;
+	dryingSectionGroup3LowerMasterDiameter	: REAL := 263.878;
+	dryingSectionGroup3LowerSlave1Diameter	: REAL := 263.241;
+
+	
+	
+	
+
+	
+	firstPressMotorRPM	: REAL := 374.5;
+	secondPressMotorRPM	: REAL := 238.7;	
+	
+	dryingSectionGroup1UpperMasterMotorRPM	: REAL := 750;
+	dryingSectionGroup1UpperSlave1MotorRPM	: REAL := 750;
+
+	dryingSectionGroup1LowerMasterMotorRPM	: REAL := 750;
+	dryingSectionGroup1LowerSlave1MotorRPM	: REAL := 750;
+
+
+	dryingSectionGroup2UpperMasterMotorRPM	: REAL := 750;
+	dryingSectionGroup2UpperSlave1MotorRPM	: REAL := 750;
+
+	dryingSectionGroup2LowerMasterMotorRPM	: REAL := 750;
+	dryingSectionGroup2LowerSlave1MotorRPM	: REAL := 750;
+
+	
+	dryingSectionGroup3UpperMasterMotorRPM	: REAL := 750;
+	dryingSectionGroup3UpperSlave1MotorRPM	: REAL := 750;
+	
+	dryingSectionGroup3LowerMasterMotorRPM	: REAL := 750;
+	dryingSectionGroup3LowerSlave1MotorRPM	: REAL := 750;
+	
+	
+
+	winderDiameter	: REAL := 800.9;
+	winderMotorRPM	: REAL := 212.5; //Motor RPM  / Rel. Mecanicia (1700 / 8)
+	
+
+	winderRiderRollMovPressure : REAL := 9.0;
+	
+	
+	winderRiderRollStartPressure : REAL := 1.0;
+	winderRiderRollAdvTime : TIME := T#2S;
+
+	
+			
+	END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

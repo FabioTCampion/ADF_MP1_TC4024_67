@@ -1,0 +1,613 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.15">
+  <POU Name="FB_DELTA_C2000_ETC" Id="{ab925d78-566b-0e7c-0e54-6c559f991a26}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_DELTA_C2000_ETC
+
+
+
+//======================================================================
+// Persistent Configuration Inputs
+//======================================================================
+VAR_INPUT PERSISTENT
+	
+    deviceConfig            : C2000_DEV_CONFIG;       // Device-specific configuration (scaling, limits, etc.)
+
+END_VAR
+
+//======================================================================
+// Runtime Inputs
+//======================================================================
+VAR_INPUT
+	
+    speedSetpoint           : REAL;                		// Motor speed reference to be written to drive
+	torqueSetpoint			: REAL;						// Torque limit if running as torque
+    commandWord             : C2000_CONTROLWORD;      	// Control word to drive (start, stop, etc.)
+    digitalOutputs          : C2000_DIGITAL_OUTPUTS;  	// Digital output values to send to drive
+    analogOutputs           : C2000_ANALOG_OUTPUTS;   	// Analog output values to send to drive
+	
+END_VAR
+
+//======================================================================
+// Runtime Outputs
+//======================================================================
+VAR_OUTPUT
+	
+    statusWord              : C2000_STATUSWORD;       // Current status word read from drive
+    digitalInputs           : C2000_DIGITAL_INPUTS;   // Current status of digital inputs from drive
+    analogInputs            : C2000_ANALOG_INPUTS;    // Current status of analog inputs from drive
+    motorSpeedRPM             : REAL;                   // Actual motor speed read from drive in RPM
+    motorSpeedEng             : REAL;                   // Actual motor speed read from drive in enginering units scaled
+    outputCurrent           : REAL;                   // Output current read from drive
+    outputTorque            : REAL;                   // Output torque read from drive
+	
+END_VAR
+
+//======================================================================
+// Internal Variables
+//======================================================================
+VAR
+    PDOS                    : C2000_PDOS;             // Process Data Object structure containing drive mappings
+    // One-shot + pulse for fault reset
+    rTrigReset : R_TRIG;
+    tReset     : TOF;
+	
+    // Base OMS bits default (keep your logic)
+    b0_swOn, b1_enVolt, b2_qStopOK, b3_enOp : BOOL;
+    b4, b5, b6, b7_faultReset, b8_halt      : BOOL;
+    cw                                       : WORD;
+
+    // Reset sequencer helpers
+ //   rTrigReset        : R_TRIG;   // detect rising edge of reset command
+    tResetClear       : TON;      // phase 1: clear all bits (control word = 0)
+    tResetPulse       : TON;      // phase 2: pulse bit7 = 1
+    resetSeqActive    : BOOL;     // TRUE while running either phase
+    resetClearPt      : TIME := T#500MS;    // adjust if your drive needs longer clear
+    resetPulsePt      : TIME := T#1000ms;  // 1 second fault-reset pulse	
+
+END_VAR
+
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[(*==============================================================================================================================
+CPNTeck - Automação Industrial
+(c)Copyright 2025 All Rights Reserved
+_______________________________________________________________________________________________________________________________
+Library: N/A
+Tested with: CX920
+Engineering: TwinCAT 3
+Restrictions: -
+Requirements: N/A
+Functionality: This function block communicates with a Delta MS300 drive over Modbus RTU. It reads process values such as
+               motor speed, current, torque, status words, digital and analog inputs, and writes control commands and 
+               setpoints to the drive. The block includes timeout monitoring and state-based communication handling.
+Support: fabio@cpnteck.com.br
+Note: Parameter comments are only available in language 'English (United States)'
+
+_______________________________________________________________________________________________________________________________
+Change log table:
+
+Version         | Date         | Expert in charge   | Changes applied
+01.00.01        | 31.05.2025   | Fabio Campion      | Initial implementation for MS300 drive Modbus RTU communication
+==============================================================================================================================*)
+
+_StatusWord();       // Method to handle the status word of the drive
+_DigitalInputs();    // Method to process the status of digital inputs
+_AnalogInputs();     // Method to handle analog input values
+
+_CommandWord();      // Method to set or process the command word for the drive
+_DigitalOutputs();   // Method to manage the status of digital outputs
+_AnalogOutputs();    // Method to handle analog output values
+_SetOperationMode();
+_FeedBackVariables(); // Method to process feedback variables from the drive
+_SpeedReference();         // Method to set or process the setpoint values
+_TorqueReference();]]></ST>
+    </Implementation>
+    <Method Name="_AnalogInputs" Id="{31802bb8-dd97-04dc-0e6c-a602ee17d500}">
+      <Declaration><![CDATA[METHOD PRIVATE _AnalogInputs
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_AnalogOutputs" Id="{e7f1d51d-9feb-06a1-0781-10b513afd3f5}">
+      <Declaration><![CDATA[METHOD PRIVATE _AnalogOutputs
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_CommandWord" Id="{c40c1f05-2112-0c7f-3630-534ce343c155}">
+      <Declaration><![CDATA[METHOD PRIVATE _CommandWord
+VAR_INPUT
+END_VAR
+(*
+VAR
+    // Internal
+    b0_swOn, b1_enVolt, b2_qStopOK, b3_enOp, b4, b5, b6 : BOOL;
+    b7_faultReset, b8_halt                              : BOOL;
+    cw                                                  : UINT;
+END_VAR
+*)]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[
+b4 := 1;
+b5 := 1;
+b6 := 1;
+
+
+// ---------- 1) Base state from commands (bits 0..3) ----------
+IF commandWord.quickStop THEN
+    // Quick-stop has highest priority: keep voltage/switch-on, clear enable op, force bit2=0
+    b0_swOn    := TRUE;
+    b1_enVolt  := TRUE;
+    b2_qStopOK := FALSE;  // bit2=0 => quick stop active
+    b3_enOp    := FALSE;
+
+ELSIF commandWord.enableDrive THEN
+    // Enable Operation: 1,1,1,1
+    b0_swOn    := TRUE;
+    b1_enVolt  := TRUE;
+    b2_qStopOK := TRUE;
+    b3_enOp    := TRUE;
+
+ELSIF commandWord.stopRequest THEN
+    // Switch On (ready but not enabled): 1,1,1,0
+    b0_swOn    := TRUE;
+    b1_enVolt  := TRUE;
+    b2_qStopOK := TRUE;
+    b3_enOp    := FALSE;
+
+ELSE
+    // Shutdown (safe, DC bus on): 0,1,1,0
+    b0_swOn    := FALSE;
+    b1_enVolt  := TRUE;
+    b2_qStopOK := TRUE;
+    b3_enOp    := FALSE;
+END_IF
+
+
+// ---------- 2) Halt (bit8) ----------
+b8_halt := commandWord.halt;
+
+// ---------- 3) Fault Reset as 1000 ms pulse (bit7) ----------
+rTrigReset(CLK := commandWord.faultResetCmd);
+tReset(IN := rTrigReset.Q, PT := T#1000ms);
+b7_faultReset := tReset.Q;
+
+// ---------- 4) Pack bits into 16-bit control word ----------
+cw := 0; // bits 9..15 remain 0 unless you set them later
+
+// base (0..3)
+IF b0_swOn    THEN cw := cw OR 16#0001; END_IF; // bit0
+IF b1_enVolt  THEN cw := cw OR 16#0002; END_IF; // bit1
+IF b2_qStopOK THEN cw := cw OR 16#0004; END_IF; // bit2
+IF b3_enOp    THEN cw := cw OR 16#0008; END_IF; // bit3
+
+// OMS (4..6) — use correct masks
+IF b4          THEN cw := cw OR 16#0010; END_IF; // bit4
+IF b5          THEN cw := cw OR 16#0020; END_IF; // bit5
+IF b6          THEN cw := cw OR 16#0040; END_IF; // bit6
+
+// bit7 (fault reset pulse) and bit8 (halt)
+IF b7_faultReset THEN cw := cw OR 16#0080; END_IF; // bit7
+IF b8_halt       THEN cw := cw OR 16#0100; END_IF; // bit8
+
+// Bits 9..15 reserved = 0
+PDOS.PlcToDrv.controlWord := cw;
+
+
+
+//==============================================================
+// CIA402 CONTROL WORD BUILD — with proper reset sequence
+//==============================================================
+(*
+
+//==============================================================
+// 0) Edge-detect RESET command and run the two-phase sequence
+//==============================================================
+rTrigReset(CLK := commandWord.faultResetCmd);
+
+// Start sequence on rising edge
+IF rTrigReset.Q THEN
+    resetSeqActive := TRUE;
+    // (Re)start clear phase
+    tResetClear(IN := TRUE, PT := resetClearPt);
+    // ensure pulse is off until clear finishes
+    tResetPulse(IN := FALSE, PT := resetPulsePt);
+END_IF;
+
+// Advance/reset timers when sequence is active
+IF resetSeqActive THEN
+    // Phase 1: CLEAR (control word = 0)
+    tResetClear(IN := tResetClear.IN, PT := resetClearPt);
+
+    // When clear finishes, start pulse (only once)
+    IF tResetClear.Q AND NOT tResetPulse.IN THEN
+        tResetClear(IN := FALSE, PT := resetClearPt);     // stop clear timer
+        tResetPulse(IN := TRUE,  PT := resetPulsePt);     // start pulse
+    END_IF;
+
+    // Run pulse
+    tResetPulse(IN := tResetPulse.IN, PT := resetPulsePt);
+
+    // Sequence ends when pulse finishes
+    IF tResetPulse.Q THEN
+        tResetPulse(IN := FALSE, PT := resetPulsePt);
+        resetSeqActive := FALSE;
+    END_IF;
+END_IF;
+
+
+//==============================================================
+// 1) NORMAL PACKING (only used when NOT resetting)
+//==============================================================
+
+// Default OMS high (per your original)
+b4 := TRUE;  // bit4 mask 0x0010
+b5 := TRUE;  // bit5 mask 0x0020
+b6 := TRUE;  // bit6 mask 0x0040
+
+// ---------- 1) Base state from commands (bits 0..3) ----------
+IF commandWord.quickStop THEN
+    // Quick-stop has highest priority
+    b0_swOn    := TRUE;
+    b1_enVolt  := TRUE;
+    b2_qStopOK := FALSE; // quick stop active
+    b3_enOp    := FALSE;
+
+ELSIF commandWord.enableDrive THEN
+    // Enable Operation: 1,1,1,1
+    b0_swOn    := TRUE;
+    b1_enVolt  := TRUE;
+    b2_qStopOK := TRUE;
+    b3_enOp    := TRUE;
+
+ELSIF commandWord.stopRequest THEN
+    // Switch On (ready but not enabled): 1,1,1,0
+    b0_swOn    := TRUE;
+    b1_enVolt  := TRUE;
+    b2_qStopOK := TRUE;
+    b3_enOp    := FALSE;
+
+ELSE
+    // Shutdown (safe, DC bus on): 0,1,1,0
+    b0_swOn    := FALSE;
+    b1_enVolt  := TRUE;
+    b2_qStopOK := TRUE;
+    b3_enOp    := FALSE;
+END_IF;
+
+// ---------- 2) Halt (bit8) ----------
+b8_halt := commandWord.halt;
+
+
+//==============================================================
+// 2) BUILD CONTROL WORD — with RESET SEQUENCE OVERRIDE
+//==============================================================
+cw := 0;
+
+// If reset sequence is active, override everything
+IF resetSeqActive THEN
+    // Phase 1: CLEAR → send 0x0000
+    IF NOT tResetClear.Q THEN
+//        cw := 16#0000;
+        cw := 16#0080;
+		
+
+    // Phase 2: PULSE → send only bit7 = 1 (0x0080)
+    ELSIF tResetClear.Q AND NOT tResetPulse.Q THEN
+//        cw := 16#0080;
+        cw := 16#0000;
+		
+    END_IF;
+
+ELSE
+    // Normal packing
+    // base (0..3)
+    IF b0_swOn    THEN cw := cw OR 16#0001; END_IF; // bit0
+    IF b1_enVolt  THEN cw := cw OR 16#0002; END_IF; // bit1
+    IF b2_qStopOK THEN cw := cw OR 16#0004; END_IF; // bit2
+    IF b3_enOp    THEN cw := cw OR 16#0008; END_IF; // bit3
+
+    // OMS (4..6)
+    IF b4          THEN cw := cw OR 16#0010; END_IF; // bit4
+    IF b5          THEN cw := cw OR 16#0020; END_IF; // bit5
+    IF b6          THEN cw := cw OR 16#0040; END_IF; // bit6
+
+    // bit7 (fault reset) — now driven EXCLUSIVELY by the sequencer, so keep low here
+    // b7_faultReset := FALSE;
+
+    // bit8 (halt)
+    IF b8_halt       THEN cw := cw OR 16#0100; END_IF; // bit8
+
+    // Bits 9..15 remain 0 unless set elsewhere
+END_IF;
+
+// Push to PDO
+PDOS.PlcToDrv.controlWord := cw;
+*)
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_DigitalInputs" Id="{a5dbc0ab-d2e5-0786-242b-806535b5e503}">
+      <Declaration><![CDATA[METHOD PRIVATE _DigitalInputs 
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_DigitalOutputs" Id="{1c95bd20-b564-066e-0172-6688fca2a0bb}">
+      <Declaration><![CDATA[METHOD PRIVATE _DigitalOutputs : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_FeedBackVariables" Id="{7111ba05-eac4-0a06-3f22-f91bad671040}">
+      <Declaration><![CDATA[METHOD PRIVATE _FeedBackVariables
+VAR_INPUT
+END_VAR
+
+VAR
+	
+	OutputTorqueAux : REAL;
+
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// Calculate the actual motor speed
+motorSpeedRPM := DINT_TO_REAL(PDOS.DrvToPLC.velocityActualValue);
+// Calculate the actual motor speed in meters per minute
+motorSpeedEng := _Scale(
+    X := DINT_TO_REAL(PDOS.DrvToPLC.velocityActualValue), 
+    I_LO := deviceConfig.MotorSpeedInputLow, 
+    I_HI := deviceConfig.MotorSpeedInputHigh, 
+    O_LO := deviceConfig.MotorSpeedMPMOutputLow, 
+    O_HI := deviceConfig.MotorSpeedMPMOutputHigh
+);
+
+// Calculate the actual output torque
+OutputTorque := _Scale(
+    X := INT_TO_REAL(PDOS.DrvToPLC.torqueActualValue), 
+    I_LO := deviceConfig.OutputTorqueInputLow, 
+    I_HI := deviceConfig.OutputTorqueInputHigh, 
+    O_LO := deviceConfig.OutputTorqueOutputLow, 
+    O_HI := deviceConfig.OutputTorqueOutputHigh
+);
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_Scale" Id="{5a136882-b40c-0a27-157a-89f65724e1c6}">
+      <Declaration><![CDATA[METHOD PRIVATE _Scale : REAL
+VAR_INPUT
+	
+	X : REAL;
+	I_LO : REAL;
+	I_HI : REAL;
+	O_LO : REAL;
+	O_HI : REAL;
+	
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF I_LO = I_HI THEN
+	_Scale := O_LO;
+ELSE
+	_Scale := (O_HI - O_LO) / (I_HI - I_LO) * (LIMIT(I_LO, X, I_HI) - I_LO) + O_LO;
+END_IF;
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_SetOperationMode" Id="{32c0fe40-3203-422c-96bd-b51cb1464eba}">
+      <Declaration><![CDATA[METHOD PRIVATE _SetOperationMode
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[CASE deviceConfig.operationMode OF
+
+    E_C2000_ModeOfOperation.Reserved_0:
+        PDOS.PlcToDrv.modesOfOperation := 0;
+        ; // Reserved - no action
+
+    E_C2000_ModeOfOperation.ProfilePositionMode:
+        PDOS.PlcToDrv.modesOfOperation := 1;
+        ; // Profile Position Mode handling
+
+    E_C2000_ModeOfOperation.VelocityMode:
+        PDOS.PlcToDrv.modesOfOperation := 2;
+        ; // Velocity Mode handling
+
+    E_C2000_ModeOfOperation.Reserved_3:
+        PDOS.PlcToDrv.modesOfOperation := 3;
+        ; // Reserved - no action
+
+    E_C2000_ModeOfOperation.ProfileTorqueMode:
+        PDOS.PlcToDrv.modesOfOperation := 4;
+		
+        ; // Profile Torque Mode handling
+
+    E_C2000_ModeOfOperation.Reserved_5:
+        PDOS.PlcToDrv.modesOfOperation := 5;
+        ; // Reserved - no action
+
+    E_C2000_ModeOfOperation.HomingMode:
+        PDOS.PlcToDrv.modesOfOperation := 6;
+        ; // Homing Mode handling
+
+    E_C2000_ModeOfOperation.Reserved_7:
+        PDOS.PlcToDrv.modesOfOperation := 7;
+        ; // Reserved - no action
+
+    E_C2000_ModeOfOperation.CyclicSynchronousPositionMode:
+        PDOS.PlcToDrv.modesOfOperation := 8;
+        ; // Cyclic Synchronous Position Mode handling
+
+    E_C2000_ModeOfOperation.Reserved_9:
+        PDOS.PlcToDrv.modesOfOperation := 9;
+        ; // Reserved - no action
+
+    E_C2000_ModeOfOperation.CyclicSynchronousTorqueMode:
+        PDOS.PlcToDrv.modesOfOperation := 10;
+        ; // Cyclic Synchronous Torque Mode handling
+
+ELSE
+    PDOS.PlcToDrv.modesOfOperation := 2;
+    ; // Fallback: Undefined mode, default to reserved
+
+END_CASE
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_SpeedReference" Id="{ddaa3db5-83d9-0169-2b15-fa83a58fd172}">
+      <Declaration><![CDATA[METHOD PRIVATE _SpeedReference
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// --- Update Velocity Target Setpoint (signed INT) ---
+PDOS.PlcToDrv.vlTargetVelocity := REAL_TO_INT(_Scale(
+    X    := speedSetpoint, 
+    I_LO := deviceConfig.speedSetpointInputLow, 
+    I_HI := deviceConfig.speedSetpointInputHigh, 
+    O_LO := deviceConfig.speedSetpointOutputLow, 
+    O_HI := deviceConfig.speedSetpointOutputHigh));
+
+	PDOS.PlcToDrv.maxMotorSpeed := PDOS.PlcToDrv.vlTargetVelocity;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_StatusWord" Id="{6527e086-361c-017b-3cb1-a9e561509a4c}">
+      <Declaration><![CDATA[METHOD PRIVATE _StatusWord
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// --- Map raw statusword bits to structured fields ---------------------------
+StatusWord.readyToSwitchOn     := PDOS.DrvToPLC.StatusWord.0;   // Bit 0
+StatusWord.switchedOn          := PDOS.DrvToPLC.StatusWord.1;   // Bit 1
+StatusWord.operationEnabled    := PDOS.DrvToPLC.StatusWord.2;   // Bit 2
+StatusWord.fault               := PDOS.DrvToPLC.StatusWord.3;   // Bit 3
+StatusWord.voltageEnabled      := PDOS.DrvToPLC.StatusWord.4;   // Bit 4
+StatusWord.quickStop           := PDOS.DrvToPLC.StatusWord.5;   // Bit 5
+StatusWord.switchOnDisabled    := PDOS.DrvToPLC.StatusWord.6;   // Bit 6
+StatusWord.warning             := PDOS.DrvToPLC.StatusWord.7;   // Bit 7
+StatusWord.reserved1           := PDOS.DrvToPLC.StatusWord.8;   // Bit 8 (reserved)
+StatusWord.remote              := PDOS.DrvToPLC.StatusWord.9;   // Bit 9
+StatusWord.targetReached       := PDOS.DrvToPLC.StatusWord.10;  // Bit 10
+StatusWord.internalLimitActive := PDOS.DrvToPLC.StatusWord.11;  // Bit 11]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_TorqueReference" Id="{eaf20d95-3d2e-4f54-86a7-aad39944681a}">
+      <Declaration><![CDATA[METHOD PRIVATE _TorqueReference
+VAR_INPUT
+END_VAR
+
+VAR
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[
+
+IF deviceConfig.torqueLimiterEnabled THEN
+	
+	// --- Update Velocity Target Setpoint (signed INT) ---
+	PDOS.PlcToDrv.maxTorque := REAL_TO_UINT(_Scale(
+		X    := torqueSetpoint, 
+		I_LO := deviceConfig.torqueSetpointInputLow, 
+		I_HI := deviceConfig.torqueSetpointInputHigh, 
+		O_LO := deviceConfig.torqueSetpointOutputLow, 
+		O_HI := deviceConfig.torqueSetpointOutputHigh) + deviceConfig.torqueDif);
+		
+ELSE
+	
+	PDOS.PlcToDrv.maxTorque := REAL_TO_UINT (deviceConfig.torqueSetpointOutputHigh);
+	
+END_IF
+
+
+]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_DELTA_C2000_ETC">
+      <LineId Id="619" Count="31" />
+      <LineId Id="13" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_DELTA_C2000_ETC._AnalogInputs">
+      <LineId Id="15" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_DELTA_C2000_ETC._AnalogOutputs">
+      <LineId Id="10" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_DELTA_C2000_ETC._CommandWord">
+      <LineId Id="746" Count="0" />
+      <LineId Id="651" Count="0" />
+      <LineId Id="722" Count="1" />
+      <LineId Id="721" Count="0" />
+      <LineId Id="652" Count="29" />
+      <LineId Id="735" Count="0" />
+      <LineId Id="682" Count="28" />
+      <LineId Id="463" Count="0" />
+      <LineId Id="749" Count="4" />
+      <LineId Id="768" Count="90" />
+      <LineId Id="900" Count="0" />
+      <LineId Id="899" Count="0" />
+      <LineId Id="859" Count="3" />
+      <LineId Id="902" Count="0" />
+      <LineId Id="901" Count="0" />
+      <LineId Id="863" Count="25" />
+      <LineId Id="903" Count="0" />
+      <LineId Id="748" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_DELTA_C2000_ETC._DigitalInputs">
+      <LineId Id="10" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_DELTA_C2000_ETC._DigitalOutputs">
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_DELTA_C2000_ETC._FeedBackVariables">
+      <LineId Id="68" Count="1" />
+      <LineId Id="89" Count="6" />
+      <LineId Id="77" Count="0" />
+      <LineId Id="96" Count="0" />
+      <LineId Id="78" Count="7" />
+      <LineId Id="27" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_DELTA_C2000_ETC._Scale">
+      <LineId Id="1" Count="5" />
+    </LineIds>
+    <LineIds Name="FB_DELTA_C2000_ETC._SetOperationMode">
+      <LineId Id="55" Count="19" />
+      <LineId Id="106" Count="0" />
+      <LineId Id="75" Count="30" />
+      <LineId Id="7" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_DELTA_C2000_ETC._SpeedReference">
+      <LineId Id="13" Count="6" />
+      <LineId Id="23" Count="0" />
+      <LineId Id="8" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_DELTA_C2000_ETC._StatusWord">
+      <LineId Id="31" Count="11" />
+      <LineId Id="13" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_DELTA_C2000_ETC._TorqueReference">
+      <LineId Id="13" Count="2" />
+      <LineId Id="18" Count="0" />
+      <LineId Id="24" Count="6" />
+      <LineId Id="34" Count="0" />
+      <LineId Id="31" Count="0" />
+      <LineId Id="33" Count="0" />
+      <LineId Id="32" Count="0" />
+      <LineId Id="23" Count="0" />
+      <LineId Id="19" Count="0" />
+      <LineId Id="16" Count="1" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

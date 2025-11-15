@@ -1,0 +1,141 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.15">
+  <GVL Name="GVL_Hw" Id="{f3383601-582f-4ed3-9358-145f0621c21d}">
+    <Declaration><![CDATA[{attribute 'Tc2GvlVarNames'}
+VAR_GLOBAL
+
+    //────────────────────────────────────────────
+    // MACHINE DRIVES — FB_DELTA_C2000_ETC
+    //────────────────────────────────────────────
+
+    // General Utility Drives (Panel 1)
+    P1_100_UG01 : FB_DELTA_C2000_ETC;
+    P1_100_UG02 : FB_DELTA_C2000_ETC;
+    P1_100_UG03_SuctionRoll : FB_DELTA_C2000_ETC;
+    P1_100_UG04 : FB_DELTA_C2000_ETC;
+    P1_100_UG05 : FB_DELTA_C2000_ETC;
+    P1_300_UG06_TractionRoll : FB_DELTA_C2000_ETC;
+
+    // Press Section
+    P11_400_UG01_SecondPress : FB_DELTA_C2000_ETC;  // Second Press
+    P12_400_UG01_FirstPress  : FB_DELTA_C2000_ETC;  // First Press
+
+    // Drying Section — Group 1
+    P13_500_UG01_1GR_UpperSlave   : FB_DELTA_C2000_ETC;
+    P13_500_UG02_1GR_LowerMaster  : FB_DELTA_C2000_ETC;
+    P13_500_UG03_1GR_UpperMaster  : FB_DELTA_C2000_ETC;
+
+    // Drying Section — Group 2
+    P13_501_UG01_2GR_LowerSlave   : FB_DELTA_C2000_ETC;
+    P13_501_UG02_2GR_UpperSlave   : FB_DELTA_C2000_ETC;
+    P13_501_UG03_2GR_LowerMaster  : FB_DELTA_C2000_ETC;
+    P14_501_UG01_2GR_UpperMaster  : FB_DELTA_C2000_ETC;
+
+    // Drying Section — Group 3
+    P14_502_UG01_3GR_LowerSlave   : FB_DELTA_C2000_ETC;
+    P14_502_UG02_3GR_UpperSlave   : FB_DELTA_C2000_ETC;
+    P14_502_UG03_3GR_LowerMaster  : FB_DELTA_C2000_ETC;
+    P14_502_UG04_3GR_UpperMaster  : FB_DELTA_C2000_ETC;
+
+    // Rewinder
+    P15_600_UG01_Rewinder         : FB_DELTA_C2000_ETC;
+
+
+    //────────────────────────────────────────────
+    // PANEL 1 — I/O MODULES
+    //────────────────────────────────────────────
+
+    // Digital Inputs
+    P1_050_DI1 : FB_EL1809;
+    P1_050_DI2 : FB_EL1809;
+    P1_050_DI3 : FB_EL1809;
+
+    // Digital Outputs
+    P1_050_DO1 : FB_EL2809;
+    P1_050_DO2 : FB_EL2809;
+    P1_050_DO3 : FB_EL2809;
+
+    // Analog Inputs
+    P1_050_AI1 : FB_EL3052;
+    P1_050_AI2 : FB_EL3152;
+    P1_050_AI3 : FB_EL3052;
+    P1_050_AI4 : FB_EL3052;
+
+    // Analog Outputs
+    P1_050_AQ1 : FB_EL4024;
+    P1_050_AQ2 : FB_EL4024;
+
+    // Safety
+    P1_050_SP1 : FB_EL6910;
+
+
+    //────────────────────────────────────────────
+    // PANEL 9 — I/O MODULES
+    //────────────────────────────────────────────
+
+    P9_050_DI1 : FB_EL1809;
+    P9_050_DI2 : FB_EL1809;
+    P9_050_DI3 : FB_EL1809;
+
+    P9_050_DO1 : FB_EL2809;
+    P9_050_DO2 : FB_EL2809;
+    P9_050_DO3 : FB_EL2809;
+
+    P9_050_AI1 : FB_EL3052;
+
+
+    //────────────────────────────────────────────
+    // PANEL 10 — I/O MODULES
+    //────────────────────────────────────────────
+
+    // Digital Inputs
+    P10_050_DI1 : FB_EL1809;
+    P10_050_DI2 : FB_EL1809;
+    P10_050_DI3 : FB_EL1809;
+    P10_050_DI4 : FB_EL1809;
+    P10_050_DI5 : FB_EL1809;
+    P10_050_DI6 : FB_EL1809;
+    P10_050_DI7 : FB_EL1809;
+    P10_050_DI8 : FB_EL1809;
+
+    // Digital Outputs
+    P10_050_DO1 : FB_EL2809;
+    P10_050_DO2 : FB_EL2809;
+    P10_050_DO3 : FB_EL2809;
+    P10_050_DO4 : FB_EL2809;
+
+    // Analog Inputs and Outputs
+    P10_050_AI1 : FB_EL3154;
+    P10_050_AI2 : FB_EL3204;
+    P10_050_AO1 : FB_EL4024;
+
+    //────────────────────────────────────────────
+    // WINDER COMMAND PANEL 1 — I/O MODULES
+    //────────────────────────────────────────────
+	CP1_050_DI1 : FB_EL1809;
+	CP1_050_DO1 : FB_EL2809;
+    CP1_050_AO1 : FB_EL4024;
+
+	
+	
+	
+    //────────────────────────────────────────────
+    // MACHINE STATUS / CONTROL STRUCTS
+    //────────────────────────────────────────────
+
+    divisionCheckCounter     : DINT;
+
+    paperMachineHmiStatus    : PaperMachine_TypeHmiStatus;
+    paperMachineHmiAlarms    : PaperMachine_TypeHmiAlarms;
+
+END_VAR
+
+VAR_GLOBAL PERSISTENT
+
+    paperMachineHmiCommands : PaperMachine_TypeHmiCommands;
+    paperMachineHmiConfig   : PaperMachine_TypeHmiConfig;
+
+END_VAR
+]]></Declaration>
+  </GVL>
+</TcPlcObject>

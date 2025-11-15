@@ -1,0 +1,498 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.15">
+  <POU Name="FB_LevelControl_V2" Id="{6da0df38-a220-40ef-824a-a9f1ec7a0359}" SpecialFunc="None">
+    <Declaration><![CDATA[(*
+  Change summary (minimal):
+    - Added reverseActing : BOOL := TRUE  // default for draining pumps
+    - Added kpUse : REAL
+    - PID now uses KP := kpUse where kpUse = ±ABS(kp) depending on reverseActing
+*)
+
+FUNCTION_BLOCK FB_LevelControl_V2
+VAR_INPUT
+    // ===== Sequence commands =====
+    startCommand            : BOOL;            // Start pulse (toggle run)
+    stopCommand             : BOOL;            // Stop pulse/level (force stop)
+
+    // ===== Mode =====
+    autoMode                : BOOL;            // TRUE=Automatic / FALSE=Manual
+
+    // ===== Process signals (LEVEL) =====
+    levelFeedbackEng        : REAL;            // Level feedback (engineering units)
+    levelSetpointEng        : REAL;            // Setpoint in engineering units
+
+    // ===== Manual output (direct % to final element) =====
+    manualOutputPct         : REAL;            // 0..100% manual output
+
+    // ===== PID parameters (OSCAT CTRL_PID) =====
+    kp                      : REAL := 1.0;     // proportional gain (magnitude; sign handled by reverseActing)
+    tn                      : REAL := 8.0;     // integral time [s]
+    tv                      : REAL := 0.0;     // derivative time [s]
+
+    // ===== NEW: Reverse/Direct action selector =====
+    reverseActing           : BOOL := TRUE;    // TRUE = reverse action (draining pump default)
+
+    // ===== Output limits & offset =====
+    outLowLimitPct          : REAL := 0.0;
+    outHighLimitPct         : REAL := 100.0;
+    outputOffsetPct         : REAL := 0.0;     // added to final output
+
+    // ===== PID housekeeping =====
+    resetPID                : BOOL;            // reset integrator
+
+    // ===== Input filter (OSCAT PT1) =====
+    enableInputFilter       : BOOL := TRUE;
+    inputFilterTime         : TIME := T#500ms;
+    inputFilterGainK        : REAL := 1.0;
+	
+    displayFilterTime       : TIME := T#20MS;	
+	
+
+    // ===== Optional scaling (engineering <-> %) =====
+    enableScaling           : BOOL := TRUE;
+    lvlLoEng                : REAL := 0.0;
+    lvlHiEng                : REAL := 100.0;
+
+    // ===== VFD interface & supervision =====
+    vfdReady                : BOOL;            // VFD ready/healthy
+    vfdRunFeedback          : BOOL;            // VFD RUN feedback
+    vfdFaultFeedback        : BOOL;            // VFD fault feedback
+    vfdRunFbTimeout         : TIME := T#5s;    // Timeout to receive RUN FB after start
+
+    // ===== VFD analog feedbacks =====
+    vfdCurrentFeedback      : REAL;            // Motor current [A]
+    vfdEngFeedback          : REAL;            // Motor enginering feedback
+    vfdTorqueFeedback       : REAL;            // Motor torque feedback
+	
+
+    // ===== SAFETY (true safety only) =====
+    safetyOk                : BOOL := TRUE;    // Safety relay / chain OK
+    estopOk                 : BOOL := TRUE;    // E-Stop loop OK
+    guardClosedOk           : BOOL := TRUE;    // Doors/guards closed
+
+    // ===== INTERLOCKS (process permissives) — NORMAL STOP ONLY =====
+    interlock1              : BOOL := TRUE;
+    interlock2              : BOOL := TRUE;
+    interlock3              : BOOL := TRUE;
+    interlock4              : BOOL := TRUE;
+    interlock5              : BOOL := TRUE;
+    interlock6              : BOOL := TRUE;
+
+    // ===== Minimum level supervision (process permissive) =====
+    minLevelEnable          : BOOL := TRUE;    // Enable low-level stop/hold logic
+    minLevelStopEng         : REAL := 10.0;    // Trip threshold (Eng units) => stop & hold
+    minLevelRestartEng      : REAL := 12.0;    // Release threshold (Eng units) => auto restart
+    minLevelTripTime        : TIME := T#1s;    // Level < StopEng for this long to trip
+    minLevelReleaseTime     : TIME := T#1s;    // Level > RestartEng for this long to release
+END_VAR
+
+VAR_OUTPUT
+    running                 : BOOL;            // TRUE only in RUN (use to release other devices)
+    controlOutputPct        : REAL;            // 0..100 %
+    pidDiff                 : REAL;            // SET - ACT (post-scaling)
+    pidLimited              : BOOL;            // TRUE if saturated
+    deviceState             : STRING(80);      // Human-readable state
+    vfdStartCmdOut          : BOOL;            // Asserted in Starting/Running (VFD START)
+    minLevelHoldActive      : BOOL;            // TRUE while in low-level hold
+
+    // Status & displays
+    statusCode              : INT;             // 0=Idle, 1=Running, 2=Fault
+    vfdCurrentDisplay       : REAL;            // Displayed motor current [A]
+    vfdTorqueDisplay       : REAL;            // Displayed motor current [A]
+    vfdEngDisplay           : REAL;            // Displayed motor speed [rpm]
+	levelDisplay			: REAL;
+	
+END_VAR
+
+VAR
+    // ===== State & edges =====
+    step                    : INT;             // 0=Idle,10=Starting,20=Running,90=Stopping
+    startOld                : BOOL;
+    stopOld                 : BOOL;
+    rStart                  : BOOL;            // start pulse edge
+    rStop                   : BOOL;            // stop pulse edge
+    runLatch                : BOOL;            // toggled by Start; cleared by Stop
+
+    // ===== Internals =====
+    manualCmd               : REAL;
+    yPID                    : REAL;
+    kpUse                   : REAL;            // sign-adjusted Kp
+
+    // Filtered PV (engineering)
+    levelFeedbackEngFilt    : REAL;
+
+    // PV/SP in %
+    pvPct                   : REAL;
+    spPct                   : REAL;
+
+    // Timers / supervision
+    tonRunFbWait            : TON;
+
+    // Minimum level timers/flags
+    minLevelBelow           : BOOL;
+    minLevelAboveRestart    : BOOL;
+    tonMinLevelTrip         : TON;
+    tonMinLevelRelease      : TON;
+
+    // Instances
+    instPID                 : CTRL_PID;
+    instPT1                 : FT_PT1;
+
+    // Aggregations
+    allSafetyOK             : BOOL;
+    anyInterlockOpen        : BOOL;
+	
+    instPT1_TorqueDisplay  		: FT_PT1;
+    instPT1_SpeedDisplay   		: FT_PT1;
+    instPT1_LevelDisplay   		: FT_PT1;
+
+	
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[// ============================ Edges ============================
+rStart := startCommand AND NOT startOld;
+startOld := startCommand;
+
+rStop  := stopCommand AND NOT stopOld;
+stopOld := stopCommand;
+
+// Start toggles run; Stop forces stop
+IF rStart THEN
+    runLatch := NOT runLatch;
+END_IF;
+IF rStop OR stopCommand THEN
+    runLatch := FALSE;
+END_IF;
+
+
+// ============================ Aggregations =====================
+allSafetyOK := safetyOk AND estopOk AND guardClosedOk;
+anyInterlockOpen := NOT (interlock1 AND interlock2 AND interlock3 AND interlock4 AND interlock5 AND interlock6);
+
+// Defaults each cycle
+vfdStartCmdOut := FALSE;
+
+
+
+
+// ============================ Minimum level supervision ============================
+// Compare using current engineering PV (raw). If preferred, swap to levelFeedbackEngFilt.
+minLevelBelow        := (levelFeedbackEng <  minLevelStopEng);
+minLevelAboveRestart := (levelFeedbackEng >  minLevelRestartEng);
+
+IF minLevelEnable THEN
+    // Trip debounce
+    tonMinLevelTrip(IN := minLevelBelow, PT := minLevelTripTime);
+    // Release debounce
+    tonMinLevelRelease(IN := minLevelAboveRestart, PT := minLevelReleaseTime);
+
+    // Latch HOLD on trip, clear on release
+    IF tonMinLevelTrip.Q THEN
+        minLevelHoldActive := TRUE;
+    END_IF;
+    IF tonMinLevelRelease.Q THEN
+        minLevelHoldActive := FALSE;
+    END_IF;
+ELSE
+    tonMinLevelTrip(IN := FALSE);
+    tonMinLevelRelease(IN := FALSE);
+    minLevelHoldActive := FALSE;
+END_IF;
+
+
+// ============================ Immediate stop / safety/fault guards ============
+IF rStop OR stopCommand THEN
+    controlOutputPct := 0.0;
+    running := FALSE;
+    deviceState := 'Stopping (Stop command)';
+    runLatch := FALSE;                    // ensure toggled off
+    step := 90;
+END_IF;
+
+IF vfdFaultFeedback THEN
+    deviceState := 'Fault from VFD';
+    runLatch := FALSE;
+    step := 90;
+END_IF;
+
+IF NOT allSafetyOK THEN
+    deviceState := 'Stopping: Safety chain open';
+    runLatch := FALSE;
+    step := 90;
+END_IF;
+
+
+// ============================ State machine =====================
+CASE step OF
+    // ------------------------------------------------------------
+    0: // Idle
+        running := FALSE;
+        controlOutputPct := 0.0;
+        deviceState := 'Idle';
+        vfdStartCmdOut := FALSE;
+
+        // Start request via runLatch (toggled by Start pulse)
+        IF runLatch AND NOT stopCommand THEN
+            // Safety must be OK; VFD must be ready; min level must not be holding
+            IF NOT allSafetyOK THEN
+                deviceState := 'Start blocked: Safety not OK';
+                runLatch := FALSE; // block and clear latch to avoid re-trigger
+                step := 0;
+            ELSIF NOT vfdReady THEN
+                deviceState := 'Start blocked: VFD not ready';
+                runLatch := FALSE;
+                step := 0;
+            ELSIF minLevelEnable AND minLevelHoldActive THEN
+                deviceState := 'Start blocked: Low level hold';
+                runLatch := FALSE;
+                step := 0;
+            ELSE
+                deviceState := 'Starting';
+                vfdStartCmdOut := TRUE;                   // send START to VFD
+                tonRunFbWait(IN := TRUE, PT := vfdRunFbTimeout);
+                step := 10;
+            END_IF
+        END_IF
+
+    // ------------------------------------------------------------
+    10: // Starting (await RUN feedback)
+        running := FALSE;
+        deviceState := 'Starting (await RUN fb)';
+        vfdStartCmdOut := TRUE;
+
+        // Safety/fault during start => stop
+        IF NOT allSafetyOK THEN
+            tonRunFbWait(IN := FALSE);
+            deviceState := 'Stopping: Safety chain open';
+            vfdStartCmdOut := FALSE;
+            runLatch := FALSE;
+            step := 90;
+
+        ELSIF vfdFaultFeedback THEN
+            tonRunFbWait(IN := FALSE);
+            deviceState := 'Fault from VFD';
+            vfdStartCmdOut := FALSE;
+            runLatch := FALSE;
+            step := 90;
+
+        // Interlocks are normal stop only
+        ELSIF anyInterlockOpen THEN
+            tonRunFbWait(IN := FALSE);
+            deviceState := 'Stopping: Interlock open';
+            vfdStartCmdOut := FALSE;
+            runLatch := FALSE;
+            step := 90;
+
+        // Minimum level HOLD => normal stop
+        ELSIF minLevelEnable AND minLevelHoldActive THEN
+            tonRunFbWait(IN := FALSE);
+            deviceState := 'Stopping: Low level hold';
+            vfdStartCmdOut := FALSE;
+            runLatch := FALSE;
+            step := 90;
+
+        // RUN fb arrived
+        ELSIF vfdRunFeedback THEN
+            tonRunFbWait(IN := FALSE);
+            step := 20;
+
+        // Timeout
+        ELSIF tonRunFbWait.Q THEN
+            tonRunFbWait(IN := FALSE);
+            deviceState := 'Start failed: RUN feedback timeout';
+            vfdStartCmdOut := FALSE;
+            runLatch := FALSE;
+            step := 90;
+        END_IF
+
+    // ------------------------------------------------------------
+    20: // Running (control loop)
+        running := TRUE;               // release other devices with this
+        deviceState := 'Running';
+        vfdStartCmdOut := TRUE;
+
+        // Supervision
+        IF NOT allSafetyOK THEN
+            deviceState := 'Stopping: Safety chain open';
+            vfdStartCmdOut := FALSE;
+            runLatch := FALSE;
+            step := 90;
+
+        ELSIF vfdFaultFeedback THEN
+            deviceState := 'Fault from VFD';
+            vfdStartCmdOut := FALSE;
+            runLatch := FALSE;
+            step := 90;
+
+        ELSIF NOT vfdReady THEN
+            deviceState := 'Stopping: VFD not ready';
+            vfdStartCmdOut := FALSE;
+            runLatch := FALSE;
+            step := 90;
+
+        ELSIF NOT vfdRunFeedback THEN
+            deviceState := 'Stopping: RUN feedback lost';
+            vfdStartCmdOut := FALSE;
+            runLatch := FALSE;
+            step := 90;
+
+        // INTERLOCKS → NORMAL STOP ONLY
+        ELSIF anyInterlockOpen THEN
+            deviceState := 'Stopping: Interlock open';
+            vfdStartCmdOut := FALSE;
+            runLatch := FALSE;
+            step := 90;
+
+        // Minimum level HOLD → NORMAL STOP
+        ELSIF minLevelEnable AND minLevelHoldActive THEN
+            deviceState := 'Stopping: Low level hold';
+            vfdStartCmdOut := FALSE;
+            runLatch := FALSE;
+            step := 90;
+
+        // Start toggled OFF while running => stop
+        ELSIF NOT runLatch THEN
+            deviceState := 'Stopping (Start toggled off)';
+            vfdStartCmdOut := FALSE;
+            step := 90;
+
+        ELSE
+            // ---- Input filtering (PT1) ----
+            IF enableInputFilter THEN
+                instPT1(in := levelFeedbackEng, T := inputFilterTime, K := inputFilterGainK, out => levelFeedbackEngFilt);
+            ELSE
+                levelFeedbackEngFilt := levelFeedbackEng;
+            END_IF
+
+            // ---- Engineering -> % scaling ----
+            IF enableScaling THEN
+                pvPct := _ScaleToPct(levelFeedbackEngFilt, lvlLoEng, lvlHiEng);
+                spPct := _ScaleToPct(levelSetpointEng,     lvlLoEng, lvlHiEng);
+            ELSE
+                pvPct := levelFeedbackEngFilt;    // already %
+                spPct := levelSetpointEng;        // already %
+            END_IF
+
+            // ---- Manual path and PID with bumpless transfer ----
+            manualCmd := LIMIT(0.0, manualOutputPct, 100.0);
+
+            // Reverse/direct action by Kp sign
+            IF reverseActing THEN
+                kpUse := -ABS(kp);
+            ELSE
+                kpUse :=  ABS(kp);
+            END_IF
+
+            instPID(
+                ACT := pvPct,
+                SET := spPct,
+                M_I := manualCmd,
+                MAN := NOT autoMode,
+                RST := resetPID,
+                KP  := kpUse,              // <— inverted when reverseActing=TRUE
+                TN  := tn,
+                TV  := tv,
+                LL  := outLowLimitPct,
+                LH  := outHighLimitPct,
+                Y   => yPID,
+                DIFF=> pidDiff,
+                LIM => pidLimited
+            );
+
+            // Mode select, offset, clamp
+            IF autoMode THEN
+                controlOutputPct := yPID;
+            ELSE
+                controlOutputPct := manualCmd;
+            END_IF
+            controlOutputPct := LIMIT(outLowLimitPct, controlOutputPct + outputOffsetPct, outHighLimitPct);
+        END_IF
+
+    // ------------------------------------------------------------
+    90: // Stopping (normal, de-energize)
+        running := FALSE;
+        controlOutputPct := 0.0;
+        vfdStartCmdOut := FALSE;
+        tonRunFbWait(IN := FALSE);
+
+        // Return to Idle once stop released and safety OK
+        IF NOT stopCommand AND allSafetyOK THEN
+            deviceState := 'Idle';
+            step := 0;
+        END_IF
+
+    // ------------------------------------------------------------
+    ELSE
+        running := FALSE;
+        controlOutputPct := 0.0;
+        deviceState := 'Idle';
+        vfdStartCmdOut := FALSE;
+        step := 0;
+END_CASE
+
+
+// =============================== Status code =======================================
+IF vfdFaultFeedback THEN
+    statusCode := 2;             // Fault
+ELSIF running THEN
+    statusCode := 1;             // Running
+ELSE
+    statusCode := 0;             // Idle
+END_IF
+
+
+_FeedbackDisplay();
+]]></ST>
+    </Implementation>
+    <Method Name="_FeedbackDisplay" Id="{a99afc72-ef3f-4ee2-8dc7-49837e1829ef}">
+      <Declaration><![CDATA[METHOD _FeedbackDisplay
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// 5) HMI DISPLAY SIGNALS (filtered speeds/torques + GROUP status)
+instPT1_SpeedDisplay(in := vfdEngFeedback, T := displayFilterTime, K := 1.0, out => vfdEngDisplay);
+instPT1_TorqueDisplay (in := vfdTorqueFeedback , T := displayFilterTime, K := 1.0, out => vfdTorqueDisplay);
+instPT1_LevelDisplay (in := levelFeedbackEng , T := displayFilterTime, K := 1.0, out => levelDisplay);]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_ScaleToPct" Id="{2a1d07b5-25b2-4ce7-ba38-a620bd86a57e}">
+      <Declaration><![CDATA[// ============================ Helper ============================
+METHOD PRIVATE _ScaleToPct : REAL
+VAR_INPUT
+    xEng  : REAL;  // value in engineering units
+    loEng : REAL;  // min eng
+    hiEng : REAL;  // max eng
+END_VAR
+VAR
+    span : REAL;
+    pct  : REAL;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[
+span := hiEng - loEng;
+IF span = 0.0 THEN
+    _ScaleToPct := 0.0; // avoid div by zero
+ELSE
+    pct := (xEng - loEng) / span * 100.0;
+    _ScaleToPct := LIMIT(0.0, pct, 100.0);
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_LevelControl_V2">
+      <LineId Id="3469" Count="22" />
+      <LineId Id="3494" Count="266" />
+      <LineId Id="3767" Count="2" />
+      <LineId Id="9" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_LevelControl_V2._FeedbackDisplay">
+      <LineId Id="9" Count="2" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_LevelControl_V2._ScaleToPct">
+      <LineId Id="17" Count="6" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

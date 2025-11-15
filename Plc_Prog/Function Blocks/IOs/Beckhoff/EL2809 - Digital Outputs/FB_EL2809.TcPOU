@@ -1,0 +1,82 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.15">
+  <POU Name="FB_EL2809" Id="{ee1b7620-cdad-4496-ad5b-88da055a456b}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_EL2809
+VAR_INPUT
+	
+
+
+	deviceConfig    : EL2809_DEV_CONFIG; // Configuration settings for the CT222F device
+	
+	digitalOutput_01 : BOOL;
+	digitalOutput_02 : BOOL;
+	digitalOutput_03 : BOOL;
+	digitalOutput_04 : BOOL;
+	digitalOutput_05 : BOOL;
+	digitalOutput_06 : BOOL;
+	digitalOutput_07 : BOOL;
+	digitalOutput_08 : BOOL;
+	digitalOutput_09 : BOOL;
+	digitalOutput_10 : BOOL;
+	digitalOutput_11 : BOOL;
+	digitalOutput_12 : BOOL;
+	digitalOutput_13 : BOOL;
+	digitalOutput_14 : BOOL;
+	digitalOutput_15 : BOOL;
+	digitalOutput_16 : BOOL;
+	
+END_VAR
+VAR_OUTPUT
+
+
+END_VAR
+VAR
+	    PDOS : EL2809_PDOS; // Process Data Objects for RWPT01D communication
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[
+outputState();]]></ST>
+    </Implementation>
+    <Method Name="outputState" Id="{e9b80909-24b5-4d14-b98b-17ec99fca0ee}">
+      <Declaration><![CDATA[METHOD PRIVATE outputState
+
+
+
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// Outputs Mapping Configuration
+
+
+PDOS.PlcToHw.digitalOutput_01 := digitalOutput_01 OR (deviceConfig.enableForce AND deviceConfig.forceDigitalOutput_00);
+PDOS.PlcToHw.digitalOutput_02 := digitalOutput_02 OR (deviceConfig.enableForce AND deviceConfig.forceDigitalOutput_01);
+PDOS.PlcToHw.digitalOutput_03 := digitalOutput_03 OR (deviceConfig.enableForce AND deviceConfig.forceDigitalOutput_02); 
+PDOS.PlcToHw.digitalOutput_04 := digitalOutput_04 OR (deviceConfig.enableForce AND deviceConfig.forceDigitalOutput_03); 
+PDOS.PlcToHw.digitalOutput_05 := digitalOutput_05 OR (deviceConfig.enableForce AND deviceConfig.forceDigitalOutput_04); 
+PDOS.PlcToHw.digitalOutput_06 := digitalOutput_06 OR (deviceConfig.enableForce AND deviceConfig.forceDigitalOutput_05); 
+PDOS.PlcToHw.digitalOutput_07 := digitalOutput_07 OR (deviceConfig.enableForce AND deviceConfig.forceDigitalOutput_06); 
+PDOS.PlcToHw.digitalOutput_08 := digitalOutput_08 OR (deviceConfig.enableForce AND deviceConfig.forceDigitalOutput_07); 
+PDOS.PlcToHw.digitalOutput_09 := digitalOutput_09 OR (deviceConfig.enableForce AND deviceConfig.forceDigitalOutput_08); 
+PDOS.PlcToHw.digitalOutput_10 := digitalOutput_10 OR (deviceConfig.enableForce AND deviceConfig.forceDigitalOutput_09); 
+PDOS.PlcToHw.digitalOutput_11 := digitalOutput_11 OR (deviceConfig.enableForce AND deviceConfig.forceDigitalOutput_10); 
+PDOS.PlcToHw.digitalOutput_12 := digitalOutput_12 OR (deviceConfig.enableForce AND deviceConfig.forceDigitalOutput_11); 
+PDOS.PlcToHw.digitalOutput_13 := digitalOutput_13 OR (deviceConfig.enableForce AND deviceConfig.forceDigitalOutput_12); 
+PDOS.PlcToHw.digitalOutput_14 := digitalOutput_14 OR (deviceConfig.enableForce AND deviceConfig.forceDigitalOutput_13); 
+PDOS.PlcToHw.digitalOutput_15 := digitalOutput_15 OR (deviceConfig.enableForce AND deviceConfig.forceDigitalOutput_14); 
+PDOS.PlcToHw.digitalOutput_16 := digitalOutput_16 OR (deviceConfig.enableForce AND deviceConfig.forceDigitalOutput_15); 
+
+
+
+]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_EL2809">
+      <LineId Id="3" Count="0" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_EL2809.outputState">
+      <LineId Id="3" Count="21" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

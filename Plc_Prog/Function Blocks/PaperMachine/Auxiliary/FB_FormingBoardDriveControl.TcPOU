@@ -1,0 +1,515 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.15">
+  <POU Name="FB_FormingBoardDriveControl" Id="{a7b09b41-fc4c-4f3d-925d-b17b2946dd79}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_FormingBoardDriveControl
+VAR_INPUT
+    // ── Group / Interlocks ───────────────────────────────────────────────────────
+    startGroup                   : BOOL;   // Start command (Comando de partida)
+    groupFault                   : BOOL;   // Fault present (Falha do grupo)
+    groupMasterOperationEnabled  : BOOL;   // Master VFD "operation enabled"/running feedback
+    groupSlaveOperationEnabled   : BOOL;   // Slave  VFD "operation enabled"/running feedback
+
+    // ── Speed Setpoints ─────────────────────────────────────────────────────────
+    groupAutoSpeedMPM        	 : REAL;   // Auto speed setpoint [m/min]
+    groupMaxSpeed                : REAL := 600.0; // Max allowed line speed [m/min]
+
+    // ── Auto / Manual ───────────────────────────────────────────────────────────
+    groupSpeedAutoMan            : BOOL;   // 0=Manual / 1=Auto;
+    groupManualSpeedMPM          : REAL := 50.0;  // Manual speed [m/min]
+
+    // ── Feedbacks ───────────────────────────────────────────────────────────────
+    masterTorqueFeedback         : REAL;   // [% or Nm]
+    slaveTorqueFeedback          : REAL;   // [% or Nm]
+    masterSpeedFeedback          : REAL;   // [m/min or %] — be consistent
+    slaveSpeedFeedback           : REAL;   // [m/min or %] — be consistent
+
+    // ── Ratio & Offsets ─────────────────────────────────────────────────────────
+    gearRatio                    : REAL := 1.0;   // Slave/Master speed ratio
+    slaveTorqueOfsset            : REAL := 0.0;          // (typo kept) torque trim [%/Nm]
+    slaveSpeedOffset             : REAL := 10;          // Offset as % of master speed (+5 => +5%)
+	
+	// ── Torque control parameters ───────────────────────────────────────────────────
+	torqueLimitMinPct    	: REAL := 5.0;   // Min torque [%]  (allow negative if regen, e.g. -100)
+	torqueLimitMaxPct    	: REAL := 100.0; // Max torque [%]
+	torqueDeadbandPct    	: REAL := 1.0;   // Below this |torque| => 0 (noise cleanup)
+	torqueFilterTime		: TIME := T#20MS;
+
+    // ── Dynamics (for ramp block) ───────────────────────────────────────────────
+    rampRate                     : REAL := 0.01;  // Ref accel mag in %/s (A_UP=+rampRate, A_DN=-rampRate)
+	
+	// ── Speed diference limit ───────────────────────────────────────────────
+	speedDiferenceLimit				: REAL := 20.0;
+	
+END_VAR
+
+VAR_OUTPUT
+	
+	deviceState						: STRING;
+
+    // ── Drive References (0..100%) ──────────────────────────────────────────────
+    masterDriveSpeedRefPct       : REAL;   // Master reference [%]
+    slaveDriveSpeedRefPct        : REAL;   // Slave  reference [%]
+	nextGroupSpeedRefPct        	: REAL;   // Next group reference [%]
+
+
+    slaveDriveTorqueLimit        : REAL;   // [% or Nm] (your logic)
+
+    // ── Drive Commands ──────────────────────────────────────────────────────────
+    masterDriveEnable            : BOOL;
+    slaveDriveEnable             : BOOL;
+    masterDriveReset             : BOOL;
+    slaveDriveReset              : BOOL;
+	currentSpeedDifence				: REAL;	
+
+	
+END_VAR
+
+VAR
+    // ── Internals ───────────────────────────────────────────────────────────────
+    rampTargetPct                : REAL;   // 0..100% target into ramp
+    instTUNE2_SpeedDifGen        : TUNE2;  // (reserved)
+    instFB_Gen_SRamp             : FB_Gen_SRamp; // Your ramp FB
+
+    // State machine
+    state                        : INT;    // 0=IDLE,1=ENABLE,2=WAIT_EN,3=RAMP_EN,4=RUN,5=STOPPING,10=FAULT
+    startGroupOld                : BOOL;
+    rStart                       : BOOL;
+    rStop                        : BOOL;
+
+    // Timers
+    instTONEnableWait            : TON;
+    instTONStopWait              : TON;
+
+    // Parameters for waits/thresholds
+    enableTimeout                : TIME := T#5S;     // Wait for op-enable
+    stopTimeout                  : TIME := T#8S;     // Max wait to speed≈0
+    speedZeroThresholdPct        : REAL := 4.00;     // Consider stopped if |speed| ≤ this (same unit as refs)
+    epsRefPct                    : REAL := 0.05;     // Small epsilon for ref≈0
+
+    // Flags to ramp FB
+    rampReset                    : BOOL;   // Resets ramp (sets Y/V to 0 in your FB)
+	
+
+	
+	// ── Filter state ────────────────────────────────────────────────────────────────
+	torqueFiltY          : REAL;          // last filtered torque
+	torqueFiltInit       : BOOL;          // init flag (bumpless start)	
+	instsFT_PT1TorqueFilter	: FT_PT1;	
+		
+	instTONSpeedDifDelay: TON;
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[// ─────────────────────────────────────────────────────────────
+// 1) Group control state machine
+//    - Handles START/STOP edges
+//    - Manages ENABLE, STOPPING, and FAULT states
+//    - Controls drive enable/reset commands
+_GroupControl();
+
+// ─────────────────────────────────────────────────────────────
+// 2) Speed reference generation
+//    - Scales Auto/Manual speed setpoints into 0..100%
+//    - Applies acceleration/deceleration ramps
+//    - Considers gear ratio and slave offset
+//    - Clamps values to avoid saturation (>100%)
+_ReferenceGenerator();
+
+// ─────────────────────────────────────────────────────────────
+// 3) Torque reference transfer
+//    - Reads master torque feedback and applies PT1 filter
+//    - Cleans noise with deadband and adds slave offset
+//    - Limits the torque to configured min/max bounds
+_TorqueReference();
+
+// ─────────────────────────────────────────────────────────────
+// 4) Speed difference monitoring
+//    - Calculates absolute difference between master/slave speeds
+//    - Updates currentSpeedDifence (for HMI/diagnostics)
+//    - If difference exceeds limit, forces STOPPING state
+_SpeedDifferenceCheck();
+]]></ST>
+    </Implementation>
+    <Method Name="_GroupControl" Id="{271f02ea-c2de-408c-96f9-a5c662058d60}">
+      <Declaration><![CDATA[METHOD _GroupControl
+VAR_INPUT
+END_VAR
+VAR
+    speedsNearZero : BOOL;
+    refNearZero    : BOOL;
+    bothOpEnabled  : BOOL;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// ───────────────────────── Main execution ─────────────────────────────────────── // Edges 
+rStart := startGroup AND NOT startGroupOld; rStop := NOT startGroup AND startGroupOld; startGroupOld := startGroup; 
+// Feedback conditions (use your chosen unit for threshold; here using %) 
+
+speedsNearZero := (ABS(masterSpeedFeedback) <= speedZeroThresholdPct) AND (ABS(slaveSpeedFeedback) <= speedZeroThresholdPct); 
+
+// Also consider the reference itself near zero (in case feedback not available) 
+refNearZero := ABS(masterDriveSpeedRefPct) <= epsRefPct; bothOpEnabled := groupMasterOperationEnabled AND groupSlaveOperationEnabled;
+
+
+
+// ── State machine ───────────────────────────────────────────────────────────────
+CASE state OF
+    0: // IDLE
+        deviceState := 'IDLE';
+        rampReset := TRUE;                    // keep ramp reset at idle
+        IF rStart AND NOT groupFault THEN
+            state := 1;
+        END_IF
+
+    1: // ENABLE DRIVES
+        deviceState := 'ENABLE_DRIVES';
+        masterDriveEnable := TRUE;
+        slaveDriveEnable  := TRUE;
+        rampReset         := TRUE;            // still hold ramp reset
+
+        instTONEnableWait(IN := TRUE, PT := enableTimeout);
+        state := 2;
+
+    2: // WAIT ENABLE FEEDBACK
+        deviceState := 'WAIT_ENABLE_FEEDBACK';
+        masterDriveEnable := TRUE;
+        slaveDriveEnable  := TRUE;
+        rampReset         := TRUE;
+
+        instTONEnableWait(IN := TRUE, PT := enableTimeout);
+
+        IF groupFault THEN
+            instTONEnableWait(IN := FALSE);
+            state := 10;
+        ELSIF rStop THEN
+            instTONEnableWait(IN := FALSE);
+            state := 5;                       // go to controlled stop
+        ELSIF bothOpEnabled THEN
+            instTONEnableWait(IN := FALSE);
+            state := 3;
+        ELSIF instTONEnableWait.Q THEN
+            instTONEnableWait(IN := FALSE);
+            state := 10;                      // treat as fault (no enable feedback)
+        END_IF
+
+    3: // RAMP ENABLE (single-cycle gate)
+        deviceState := 'RAMP_ENABLE';
+        masterDriveEnable := TRUE;
+        slaveDriveEnable  := TRUE;
+        rampReset         := FALSE;           // release ramp now
+        state := 4;
+
+    4: // RUN
+        IF groupSpeedAutoMan THEN
+            deviceState := 'RUN (Auto)';
+        ELSE
+            deviceState := 'RUN (Manual)';
+        END_IF;
+
+        masterDriveEnable := TRUE;
+        slaveDriveEnable  := TRUE;
+        rampReset         := FALSE;
+
+        IF groupFault THEN
+            state := 10;
+        ELSIF rStop THEN
+            state := 5;
+        END_IF
+
+    5: // STOPPING (controlled)
+        deviceState := 'STOPPING';
+        masterDriveEnable := TRUE;            // keep enabled during decel
+        slaveDriveEnable  := TRUE;
+        rampReset         := FALSE;           // keep ramp active to ramp down
+
+        // Start/keep stop wait
+//        instTONStopWait(IN := TRUE, PT := stopTimeout);
+
+        // Disable only when speed≈0 AND reference≈0 (backup)
+        IF groupFault THEN
+            instTONStopWait(IN := FALSE);
+            state := 10;
+
+        ELSIF speedsNearZero AND refNearZero THEN
+            masterDriveEnable := FALSE;
+            slaveDriveEnable  := FALSE;
+            instTONStopWait(IN := FALSE);
+            state := 0;
+
+        ELSIF instTONStopWait.Q THEN
+            masterDriveEnable := FALSE;
+            slaveDriveEnable  := FALSE;
+            instTONStopWait(IN := FALSE);
+            state := 10;
+        END_IF
+
+    10: // FAULT
+        deviceState := 'FAULT';
+        rampReset         := TRUE;            // force ramp outputs to zero
+        masterDriveEnable := FALSE;
+        slaveDriveEnable  := FALSE;
+
+        // Clear fault when fault disappears and start is low
+        IF (NOT groupFault) AND (NOT startGroup) THEN
+            state := 0;
+        END_IF
+END_CASE;
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_ReferenceGenerator" Id="{06c1dbcb-571e-4caf-a218-677ec0ec65ca}">
+      <Declaration><![CDATA[METHOD _ReferenceGenerator
+VAR
+    headroomEpsPct      : REAL := 0.20;   // anti-chatter near 100%
+    offsetPct           : REAL;
+    denom               : REAL;
+    maxMasterBySlave    : REAL;
+    allowedCapPct       : REAL;
+    currMasterPct       : REAL;
+    currSlavePct        : REAL;
+	targetPct: REAL;
+	cmdSpeedMPM: REAL;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// 3) Scale to 0..100% for the drives (as you already have)
+
+IF groupSpeedAutoMan THEN
+	
+	targetPct := _Scale(
+		X    := groupAutoSpeedMPM,
+		I_LO := 0.0,      I_HI := groupMaxSpeed,
+		O_LO := 0.0,      O_HI := 100.0);
+ELSE
+	
+	targetPct := _Scale(
+		X    := groupManualSpeedMPM,
+		I_LO := 0.0,      I_HI := groupMaxSpeed,
+		O_LO := 0.0,      O_HI := 100.0);	
+
+END_IF
+
+
+// 4) During STOPPING/FAULT we want zero target; in STOPPING we still ramp down
+IF state = 5 THEN
+    rampTargetPct := 0.0;
+ELSE
+    rampTargetPct := targetPct;
+END_IF;
+
+// --- NEW: Pre-limit so SLAVE can’t exceed 100% for given gear + offset ---
+offsetPct := slaveSpeedOffset * 0.01;
+denom     := gearRatio + offsetPct;
+
+// If denom <= 0, fall back to 100% (no additional cap required)
+IF denom > 0.0 THEN
+    maxMasterBySlave := 100.0 / denom;   // master % that makes slave hit 100%
+ELSE
+    maxMasterBySlave := 100.0;
+END_IF;
+
+// The cap the master target must obey (also respect master’s own 100%)
+allowedCapPct := MIN(100.0, maxMasterBySlave);
+
+// Apply cap to upward commands only (don’t block decel)
+rampTargetPct := MIN(rampTargetPct, allowedCapPct);
+
+// --- NEW: Freeze upward if currently at/near limit (anti-overrun using current refs) ---
+currMasterPct := instFB_Gen_SRamp.Y;                          // current master ref (%)
+currSlavePct  := LIMIT(0.0, currMasterPct * (gearRatio + offsetPct), 100.0);
+
+IF (currMasterPct >= 100.0 - headroomEpsPct) OR
+   (currSlavePct  >= 100.0 - headroomEpsPct) THEN
+    // Prevent increasing the target above current value; allow decreases
+    rampTargetPct := MIN(rampTargetPct, currMasterPct);
+END_IF;
+
+// 5) Ramp call (unchanged)
+instFB_Gen_SRamp(
+    X          := rampTargetPct,
+    A_UP       := MAX(0.0, rampRate),
+    A_DN       := -MAX(0.0, rampRate),
+    VU_MAX     := 1000.0,
+    VD_MAX     := -1000.0,
+    LIMIT_HIGH := 100.0,
+    LIMIT_LOW  := 3.5,
+    RST        := rampReset);
+
+// 6) Master reference = ramp Y but also respect the slave-driven cap
+masterDriveSpeedRefPct := MIN(instFB_Gen_SRamp.Y, allowedCapPct);
+
+// 7) Slave reference: gear + offset, then clamp 0..100
+slaveDriveSpeedRefPct :=
+    LIMIT(0.0, masterDriveSpeedRefPct * (gearRatio + offsetPct), 100.0);
+
+// 8) Final safety clamp for master (already capped above, but keep it symmetrical)
+masterDriveSpeedRefPct := LIMIT(0.0, masterDriveSpeedRefPct, 100.0);
+nextGroupSpeedRefPct := masterDriveSpeedRefPct;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_Scale" Id="{904ae733-b30a-465a-b22c-c2900845c869}">
+      <Declaration><![CDATA[METHOD PRIVATE _Scale : REAL
+VAR_INPUT
+	
+	X : REAL;
+	I_LO : REAL;
+	I_HI : REAL;
+	O_LO : REAL;
+	O_HI : REAL;
+	
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF I_LO = I_HI THEN
+	_Scale := O_LO;
+ELSE
+	_Scale := (O_HI - O_LO) / (I_HI - I_LO) * (LIMIT(I_LO, X, I_HI) - I_LO) + O_LO;
+END_IF;
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_SpeedDifferenceCheck" Id="{9cf0df1e-5f22-47bf-81d6-54c87db25c91}">
+      <Declaration><![CDATA[METHOD PRIVATE _SpeedDifferenceCheck
+VAR
+    diff : REAL;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[
+// 1) Calcular diferença absoluta Master-Slave
+diff := ABS(masterSpeedFeedback - slaveSpeedFeedback);
+currentSpeedDifence := diff;
+
+// 2) Se ultrapassar limite -> parar grupo
+IF diff > speedDiferenceLimit THEN
+    // Forçar parada de forma segura
+	
+	instTONSpeedDifDelay.IN := TRUE;
+	instTONSpeedDifDelay.PT := T#5S;	
+	
+	IF instTONSpeedDifDelay.Q THEN
+
+		state := 10;                  // vai para STOPPING (controlled stop)
+		deviceState := 'FAULT: Speed difference exceeded';		
+		
+	END_IF
+	
+ELSE
+
+	instTONSpeedDifDelay.IN := FALSE;
+	
+END_IF
+
+
+
+
+instTONSpeedDifDelay();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_TorqueReference" Id="{576ed2eb-26f0-46a5-97fd-a8ab65d7ec6c}">
+      <Declaration><![CDATA[METHOD _TorqueReference
+VAR
+    rawTorque      : REAL;
+    filtTorque     : REAL;
+    torqueCmd      : REAL;
+    limitedTorque  : REAL;
+    alpha          : REAL;
+    clamped        : BOOL;
+	
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[
+
+// 1) Read master torque (keep units consistent with your limits)
+rawTorque := masterTorqueFeedback;
+
+// 2) Low-pass filter (OSCAT PT1)
+instsFT_PT1TorqueFilter(
+    in  := rawTorque,
+    T   := torqueFilterTime,   // time constant in seconds (e.g., 0.25)
+    K   := 0.8,                // unity gain
+    out => filtTorque
+);
+
+// 3) Deadband cleanup
+IF ABS(filtTorque) < torqueDeadbandPct THEN
+    filtTorque := 0.0;
+END_IF
+
+// 4) Apply offset between master and slave
+torqueCmd := filtTorque + slaveTorqueOfsset;
+
+// 5) Clamp to limits
+limitedTorque := LIMIT(torqueLimitMinPct, torqueCmd, torqueLimitMaxPct);
+clamped       := (limitedTorque <> torqueCmd);
+
+// 6) Output
+slaveDriveTorqueLimit := limitedTorque;
+
+
+//slaveDriveTorqueLimit := LIMIT(torqueLimitMinPct, masterTorqueFeedback, torqueLimitMaxPct);]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_FormingBoardDriveControl">
+      <LineId Id="1139" Count="27" />
+      <LineId Id="1138" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FormingBoardDriveControl._GroupControl">
+      <LineId Id="398" Count="2" />
+      <LineId Id="406" Count="0" />
+      <LineId Id="401" Count="0" />
+      <LineId Id="405" Count="0" />
+      <LineId Id="402" Count="0" />
+      <LineId Id="382" Count="0" />
+      <LineId Id="404" Count="0" />
+      <LineId Id="403" Count="0" />
+      <LineId Id="383" Count="0" />
+      <LineId Id="275" Count="101" />
+      <LineId Id="128" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FormingBoardDriveControl._ReferenceGenerator">
+      <LineId Id="223" Count="0" />
+      <LineId Id="285" Count="0" />
+      <LineId Id="284" Count="0" />
+      <LineId Id="292" Count="0" />
+      <LineId Id="289" Count="2" />
+      <LineId Id="286" Count="0" />
+      <LineId Id="293" Count="0" />
+      <LineId Id="298" Count="0" />
+      <LineId Id="295" Count="2" />
+      <LineId Id="294" Count="0" />
+      <LineId Id="288" Count="0" />
+      <LineId Id="287" Count="0" />
+      <LineId Id="227" Count="54" />
+      <LineId Id="20" Count="0" />
+      <LineId Id="310" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FormingBoardDriveControl._Scale">
+      <LineId Id="1" Count="5" />
+    </LineIds>
+    <LineIds Name="FB_FormingBoardDriveControl._SpeedDifferenceCheck">
+      <LineId Id="9" Count="0" />
+      <LineId Id="11" Count="6" />
+      <LineId Id="23" Count="3" />
+      <LineId Id="29" Count="0" />
+      <LineId Id="35" Count="1" />
+      <LineId Id="32" Count="0" />
+      <LineId Id="38" Count="0" />
+      <LineId Id="33" Count="0" />
+      <LineId Id="43" Count="1" />
+      <LineId Id="46" Count="1" />
+      <LineId Id="45" Count="0" />
+      <LineId Id="5" Count="0" />
+      <LineId Id="42" Count="0" />
+      <LineId Id="40" Count="0" />
+      <LineId Id="39" Count="0" />
+      <LineId Id="28" Count="0" />
+      <LineId Id="27" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FormingBoardDriveControl._TorqueReference">
+      <LineId Id="121" Count="5" />
+      <LineId Id="129" Count="19" />
+      <LineId Id="5" Count="0" />
+      <LineId Id="158" Count="0" />
+      <LineId Id="160" Count="0" />
+      <LineId Id="159" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

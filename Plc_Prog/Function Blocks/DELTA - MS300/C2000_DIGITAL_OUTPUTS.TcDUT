@@ -1,0 +1,15 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.15">
+  <DUT Name="C2000_DIGITAL_OUTPUTS" Id="{74a1426b-6038-04b7-296f-6072477776f9}">
+    <Declaration><![CDATA[TYPE C2000_DIGITAL_OUTPUTS :
+STRUCT
+		
+	RLY					: BOOL; (*Drive relay output - Terminal RLY*)
+	MO1					: BOOL; (*Drive digital output - Terminal MO2*)
+	MO2					: BOOL; (*Drive digital output - Terminal MO3*)
+		
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

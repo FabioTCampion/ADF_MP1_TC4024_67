@@ -1,0 +1,1502 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.15">
+  <POU Name="FB_FormingBoardControl_V1" Id="{0341cbdf-b8a3-4b8d-9801-cb7e35cafbf7}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_FormingBoardControl_V1
+VAR_INPUT
+    // ── Group / Interlocks ───────────────────────────────────────────────────────
+    startGroup                   : BOOL;   // Start command (pulse / rising edge)
+    stopGroup                    : BOOL;   // Stop command  (pressed / level)
+    groupReset                   : BOOL;   // Group fault Reset (Comando reset falhas do grupo)
+
+    // ── VFD per-drive status inputs ─────────────────────────────────────────────
+    formingBoardTractionRollFault               : BOOL;   // VFD ready/healthy (master)
+	formingBoardTractionRollCoolingFault  : BOOL;   // VFD ready/healthy (master)
+    formingBoardTractionRollVfdRunFeedback         : BOOL;   // VFD RUN feedback  (master)
+    formingBoardTractionRollVfdFaultFeedback       : BOOL;   // VFD fault         (master)
+   
+	formingBoardSuctionRollFault                : BOOL;   // VFD ready/healthy (slave)
+	formingBoardSuctionRollCoolingFault		: BOOL;   // VFD ready/healthy (slave)	
+	
+    formingBoardSuctionVfdRunFeedback          : BOOL;   // VFD RUN feedback  (slave)
+    formingBoardSuctionVfdFaultFeedback        : BOOL;   // VFD fault         (slave)
+
+    // ── Speed Setpoints ─────────────────────────────────────────────────────────
+    groupAutoSpeedMPM            : REAL;   // Auto speed setpoint [m/min]
+    groupMaxSpeed                : REAL := 600.0; // Max allowed line speed [m/min]
+
+    // ── Auto / Manual ───────────────────────────────────────────────────────────
+    groupSpeedAutoMan            : BOOL;   // 0=Manual / 1=Auto
+    groupManualSpeedMPM          : REAL := 50.0;  // Manual speed [m/min]
+
+    // ── Feedbacks ───────────────────────────────────────────────────────────────
+    masterTorqueFeedback         : REAL;   // [% or Nm]
+    slaveTorqueFeedback          : REAL;   // [% or Nm]
+    masterSpeedFeedback          : REAL;   // [m/min or %] — be consistent
+    slaveSpeedFeedback           : REAL;   // [m/min or %] — be consistent
+
+    // ── Ratio & Offsets ─────────────────────────────────────────────────────────
+    masterSlaveGearRatio		: REAL := 1.0;   // Slave/Master speed ratio
+// 	interGroupGearRatio			: REAL := 1.0;   // Speed diference btween groups
+	
+    slaveTorqueOfsset            : REAL := 0.0;   // (typo kept) torque trim [%/Nm]
+    slaveSpeedOffset             : REAL := 10;    // Offset as % of master speed (+5 => +5%)
+
+    // ── Torque control parameters ───────────────────────────────────────────────
+    torqueLimitMinPct            : REAL := 5.0;   // Min torque [%]  (allow negative if regen)
+    torqueLimitMaxPct            : REAL := 100.0; // Max torque [%]
+    torqueDeadbandPct            : REAL := 1.0;   // |torque| below => 0 (noise cleanup)
+	
+    torqueFilterTime             : TIME := T#1MS;
+    displayFilterTime             : TIME := T#20MS;	
+
+    // ── Dynamics (for ramp block) ───────────────────────────────────────────────
+    rampRate                     : REAL := 0.01;  // Ref accel mag in %/s (A_UP=+rampRate, A_DN=-rampRate)
+
+    // ── Speed difference limit ──────────────────────────────────────────────────
+    speedDiferenceLimit          : REAL := 5.0;
+	
+	
+	
+	
+	//Headbox inputs
+	
+	//==============================================================
+	// FORMING BOARD — WIRE EDGE OVERRUN SENSORS
+	//==============================================================
+	formingBoardWireOverrunOperatorSideSensor : BOOL;  // TRUE when wire overruns on operator side
+	formingBoardWireOverrunDriveSideSensor    : BOOL;  // TRUE when wire overruns on drive/motor side	
+
+	//==============================================================
+	// HEADBOX LIPS OPENING CONTROL — VARIABLES
+	//==============================================================
+	
+	// Position feedback and physical limits [mm]
+	headboxLipsPositionFeedback_mm     : REAL;          // Actual lips opening [mm]
+	headboxLipsMinOpening_mm           : REAL := 0.0;   // Minimum allowed opening [mm]
+	headboxLipsMaxOpening_mm           : REAL := 25.0;  // Maximum allowed opening [mm]
+	
+	// Limit sensors (digital inputs)
+	headboxLipsLimitFullyOpen          : BOOL;          // TRUE when fully open (max) limit sensor active
+	headboxLipsLimitFullyClosed        : BOOL;          // TRUE when fully closed (min) limit sensor active
+	
+	// Manual jog commands (for manual mode)
+	headboxLipsManualOpenCmd           : BOOL;          // Jog open while pressed
+	headboxLipsManualCloseCmd          : BOOL;          // Jog close while pressed
+	
+	// Automatic positioning (for auto mode)
+	headboxLipsTargetSetpoint_mm       : REAL;          // Desired lips opening [mm]
+	headboxLipsAutoAdjustCmd           : BOOL;          // Pulse to start auto adjustment
+	
+		
+	formingBoardRollUpCmd        : BOOL;  // Command to move forming board UP (active-high)
+	formingBoardRollDownCmd      : BOOL;  // Command to move forming board DOWN (active-high)
+	formingBoardRollLimitUpSensor    : BOOL;  // TRUE when upper limit is reached (prevents further UP)
+	formingBoardRollLimitDownSensor  : BOOL;  // TRUE when lower limit is reached (prevents further DOWN)
+	formingBoardRollUpDownMotorFault            : BOOL;  // TRUE = fault present → disables all movement	
+	
+	formingBoardStretchCmd           : BOOL;  // Jog command to stretch (increase tension)
+	formingBoardUnstretchCmd         : BOOL;  // Jog command to unstretch (decrease tension)
+	formingBoardLimitStretchSensor   : BOOL;  // TRUE when maximum stretch limit is reached
+	formingBoardLimitUnstretchSensor : BOOL;  // TRUE when minimum stretch limit is reached
+	formingBoardStretchMotorFault         : BOOL;  // Fault interlock for stretch unit
+	
+		
+END_VAR
+
+VAR_OUTPUT
+    deviceState                  : STRING;
+    groupFault                   : BOOL;   // Fault present (Falha do grupo)
+
+    // ── Drive References (0..100%) ──────────────────────────────────────────────
+    masterDriveSpeedRefPct       : REAL;   // Master reference [%]
+    slaveDriveSpeedRefPct        : REAL;   // Slave  reference [%]
+	nextGroupSpeedRefPct		 : REAL;   // Next group reference [%]
+	nextGroupSpeedRefMPM		 : REAL;   // Next group reference [Meters per minute]
+	
+    // ── Torque limit to slave (from master torque path / or PID) ───────────────
+    slaveDriveTorqueLimit        : REAL;   // [% or Nm]
+
+    // ── Drive Commands ──────────────────────────────────────────────────────────
+    masterDriveEnable            : BOOL;
+    slaveDriveEnable             : BOOL;
+    masterDriveReset             : BOOL;
+    slaveDriveReset              : BOOL;
+
+    // ── Diagnostics ─────────────────────────────────────────────────────────────
+    currentSpeedDifence          : REAL;
+
+    // ── Group status & HMI displays ────────────────────────────────────────────
+    statusCode                   	: INT;    // 0=Idle, 1=Starting, 2=Running, 3=Fault (group)
+	
+    masterSpeedMPMFilteredDisplay   : REAL;   // Filtered master speed [m/min]
+    slaveSpeedMPMFilteredDisplay    : REAL;   // Filtered slave  speed [m/min]
+	
+    masterTorqueFilteredDisplay  	: REAL;   // Master torque (raw)  [% or Nm]
+    slaveTorqueFilteredDisplay   	: REAL;   // Slave torque (filtered) [% or Nm]
+
+    // ── NEW: per-drive motor status codes ───────────────────────────────────────
+    masterStatusCode             : INT;    // 0=Idle, 1=Starting, 2=Running, 3=Fault
+    slaveStatusCode              : INT;    // 0=Idle, 1=Starting, 2=Running, 3=Fault
+	
+	//==============================================================
+	// HEADBOX LIPS OPENING CONTROL — OUTPUTS
+	//==============================================================
+	
+	// Drive outputs (modulated by PWM in automatic mode)
+	headboxLipsOpenCmd                : BOOL;  // Output to open lips (PWM-modulated in Auto mode)
+	headboxLipsCloseCmd               : BOOL;  // Output to close lips (PWM-modulated in Auto mode)
+	headboxLipsPosition_mm       		  : REAL;  // Target − Feedback error [mm]
+	
+	//==============================================================
+	// FORMING BOARD — ROLL DRIVE OUTPUTS
+	//==============================================================
+	formingBoardRollUp       : BOOL;  // Output to drive the forming board UP
+	formingBoardRollDown     : BOOL;  // Output to drive the forming board DOWN
+	
+	//==============================================================
+	// FORMING BOARD — STRETCH DRIVE OUTPUTS
+	//==============================================================
+	formingBoardStretch      : BOOL;  // Output to stretch (increase tension)
+	formingBoardUnstretch    : BOOL;  // Output to unstretch (decrease tension)
+		
+
+	hmiAlarms 				: PaperMachine_TypeHmiAlarms; 	
+
+END_VAR
+
+VAR
+    // ── Internals / Ramps ───────────────────────────────────────────────────────
+    rampTargetPct                : REAL;   // 0..100% target into ramp
+    instFB_Gen_SRamp             : FB_Gen_SRamp; // Your ramp FB
+
+    // ── State & Edges ───────────────────────────────────────────────────────────
+    state                        : INT;    // 0=IDLE,1=ENABLE,2=WAIT_EN,3=RAMP_EN,4=RUN,5=STOPPING,10=FAULT
+    startGroupOld                : BOOL;
+    stopGroupOld                 : BOOL;
+    rStart                       : BOOL;
+    rStop                        : BOOL;
+
+    // ── Timers & thresholds ─────────────────────────────────────────────────────
+    instTONEnableWait            : TON;
+    instTONStopWait              : TON;
+    enableTimeout                : TIME := T#5s;  // Wait for op-enable
+    stopTimeout                  : TIME := T#8s;  // Max wait to speed≈0
+    speedZeroThresholdPct        : REAL := 4.00;  // Consider stopped if |speed| ≤ this
+    epsRefPct                    : REAL := 0.05;  // Small epsilon for ref≈0
+
+    // ── Ramp control ────────────────────────────────────────────────────────────
+    rampReset                    : BOOL;   // Resets ramp (sets Y/V to 0 in your FB)
+
+    // ── Filter state used by _TorqueReference ───────────────────────────────────
+    torqueFiltY                  : REAL;   // last filtered torque
+    torqueFiltInit               : BOOL;   // init flag (bumpless start)
+    instsFT_PT1TorqueFilter      : FT_PT1;
+
+    // ── Speed difference supervision ────────────────────────────────────────────
+    instTONSpeedDifDelay         : TON;
+
+    // ── HMI-only PT1 filters ───────────────────────────────────────────────────
+    instPT1_MasterSpeedDisplay          : FT_PT1;
+    instPT1_SlaveSpeedDisplay           : FT_PT1;
+	
+    instPT1_MasterTorqueDisplay  		: FT_PT1;
+    instPT1_SlaveTorqueDisplay   		: FT_PT1;
+	
+	instFB_HeadboxLipsPWMControl		: FB_HeadboxLipsPWMControl;	
+	
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[// ─────────────────────────────────────────────────────────────────────────────
+// MAIN CALL SEQUENCE
+// ─────────────────────────────────────────────────────────────────────────────
+_FeedbackDisplay();
+_GroupControl();          // 1) State machine: edges, enables, stop modes
+_ReferenceGenerator();    // 2) Build master/slave references with ramp
+_TorqueReference();       // 3) Legacy torque transfer (kept)
+_StateDisplay();
+
+_SpeedDifferenceCheck();  // 4) Speed difference monitor & trip
+_headboxLipsPosition();
+
+_auxiliaryControls();
+_alarmsDisplay();]]></ST>
+    </Implementation>
+    <Method Name="_alarmsDisplay" Id="{0461d554-8be0-4155-a22f-684dbe18fcea}">
+      <Declaration><![CDATA[METHOD _alarmsDisplay
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[//==============================================================
+// FAULT EVALUATION — PER CONDITION (flags only; no global set)
+//==============================================================
+
+//----------------------------
+// FORMING BOARD DRIVES
+//----------------------------
+hmiAlarms.formingBoardRollDriveFaultAlarm    := formingBoardRollUpDownMotorFault;
+hmiAlarms.formingBoardStretchDriveFaultAlarm := formingBoardStretchMotorFault;
+
+//----------------------------
+// FORMING BOARD AUXILIARY MOTORS
+//----------------------------
+hmiAlarms.formingBoardSuctionRollFaultAlarm         := formingBoardSuctionRollFault;
+hmiAlarms.formingBoardSuctionRollCoolingFaultAlarm  := formingBoardSuctionRollCoolingFault;
+hmiAlarms.formingBoardTractionRollFaultAlarm        := formingBoardTractionRollFault;
+hmiAlarms.formingBoardTractionRollCoolingFaultAlarm := formingBoardTractionRollCoolingFault;
+
+//----------------------------
+// FORMING BOARD WIRE OVERRUN
+//----------------------------
+hmiAlarms.formingBoardWireOverrunOperatorSideAlarm := formingBoardWireOverrunOperatorSideSensor;
+hmiAlarms.formingBoardWireOverrunDriveSideAlarm    := formingBoardWireOverrunDriveSideSensor;
+
+//----------------------------
+// FORMING BOARD GROUP FAULT STATUS
+//----------------------------
+groupFault :=
+    hmiAlarms.formingBoardRollDriveFaultAlarm OR
+    hmiAlarms.formingBoardStretchDriveFaultAlarm OR
+    hmiAlarms.formingBoardSuctionRollFaultAlarm OR
+    hmiAlarms.formingBoardSuctionRollCoolingFaultAlarm OR
+    hmiAlarms.formingBoardTractionRollFaultAlarm OR
+    hmiAlarms.formingBoardTractionRollCoolingFaultAlarm OR
+    hmiAlarms.formingBoardWireOverrunOperatorSideAlarm OR
+    hmiAlarms.formingBoardWireOverrunDriveSideAlarm;
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_auxiliaryControls" Id="{a22de1c9-6b9a-4972-be03-0a4d0f8183e9}">
+      <Declaration><![CDATA[METHOD _auxiliaryControls
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[//============================
+// FORMING BOARD ROLL UP/DOWN
+//============================
+IF NOT formingBoardRollUpDownMotorFault THEN
+    IF formingBoardRollUpCmd AND NOT formingBoardRollDownCmd AND NOT formingBoardRollLimitUpSensor THEN
+        formingBoardRollUp := TRUE;
+    ELSE
+        formingBoardRollUp := FALSE;
+    END_IF;
+
+    IF formingBoardRollDownCmd AND NOT formingBoardRollUpCmd AND NOT formingBoardRollLimitDownSensor THEN
+        formingBoardRollDown := TRUE;
+    ELSE
+        formingBoardRollDown := FALSE;
+    END_IF;
+ELSE
+    formingBoardRollUp := FALSE;
+    formingBoardRollDown := FALSE;
+END_IF;
+
+
+//============================
+// FORMING BOARD STRETCH/UNSTRETCH
+//============================
+IF NOT formingBoardStretchMotorFault THEN
+    IF formingBoardStretchCmd AND NOT formingBoardUnstretchCmd AND NOT formingBoardLimitStretchSensor THEN
+        formingBoardStretch := TRUE;
+    ELSE
+        formingBoardStretch := FALSE;
+    END_IF;
+
+    IF formingBoardUnstretchCmd AND NOT formingBoardStretchCmd AND NOT formingBoardLimitUnstretchSensor THEN
+        formingBoardUnstretch := TRUE;
+    ELSE
+        formingBoardUnstretch := FALSE;
+    END_IF;
+ELSE
+    formingBoardStretch := FALSE;
+    formingBoardUnstretch := FALSE;
+END_IF;
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_FeedbackDisplay" Id="{9787b19e-cb2a-4ad6-b3b8-527a44a0dd75}">
+      <Declaration><![CDATA[METHOD _FeedbackDisplay
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// 5) HMI DISPLAY SIGNALS (filtered speeds/torques + GROUP status)
+instPT1_MasterSpeedDisplay(in := masterSpeedFeedback, T := displayFilterTime, K := 1.0, out => masterSpeedMPMFilteredDisplay);
+instPT1_SlaveSpeedDisplay (in := slaveSpeedFeedback , T := displayFilterTime, K := 1.0, out => slaveSpeedMPMFilteredDisplay);
+
+instPT1_MasterTorqueDisplay(in := masterTorqueFeedback, T := displayFilterTime, K := 1.0, out => masterTorqueFilteredDisplay);
+instPT1_SlaveTorqueDisplay (in := slaveTorqueFeedback , T := displayFilterTime, K := 1.0, out => slaveTorqueFilteredDisplay);
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_GroupControl" Id="{ffb736eb-8f73-4dad-91a7-f4ecebade366}">
+      <Declaration><![CDATA[// ============================== Methods ==============================
+// 1) GROUP CONTROL
+METHOD _GroupControl
+VAR_INPUT
+END_VAR
+VAR
+    speedsNearZero : BOOL;
+    refNearZero    : BOOL;
+    bothOpEnabled  : BOOL;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// Edges
+rStart := startGroup AND NOT startGroupOld;     // Start on pulse
+rStop  := stopGroup  AND NOT stopGroupOld;      // Stop also has an edge
+startGroupOld := startGroup;
+stopGroupOld  := stopGroup;
+
+// Feedback conditions (unit matches your % references)
+speedsNearZero :=
+    (ABS(masterSpeedFeedback) <= speedZeroThresholdPct) AND
+    (ABS(slaveSpeedFeedback)  <= speedZeroThresholdPct);
+
+// Also consider the reference near zero (backup)
+refNearZero := ABS(masterDriveSpeedRefPct) <= epsRefPct;
+
+// Use the original "operation enabled" for RUN readiness
+bothOpEnabled := formingBoardTractionRollFault AND formingBoardSuctionRollFault;
+
+CASE state OF
+    0: // IDLE
+        deviceState := 'IDLE';
+        rampReset := TRUE;
+        IF rStart AND NOT groupFault THEN
+            state := 1;
+        END_IF
+
+    1: // ENABLE DRIVES
+        deviceState := 'ENABLE_DRIVES';
+        masterDriveEnable := TRUE;
+        slaveDriveEnable  := TRUE;
+        rampReset         := TRUE;
+
+        instTONEnableWait(IN := TRUE, PT := enableTimeout);
+        IF stopGroup THEN
+            instTONEnableWait(IN := FALSE);
+            state := 5;
+        ELSE
+            state := 2;
+        END_IF
+
+    2: // WAIT ENABLE FEEDBACK
+        deviceState := 'WAIT_ENABLE_FEEDBACK';
+        masterDriveEnable := TRUE;
+        slaveDriveEnable  := TRUE;
+        rampReset         := TRUE;
+
+        instTONEnableWait(IN := TRUE, PT := enableTimeout);
+
+        IF groupFault THEN
+            instTONEnableWait(IN := FALSE);
+            state := 10;
+        ELSIF rStop OR stopGroup THEN
+            instTONEnableWait(IN := FALSE);
+            state := 5;
+        ELSIF bothOpEnabled THEN
+            instTONEnableWait(IN := FALSE);
+            state := 3;
+        ELSIF instTONEnableWait.Q THEN
+            instTONEnableWait(IN := FALSE);
+            state := 10; // fault: no enable feedback
+        END_IF
+
+    3: // RAMP ENABLE (single-cycle gate)
+        deviceState := 'RAMP_ENABLE';
+        masterDriveEnable := TRUE;
+        slaveDriveEnable  := TRUE;
+        rampReset         := FALSE; // release ramp now
+        IF stopGroup THEN
+            state := 5;
+        ELSE
+            state := 4;
+        END_IF
+
+    4: // RUN
+        deviceState := SEL(groupSpeedAutoMan,'RUN (Manual)', 'RUN (Auto)');
+        masterDriveEnable := TRUE;
+        slaveDriveEnable  := TRUE;
+        rampReset         := FALSE;
+
+        IF groupFault THEN
+            state := 10;
+        ELSIF rStop OR stopGroup THEN
+            state := 5;
+        END_IF
+
+    5: // STOPPING (controlled)
+        deviceState := 'STOPPING';
+        masterDriveEnable := TRUE;    // keep enabled during decel
+        slaveDriveEnable  := TRUE;
+        rampReset         := FALSE;   // ramp down references
+        // instTONStopWait(IN := TRUE, PT := stopTimeout);  // optional timeout
+
+        // Disable when speed≈0 AND reference≈0
+        IF groupFault THEN
+            instTONStopWait(IN := FALSE);
+            state := 10;
+
+        ELSIF speedsNearZero AND refNearZero THEN
+            masterDriveEnable := FALSE;
+            slaveDriveEnable  := FALSE;
+            instTONStopWait(IN := FALSE);
+            state := 0;
+
+        ELSIF instTONStopWait.Q THEN
+            masterDriveEnable := FALSE;
+            slaveDriveEnable  := FALSE;
+            instTONStopWait(IN := FALSE);
+            state := 10;
+        END_IF
+
+    10: // FAULT
+        deviceState := 'FAULT';
+        rampReset         := TRUE;    // force ramp outputs to zero
+        masterDriveEnable := FALSE;
+        slaveDriveEnable  := FALSE;
+
+        // Clear fault when fault disappears and start is low
+        IF (NOT groupFault) AND (NOT startGroup) THEN
+            state := 0;
+        END_IF
+END_CASE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_headboxLipsPosition" Id="{ae440f30-7006-4b9b-8786-c39621402025}">
+      <Declaration><![CDATA[METHOD _headboxLipsPosition
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <NWL>
+          <XmlArchive>
+            <Data>
+              <o xml:space="preserve" t="NWLImplementationObject">
+                <v n="NetworkListComment">""</v>
+                <v n="DefaultViewMode">"Fbd"</v>
+                <l2 n="NetworkList" cet="Network">
+                  <o>
+                    <v n="ILActive">false</v>
+                    <v n="FBDValid">false</v>
+                    <v n="ILValid">false</v>
+                    <l2 n="ILLines" />
+                    <v n="Comment">""</v>
+                    <v n="Title">""</v>
+                    <v n="Label">""</v>
+                    <v n="OutCommented">false</v>
+                    <l2 n="NetworkItems" cet="BoxTreeAssign">
+                      <o>
+                        <o n="OutputItems" t="OutputItemList">
+                          <l2 n="OutputItems" cet="Operand">
+                            <o>
+                              <v n="Operand">"headboxLipsOpenCmd"</v>
+                              <v n="Type">"BOOL"</v>
+                              <v n="Comment">""</v>
+                              <v n="SymbolComment">""</v>
+                              <v n="Address">""</v>
+                              <o n="Flags" t="Flags">
+                                <v n="Flags">0</v>
+                                <v n="Fixed">false</v>
+                                <v n="Extensible">false</v>
+                              </o>
+                              <v n="LValue">true</v>
+                              <v n="Boolean">false</v>
+                              <v n="IsInstance">false</v>
+                              <v n="Id">52L</v>
+                            </o>
+                          </l2>
+                        </o>
+                        <o n="Flags" t="Flags">
+                          <v n="Flags">0</v>
+                          <v n="Fixed">false</v>
+                          <v n="Extensible">false</v>
+                        </o>
+                        <o n="RValue" t="BoxTreeBox">
+                          <v n="BoxType">"FB_HeadboxLipsPWMControl"</v>
+                          <o n="Instance" t="Operand">
+                            <v n="Operand">"instFB_HeadboxLipsPWMControl"</v>
+                            <v n="Type">"FB_HeadboxLipsPWMControl"</v>
+                            <v n="Comment">""</v>
+                            <v n="SymbolComment">""</v>
+                            <v n="Address">""</v>
+                            <o n="Flags" t="Flags">
+                              <v n="Flags">0</v>
+                              <v n="Fixed">false</v>
+                              <v n="Extensible">false</v>
+                            </o>
+                            <v n="LValue">false</v>
+                            <v n="Boolean">false</v>
+                            <v n="IsInstance">true</v>
+                            <v n="Id">57L</v>
+                          </o>
+                          <o n="OutputItems" t="OutputItemList">
+                            <l2 n="OutputItems" cet="Operand">
+                              <n />
+                              <o>
+                                <v n="Operand">"headboxLipsCloseCmd"</v>
+                                <v n="Type">"BOOL"</v>
+                                <v n="Comment">""</v>
+                                <v n="SymbolComment">""</v>
+                                <v n="Address">""</v>
+                                <o n="Flags" t="Flags">
+                                  <v n="Flags">0</v>
+                                  <v n="Fixed">false</v>
+                                  <v n="Extensible">false</v>
+                                </o>
+                                <v n="LValue">true</v>
+                                <v n="Boolean">false</v>
+                                <v n="IsInstance">false</v>
+                                <v n="Id">8L</v>
+                              </o>
+                              <o>
+                                <v n="Operand">""</v>
+                                <n n="Type" />
+                                <v n="Comment">""</v>
+                                <v n="SymbolComment">""</v>
+                                <v n="Address">""</v>
+                                <o n="Flags" t="Flags">
+                                  <v n="Flags">0</v>
+                                  <v n="Fixed">false</v>
+                                  <v n="Extensible">false</v>
+                                </o>
+                                <v n="LValue">true</v>
+                                <v n="Boolean">false</v>
+                                <v n="IsInstance">false</v>
+                                <v n="Id">9L</v>
+                              </o>
+                              <o>
+                                <v n="Operand">""</v>
+                                <n n="Type" />
+                                <v n="Comment">""</v>
+                                <v n="SymbolComment">""</v>
+                                <v n="Address">""</v>
+                                <o n="Flags" t="Flags">
+                                  <v n="Flags">0</v>
+                                  <v n="Fixed">false</v>
+                                  <v n="Extensible">false</v>
+                                </o>
+                                <v n="LValue">true</v>
+                                <v n="Boolean">false</v>
+                                <v n="IsInstance">false</v>
+                                <v n="Id">10L</v>
+                              </o>
+                              <o>
+                                <v n="Operand">""</v>
+                                <n n="Type" />
+                                <v n="Comment">""</v>
+                                <v n="SymbolComment">""</v>
+                                <v n="Address">""</v>
+                                <o n="Flags" t="Flags">
+                                  <v n="Flags">0</v>
+                                  <v n="Fixed">false</v>
+                                  <v n="Extensible">false</v>
+                                </o>
+                                <v n="LValue">true</v>
+                                <v n="Boolean">false</v>
+                                <v n="IsInstance">false</v>
+                                <v n="Id">11L</v>
+                              </o>
+                              <o>
+                                <v n="Operand">""</v>
+                                <n n="Type" />
+                                <v n="Comment">""</v>
+                                <v n="SymbolComment">""</v>
+                                <v n="Address">""</v>
+                                <o n="Flags" t="Flags">
+                                  <v n="Flags">0</v>
+                                  <v n="Fixed">false</v>
+                                  <v n="Extensible">false</v>
+                                </o>
+                                <v n="LValue">true</v>
+                                <v n="Boolean">false</v>
+                                <v n="IsInstance">false</v>
+                                <v n="Id">12L</v>
+                              </o>
+                              <o>
+                                <v n="Operand">""</v>
+                                <n n="Type" />
+                                <v n="Comment">""</v>
+                                <v n="SymbolComment">""</v>
+                                <v n="Address">""</v>
+                                <o n="Flags" t="Flags">
+                                  <v n="Flags">0</v>
+                                  <v n="Fixed">false</v>
+                                  <v n="Extensible">false</v>
+                                </o>
+                                <v n="LValue">true</v>
+                                <v n="Boolean">false</v>
+                                <v n="IsInstance">false</v>
+                                <v n="Id">13L</v>
+                              </o>
+                              <o>
+                                <v n="Operand">""</v>
+                                <n n="Type" />
+                                <v n="Comment">""</v>
+                                <v n="SymbolComment">""</v>
+                                <v n="Address">""</v>
+                                <o n="Flags" t="Flags">
+                                  <v n="Flags">0</v>
+                                  <v n="Fixed">false</v>
+                                  <v n="Extensible">false</v>
+                                </o>
+                                <v n="LValue">true</v>
+                                <v n="Boolean">false</v>
+                                <v n="IsInstance">false</v>
+                                <v n="Id">14L</v>
+                              </o>
+                              <o>
+                                <v n="Operand">"headboxLipsPosition_mm"</v>
+                                <v n="Type">"REAL"</v>
+                                <v n="Comment">""</v>
+                                <v n="SymbolComment">""</v>
+                                <v n="Address">""</v>
+                                <o n="Flags" t="Flags">
+                                  <v n="Flags">0</v>
+                                  <v n="Fixed">false</v>
+                                  <v n="Extensible">false</v>
+                                </o>
+                                <v n="LValue">true</v>
+                                <v n="Boolean">false</v>
+                                <v n="IsInstance">false</v>
+                                <v n="Id">56L</v>
+                              </o>
+                              <o>
+                                <v n="Operand">""</v>
+                                <n n="Type" />
+                                <v n="Comment">""</v>
+                                <v n="SymbolComment">""</v>
+                                <v n="Address">""</v>
+                                <o n="Flags" t="Flags">
+                                  <v n="Flags">0</v>
+                                  <v n="Fixed">false</v>
+                                  <v n="Extensible">false</v>
+                                </o>
+                                <v n="LValue">true</v>
+                                <v n="Boolean">false</v>
+                                <v n="IsInstance">false</v>
+                                <v n="Id">15L</v>
+                              </o>
+                            </l2>
+                          </o>
+                          <o n="Flags" t="Flags">
+                            <v n="Flags">0</v>
+                            <v n="Fixed">true</v>
+                            <v n="Extensible">false</v>
+                          </o>
+                          <n n="InputFlags" />
+                          <l2 n="InputItems" cet="BoxTreeOperand">
+                            <o>
+                              <o n="Operand" t="Operand">
+                                <v n="Operand">"headboxLipsPositionFeedback_mm"</v>
+                                <v n="Type">"REAL"</v>
+                                <v n="Comment">""</v>
+                                <v n="SymbolComment">""</v>
+                                <v n="Address">""</v>
+                                <o n="Flags" t="Flags">
+                                  <v n="Flags">0</v>
+                                  <v n="Fixed">false</v>
+                                  <v n="Extensible">false</v>
+                                </o>
+                                <v n="LValue">false</v>
+                                <v n="Boolean">false</v>
+                                <v n="IsInstance">false</v>
+                                <v n="Id">17L</v>
+                              </o>
+                              <v n="Id">16L</v>
+                            </o>
+                            <o>
+                              <o n="Operand" t="Operand">
+                                <v n="Operand">"headboxLipsMinOpening_mm"</v>
+                                <v n="Type">"REAL"</v>
+                                <v n="Comment">""</v>
+                                <v n="SymbolComment">""</v>
+                                <v n="Address">""</v>
+                                <o n="Flags" t="Flags">
+                                  <v n="Flags">0</v>
+                                  <v n="Fixed">false</v>
+                                  <v n="Extensible">false</v>
+                                </o>
+                                <v n="LValue">false</v>
+                                <v n="Boolean">false</v>
+                                <v n="IsInstance">false</v>
+                                <v n="Id">19L</v>
+                              </o>
+                              <v n="Id">18L</v>
+                            </o>
+                            <o>
+                              <o n="Operand" t="Operand">
+                                <v n="Operand">"headboxLipsMaxOpening_mm"</v>
+                                <v n="Type">"REAL"</v>
+                                <v n="Comment">""</v>
+                                <v n="SymbolComment">""</v>
+                                <v n="Address">""</v>
+                                <o n="Flags" t="Flags">
+                                  <v n="Flags">0</v>
+                                  <v n="Fixed">false</v>
+                                  <v n="Extensible">false</v>
+                                </o>
+                                <v n="LValue">false</v>
+                                <v n="Boolean">false</v>
+                                <v n="IsInstance">false</v>
+                                <v n="Id">21L</v>
+                              </o>
+                              <v n="Id">20L</v>
+                            </o>
+                            <o>
+                              <o n="Operand" t="Operand">
+                                <v n="Operand">"headboxLipsLimitFullyOpen"</v>
+                                <v n="Type">"BOOL"</v>
+                                <v n="Comment">""</v>
+                                <v n="SymbolComment">""</v>
+                                <v n="Address">""</v>
+                                <o n="Flags" t="Flags">
+                                  <v n="Flags">0</v>
+                                  <v n="Fixed">false</v>
+                                  <v n="Extensible">false</v>
+                                </o>
+                                <v n="LValue">false</v>
+                                <v n="Boolean">false</v>
+                                <v n="IsInstance">false</v>
+                                <v n="Id">23L</v>
+                              </o>
+                              <v n="Id">22L</v>
+                            </o>
+                            <o>
+                              <o n="Operand" t="Operand">
+                                <v n="Operand">"headboxLipsLimitFullyClosed"</v>
+                                <v n="Type">"BOOL"</v>
+                                <v n="Comment">""</v>
+                                <v n="SymbolComment">""</v>
+                                <v n="Address">""</v>
+                                <o n="Flags" t="Flags">
+                                  <v n="Flags">0</v>
+                                  <v n="Fixed">false</v>
+                                  <v n="Extensible">false</v>
+                                </o>
+                                <v n="LValue">false</v>
+                                <v n="Boolean">false</v>
+                                <v n="IsInstance">false</v>
+                                <v n="Id">25L</v>
+                              </o>
+                              <v n="Id">24L</v>
+                            </o>
+                            <o>
+                              <o n="Operand" t="Operand">
+                                <v n="Operand">"headboxLipsManualOpenCmd"</v>
+                                <v n="Type">"BOOL"</v>
+                                <v n="Comment">""</v>
+                                <v n="SymbolComment">""</v>
+                                <v n="Address">""</v>
+                                <o n="Flags" t="Flags">
+                                  <v n="Flags">0</v>
+                                  <v n="Fixed">false</v>
+                                  <v n="Extensible">false</v>
+                                </o>
+                                <v n="LValue">false</v>
+                                <v n="Boolean">false</v>
+                                <v n="IsInstance">false</v>
+                                <v n="Id">27L</v>
+                              </o>
+                              <v n="Id">26L</v>
+                            </o>
+                            <o>
+                              <o n="Operand" t="Operand">
+                                <v n="Operand">"headboxLipsManualCloseCmd"</v>
+                                <v n="Type">"BOOL"</v>
+                                <v n="Comment">""</v>
+                                <v n="SymbolComment">""</v>
+                                <v n="Address">""</v>
+                                <o n="Flags" t="Flags">
+                                  <v n="Flags">0</v>
+                                  <v n="Fixed">false</v>
+                                  <v n="Extensible">false</v>
+                                </o>
+                                <v n="LValue">false</v>
+                                <v n="Boolean">false</v>
+                                <v n="IsInstance">false</v>
+                                <v n="Id">29L</v>
+                              </o>
+                              <v n="Id">28L</v>
+                            </o>
+                            <o>
+                              <o n="Operand" t="Operand">
+                                <v n="Operand">"headboxLipsTargetSetpoint_mm"</v>
+                                <v n="Type">"REAL"</v>
+                                <v n="Comment">""</v>
+                                <v n="SymbolComment">""</v>
+                                <v n="Address">""</v>
+                                <o n="Flags" t="Flags">
+                                  <v n="Flags">0</v>
+                                  <v n="Fixed">false</v>
+                                  <v n="Extensible">false</v>
+                                </o>
+                                <v n="LValue">false</v>
+                                <v n="Boolean">false</v>
+                                <v n="IsInstance">false</v>
+                                <v n="Id">31L</v>
+                              </o>
+                              <v n="Id">30L</v>
+                            </o>
+                            <o>
+                              <o n="Operand" t="Operand">
+                                <v n="Operand">"headboxLipsAutoAdjustCmd"</v>
+                                <v n="Type">"BOOL"</v>
+                                <v n="Comment">""</v>
+                                <v n="SymbolComment">""</v>
+                                <v n="Address">""</v>
+                                <o n="Flags" t="Flags">
+                                  <v n="Flags">0</v>
+                                  <v n="Fixed">false</v>
+                                  <v n="Extensible">false</v>
+                                </o>
+                                <v n="LValue">false</v>
+                                <v n="Boolean">false</v>
+                                <v n="IsInstance">false</v>
+                                <v n="Id">33L</v>
+                              </o>
+                              <v n="Id">32L</v>
+                            </o>
+                            <o>
+                              <o n="Operand" t="Operand">
+                                <v n="Operand">""</v>
+                                <n n="Type" />
+                                <v n="Comment">""</v>
+                                <v n="SymbolComment">""</v>
+                                <v n="Address">""</v>
+                                <o n="Flags" t="Flags">
+                                  <v n="Flags">0</v>
+                                  <v n="Fixed">false</v>
+                                  <v n="Extensible">false</v>
+                                </o>
+                                <v n="LValue">false</v>
+                                <v n="Boolean">false</v>
+                                <v n="IsInstance">false</v>
+                                <v n="Id">35L</v>
+                              </o>
+                              <v n="Id">34L</v>
+                            </o>
+                            <o>
+                              <o n="Operand" t="Operand">
+                                <v n="Operand">""</v>
+                                <n n="Type" />
+                                <v n="Comment">""</v>
+                                <v n="SymbolComment">""</v>
+                                <v n="Address">""</v>
+                                <o n="Flags" t="Flags">
+                                  <v n="Flags">0</v>
+                                  <v n="Fixed">false</v>
+                                  <v n="Extensible">false</v>
+                                </o>
+                                <v n="LValue">false</v>
+                                <v n="Boolean">false</v>
+                                <v n="IsInstance">false</v>
+                                <v n="Id">37L</v>
+                              </o>
+                              <v n="Id">36L</v>
+                            </o>
+                            <o>
+                              <o n="Operand" t="Operand">
+                                <v n="Operand">""</v>
+                                <n n="Type" />
+                                <v n="Comment">""</v>
+                                <v n="SymbolComment">""</v>
+                                <v n="Address">""</v>
+                                <o n="Flags" t="Flags">
+                                  <v n="Flags">0</v>
+                                  <v n="Fixed">false</v>
+                                  <v n="Extensible">false</v>
+                                </o>
+                                <v n="LValue">false</v>
+                                <v n="Boolean">false</v>
+                                <v n="IsInstance">false</v>
+                                <v n="Id">39L</v>
+                              </o>
+                              <v n="Id">38L</v>
+                            </o>
+                            <o>
+                              <o n="Operand" t="Operand">
+                                <v n="Operand">""</v>
+                                <n n="Type" />
+                                <v n="Comment">""</v>
+                                <v n="SymbolComment">""</v>
+                                <v n="Address">""</v>
+                                <o n="Flags" t="Flags">
+                                  <v n="Flags">0</v>
+                                  <v n="Fixed">false</v>
+                                  <v n="Extensible">false</v>
+                                </o>
+                                <v n="LValue">false</v>
+                                <v n="Boolean">false</v>
+                                <v n="IsInstance">false</v>
+                                <v n="Id">41L</v>
+                              </o>
+                              <v n="Id">40L</v>
+                            </o>
+                            <o>
+                              <o n="Operand" t="Operand">
+                                <v n="Operand">""</v>
+                                <n n="Type" />
+                                <v n="Comment">""</v>
+                                <v n="SymbolComment">""</v>
+                                <v n="Address">""</v>
+                                <o n="Flags" t="Flags">
+                                  <v n="Flags">0</v>
+                                  <v n="Fixed">false</v>
+                                  <v n="Extensible">false</v>
+                                </o>
+                                <v n="LValue">false</v>
+                                <v n="Boolean">false</v>
+                                <v n="IsInstance">false</v>
+                                <v n="Id">43L</v>
+                              </o>
+                              <v n="Id">42L</v>
+                            </o>
+                            <o>
+                              <o n="Operand" t="Operand">
+                                <v n="Operand">""</v>
+                                <n n="Type" />
+                                <v n="Comment">""</v>
+                                <v n="SymbolComment">""</v>
+                                <v n="Address">""</v>
+                                <o n="Flags" t="Flags">
+                                  <v n="Flags">0</v>
+                                  <v n="Fixed">false</v>
+                                  <v n="Extensible">false</v>
+                                </o>
+                                <v n="LValue">false</v>
+                                <v n="Boolean">false</v>
+                                <v n="IsInstance">false</v>
+                                <v n="Id">45L</v>
+                              </o>
+                              <v n="Id">44L</v>
+                            </o>
+                            <o>
+                              <o n="Operand" t="Operand">
+                                <v n="Operand">""</v>
+                                <n n="Type" />
+                                <v n="Comment">""</v>
+                                <v n="SymbolComment">""</v>
+                                <v n="Address">""</v>
+                                <o n="Flags" t="Flags">
+                                  <v n="Flags">0</v>
+                                  <v n="Fixed">false</v>
+                                  <v n="Extensible">false</v>
+                                </o>
+                                <v n="LValue">false</v>
+                                <v n="Boolean">false</v>
+                                <v n="IsInstance">false</v>
+                                <v n="Id">47L</v>
+                              </o>
+                              <v n="Id">46L</v>
+                            </o>
+                            <o>
+                              <o n="Operand" t="Operand">
+                                <v n="Operand">""</v>
+                                <n n="Type" />
+                                <v n="Comment">""</v>
+                                <v n="SymbolComment">""</v>
+                                <v n="Address">""</v>
+                                <o n="Flags" t="Flags">
+                                  <v n="Flags">0</v>
+                                  <v n="Fixed">false</v>
+                                  <v n="Extensible">false</v>
+                                </o>
+                                <v n="LValue">false</v>
+                                <v n="Boolean">false</v>
+                                <v n="IsInstance">false</v>
+                                <v n="Id">49L</v>
+                              </o>
+                              <v n="Id">48L</v>
+                            </o>
+                            <o>
+                              <o n="Operand" t="Operand">
+                                <v n="Operand">""</v>
+                                <n n="Type" />
+                                <v n="Comment">""</v>
+                                <v n="SymbolComment">""</v>
+                                <v n="Address">""</v>
+                                <o n="Flags" t="Flags">
+                                  <v n="Flags">0</v>
+                                  <v n="Fixed">false</v>
+                                  <v n="Extensible">false</v>
+                                </o>
+                                <v n="LValue">false</v>
+                                <v n="Boolean">false</v>
+                                <v n="IsInstance">false</v>
+                                <v n="Id">51L</v>
+                              </o>
+                              <v n="Id">50L</v>
+                            </o>
+                          </l2>
+                          <o n="InputParam" t="ParamList">
+                            <l2 n="Names" cet="String">
+                              <v>positionFeedback_mm</v>
+                              <v>posMin_mm</v>
+                              <v>posMax_mm</v>
+                              <v>limitMaxSensor</v>
+                              <v>limitMinSensor</v>
+                              <v>manualOpenCmd</v>
+                              <v>manualCloseCmd</v>
+                              <v>autoTargetInput_mm</v>
+                              <v>autoAdjustCmd</v>
+                              <v>tolerance_mm</v>
+                              <v>pwmPeriod</v>
+                              <v>pwmGainPct_per_mm</v>
+                              <v>pwmMinDutyPct</v>
+                              <v>pwmMaxDutyPct</v>
+                              <v>minOnTime</v>
+                              <v>stallDeltaMin_mm</v>
+                              <v>stallTimeout</v>
+                              <v>travelTimeout</v>
+                            </l2>
+                            <l2 n="Types" cet="String">
+                              <v>REAL</v>
+                              <v>REAL</v>
+                              <v>REAL</v>
+                              <v>BOOL</v>
+                              <v>BOOL</v>
+                              <v>BOOL</v>
+                              <v>BOOL</v>
+                              <v>REAL</v>
+                              <v>BOOL</v>
+                              <v>REAL</v>
+                              <v>TIME</v>
+                              <v>REAL</v>
+                              <v>REAL</v>
+                              <v>REAL</v>
+                              <v>TIME</v>
+                              <v>REAL</v>
+                              <v>TIME</v>
+                              <v>TIME</v>
+                            </l2>
+                          </o>
+                          <o n="OutputParam" t="ParamList">
+                            <l2 n="Names" cet="String">
+                              <v>openingCmd</v>
+                              <v>closingCmd</v>
+                              <v>busy</v>
+                              <v>done</v>
+                              <v>faultActive</v>
+                              <v>deviceState</v>
+                              <v>target_mm</v>
+                              <v>positionError_mm</v>
+                              <v>position_mm</v>
+                              <v>pwmDutyPct</v>
+                            </l2>
+                            <l2 n="Types" cet="String">
+                              <v>BOOL</v>
+                              <v>BOOL</v>
+                              <v>BOOL</v>
+                              <v>BOOL</v>
+                              <v>BOOL</v>
+                              <v>STRING(80)</v>
+                              <v>REAL</v>
+                              <v>REAL</v>
+                              <v>REAL</v>
+                              <v>REAL</v>
+                            </l2>
+                          </o>
+                          <v n="CallType" t="Operator">FunctionBlock</v>
+                          <v n="EN">false</v>
+                          <v n="ENO">false</v>
+                          <n n="STSnippet" />
+                          <v n="ContainsExtensibleInputs">false</v>
+                          <v n="ProvidesSTSnippet">false</v>
+                          <v n="Id">58L</v>
+                        </o>
+                        <v n="Id">53L</v>
+                      </o>
+                    </l2>
+                    <l2 n="Connectors" />
+                    <v n="Id">5L</v>
+                  </o>
+                </l2>
+                <v n="BranchCounter">0</v>
+                <v n="ValidIds">true</v>
+              </o>
+            </Data>
+            <TypeList>
+              <Type n="Boolean">System.Boolean</Type>
+              <Type n="BoxTreeAssign">{9873c309-1f09-4ebf-9078-42d8057ef11b}</Type>
+              <Type n="BoxTreeBox">{acfc6f68-8e3a-4af5-bf81-3dd512095a46}</Type>
+              <Type n="BoxTreeOperand">{9de7f100-1b87-424c-a62e-45b0cfc85ed2}</Type>
+              <Type n="Flags">{668066f2-6069-46b3-8962-8db8d13d7db2}</Type>
+              <Type n="Int32">System.Int32</Type>
+              <Type n="Int64">System.Int64</Type>
+              <Type n="Network">{d9a99d73-b633-47db-b876-a752acb25871}</Type>
+              <Type n="NWLImplementationObject">{25e509de-33d4-4447-93f8-c9e4ea381c8b}</Type>
+              <Type n="Operand">{c9b2f165-48a2-4a45-8326-3952d8a3d708}</Type>
+              <Type n="Operator">{bffb3c53-f105-4e85-aba2-e30df579d75f}</Type>
+              <Type n="OutputItemList">{f40d3e09-c02c-4522-a88c-dac23558cfc4}</Type>
+              <Type n="ParamList">{71496971-9e0c-4677-a832-b9583b571130}</Type>
+              <Type n="String">System.String</Type>
+            </TypeList>
+          </XmlArchive>
+        </NWL>
+      </Implementation>
+    </Method>
+    <Method Name="_ReferenceGenerator" Id="{d1bebbfa-bfe1-4125-b9cf-abcf61a22a04}">
+      <Declaration><![CDATA[// 2) REFERENCE GENERATOR
+METHOD _ReferenceGenerator
+VAR
+    headroomEpsPct      : REAL := 0.20;   // anti-chatter near 100%
+    offsetPct           : REAL;
+    denom               : REAL;
+    maxMasterBySlave    : REAL;
+    allowedCapPct       : REAL;
+    currMasterPct       : REAL;
+    currSlavePct        : REAL;
+    targetPct           : REAL;
+    cmdSpeedMPM         : REAL;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// 1) Select Auto/Manual command (MPM)
+IF groupSpeedAutoMan THEN
+    cmdSpeedMPM := groupAutoSpeedMPM;
+ELSE
+    cmdSpeedMPM := groupManualSpeedMPM;
+END_IF
+
+// 2) Scale to 0..100% for the drives
+targetPct := _Scale(
+    X    := cmdSpeedMPM,
+    I_LO := 0.0,          I_HI := groupMaxSpeed,
+    O_LO := 0.0,          O_HI := 100.0);
+
+// 3) During STOPPING/FAULT we want zero target; in STOPPING we still ramp down
+IF state = 5 THEN
+    rampTargetPct := 0.0;
+ELSE
+    rampTargetPct := targetPct;
+END_IF
+
+// --- Pre-limit so SLAVE can’t exceed 100% for given gear + offset ---
+offsetPct := slaveSpeedOffset * 0.01;
+denom     := masterSlaveGearRatio + offsetPct;
+
+// If denom <= 0, fall back to 100% (no additional cap required)
+IF denom > 0.0 THEN
+    maxMasterBySlave := 100.0 / denom;   // master % that makes slave hit 100%
+ELSE
+    maxMasterBySlave := 100.0;
+END_IF;
+
+// The cap the master target must obey (also respect master’s own 100%)
+allowedCapPct := MIN(100.0, maxMasterBySlave);
+
+// Apply cap to upward commands only (don’t block decel)
+rampTargetPct := MIN(rampTargetPct, allowedCapPct);
+
+// --- Freeze upward if currently at/near limit (anti-overrun using current refs) ---
+currMasterPct := instFB_Gen_SRamp.Y;                          // current master ref (%)
+currSlavePct  := LIMIT(0.0, currMasterPct * (masterSlaveGearRatio + offsetPct), 100.0);
+
+IF (currMasterPct >= 100.0 - headroomEpsPct) OR
+   (currSlavePct  >= 100.0 - headroomEpsPct) THEN
+    // Prevent increasing the target above current value; allow decreases
+    rampTargetPct := MIN(rampTargetPct, currMasterPct);
+END_IF
+
+// 4) Ramp call (unchanged)
+instFB_Gen_SRamp(
+    X          := rampTargetPct,
+    A_UP       := MAX(0.0, rampRate),
+    A_DN       := -MAX(0.0, rampRate),
+    VU_MAX     := 1000.0,
+    VD_MAX     := -1000.0,
+    LIMIT_HIGH := 100.0,
+    RST        := rampReset);
+
+IF state = 5 THEN
+    instFB_Gen_SRamp.LIMIT_LOW := 0.0;
+ELSE
+    instFB_Gen_SRamp.LIMIT_LOW := 3.5;
+END_IF
+
+// 5) Master reference = ramp Y but also respect the slave-driven cap
+masterDriveSpeedRefPct := MIN(instFB_Gen_SRamp.Y, allowedCapPct);
+
+// 6) Slave reference: gear + offset, then clamp 0..100
+slaveDriveSpeedRefPct :=
+    LIMIT(0.0, masterDriveSpeedRefPct * (masterSlaveGearRatio + offsetPct), 100.0);
+
+// 7) Final safety clamp for master (symmetry) + forward as % to next group
+masterDriveSpeedRefPct := LIMIT(0.0, masterDriveSpeedRefPct, 100.0);
+nextGroupSpeedRefPct   := masterDriveSpeedRefPct;
+
+// 8) Also forward the next group reference in MPM (easy to replicate elsewhere)
+nextGroupSpeedRefMPM := _Scale(
+    X    := nextGroupSpeedRefPct,
+    I_LO := 0.0,          I_HI := 100.0,
+    O_LO := 0.0,          O_HI := groupMaxSpeed);
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_Scale" Id="{70e52522-893d-4230-ac46-b736c1d79a1d}">
+      <Declaration><![CDATA[METHOD PRIVATE _Scale : REAL
+VAR_INPUT
+    X    : REAL;
+    I_LO : REAL;
+    I_HI : REAL;
+    O_LO : REAL;
+    O_HI : REAL;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF I_LO = I_HI THEN
+	_Scale := O_LO;
+ELSE
+	_Scale := (O_HI - O_LO) / (I_HI - I_LO) * (LIMIT(I_LO, X, I_HI) - I_LO) + O_LO;
+END_IF;
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_SlaveTorquePID" Id="{d2f2c034-a009-466c-a7c6-a830587846dc}">
+      <Declaration><![CDATA[// 6) OPTIONAL: SLAVE TORQUE PID TRACKING (new)
+METHOD _SlaveTorquePID
+VAR_INPUT
+    enablePID : BOOL := TRUE;   // TRUE=PID active, FALSE=hold/track current output
+    Kp        : REAL := 0.8;    // proportional gain (tune as needed)
+    Tn        : REAL := 1.5;    // integral time [s]
+    Tv        : REAL := 0.0;    // derivative time [s]
+END_VAR
+VAR
+    masterFilt : REAL;
+    slaveFilt  : REAL;
+    sp         : REAL;  // setpoint (master)
+    pv         : REAL;  // process value (slave)
+    y          : REAL;  // PID output (pre-clamp)
+    e          : REAL;  // SET - ACT (diagnostic)
+    limMin     : REAL;
+    limMax     : REAL;
+END_VAR
+VAR_STAT
+    pid        : CTRL_PID;  // PID instance (retained)
+    fMaster    : FT_PT1;    // PT1 for master torque
+    fSlave     : FT_PT1;    // PT1 for slave torque
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// 1) Filter master & slave torques (reuse existing time constant)
+fMaster(in := masterTorqueFeedback, T := torqueFilterTime, K := 1.0, out => masterFilt);
+fSlave (in := slaveTorqueFeedback , T := torqueFilterTime, K := 1.0, out => slaveFilt);
+
+// 2) Build setpoint and PV
+sp := masterFilt + slaveTorqueOfsset;   // follow master + configured trim
+pv := slaveFilt;
+
+// 3) Limits from existing configuration
+limMin := torqueLimitMinPct;
+limMax := torqueLimitMaxPct;
+
+// 4) PID with bumpless transfer (manual input tracks current output when disabled)
+pid(
+    ACT := pv,                      // process value (slave torque)
+    SET := sp,                      // setpoint (master torque)
+    MAN := NOT enablePID,           // MAN=TRUE => manual/track
+    M_I := slaveDriveTorqueLimit,   // track current output for bumpless re-enable
+    RST := FALSE,                   // external reset (unused)
+    KP  := Kp,
+    TN  := Tn,
+    TV  := Tv,
+    LL  := limMin,
+    LH  := limMax,
+    Y   => y,
+    DIFF=> e,
+    LIM =>                          // unused
+);
+
+// 5) Clamp and publish
+slaveDriveTorqueLimit := LIMIT(limMin, y, limMax);
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_SpeedDifferenceCheck" Id="{04e52e61-860d-4025-9001-97f886bc892a}">
+      <Declaration><![CDATA[METHOD PRIVATE _SpeedDifferenceCheck
+VAR
+    diff : REAL;
+END_VAR
+
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// 1) Absolute difference Master-Slave
+diff := ABS(masterSpeedMPMFilteredDisplay - slaveSpeedMPMFilteredDisplay);
+currentSpeedDifence := diff;
+
+// 2) If beyond limit -> stop group (with a small delay)
+IF diff > speedDiferenceLimit THEN
+    instTONSpeedDifDelay.IN := TRUE;
+    instTONSpeedDifDelay.PT := T#2S;
+
+    IF instTONSpeedDifDelay.Q THEN
+        state := 10;                  // Fault
+        deviceState := 'FAULT: Speed difference exceeded';
+    END_IF
+ELSE
+    instTONSpeedDifDelay.IN := FALSE;
+END_IF
+
+instTONSpeedDifDelay();
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_StateDisplay" Id="{d53a5fea-f9d1-4630-b78f-0baae473f501}">
+      <Declaration><![CDATA[METHOD _StateDisplay
+VAR_INPUT
+END_VAR
+
+// ──────────────────────────────────────────────────────────────────────────────
+// _StateDisplay
+// Maps the internal machine "state" to a compact HMI status code and derives
+// per-drive motor status codes from VFD signals.
+//
+// statusCode / masterStatusCode / slaveStatusCode legend:
+//   0 = Idle, 1 = Starting, 2 = Running, 3 = Fault
+//
+// Machine "state" groups:
+//   0 = IDLE, 1 = ENABLE, 2 = WAIT_EN, 3 = RAMP_EN, 4 = RUN, 5 = STOPPING, 10 = FAULT
+// Priority rule (for motors): Fault > Running > Starting > Idle
+// ──────────────────────────────────────────────────────────────────────────────
+VAR CONSTANT
+    STATUS_IDLE     : INT := 0;
+//    STATUS_STARTING : INT := 1;
+    STATUS_RUNNING  : INT := 1;
+    STATUS_FAULT    : INT := 2;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[
+// ─────────────── Group machine states into a single HMI statusCode ───────────
+CASE state OF
+    10: // FAULT
+        statusCode := STATUS_FAULT;
+
+    4:  // RUN
+        statusCode := STATUS_RUNNING;
+
+    1, 2, 3: // ENABLE / WAIT_EN / RAMP_EN
+//        statusCode := STATUS_STARTING;
+
+    ELSE // IDLE, STOPPING, or any other unlisted state
+        statusCode := STATUS_IDLE;
+END_CASE;
+
+// ─────────────── Helper pattern for per-drive status (inline) ────────────────
+// Evaluation order enforces priority: Fault > Running > Starting > Idle
+
+// Master drive
+IF formingBoardTractionRollVfdFaultFeedback THEN
+    masterStatusCode := STATUS_FAULT;
+ELSIF formingBoardTractionRollVfdRunFeedback THEN
+    masterStatusCode := STATUS_RUNNING;
+ELSE
+    masterStatusCode := STATUS_IDLE;
+END_IF;
+
+// Slave drive
+IF formingBoardSuctionVfdFaultFeedback THEN
+    slaveStatusCode := STATUS_FAULT;
+ELSIF formingBoardSuctionVfdRunFeedback THEN
+    slaveStatusCode := STATUS_RUNNING;
+ELSE
+    slaveStatusCode := STATUS_IDLE;
+END_IF;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_TorqueReference" Id="{1898f17f-1d1c-48e9-86d0-81f7e5611d7a}">
+      <Declaration><![CDATA[METHOD _TorqueReference
+VAR
+    rawTorque     : REAL;
+    filtTorque    : REAL;
+    torqueCmd     : REAL;
+    limitedTorque : REAL;
+    clamped       : BOOL;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// 1) Read master torque (keep units consistent with your limits)
+rawTorque := masterTorqueFeedback;
+
+// 2) Low-pass filter (OSCAT PT1)
+instsFT_PT1TorqueFilter(
+    in  := rawTorque,
+    T   := torqueFilterTime,   // time constant in seconds (e.g., 0.25)
+    K   := 0.8,                // unity gain
+    out => filtTorque
+);
+
+// 3) Deadband cleanup
+IF ABS(filtTorque) < torqueDeadbandPct THEN
+    filtTorque := 0.0;
+END_IF
+
+// 4) Apply offset between master and slave
+torqueCmd := filtTorque + slaveTorqueOfsset;
+
+// 5) Clamp to limits
+limitedTorque := LIMIT(torqueLimitMinPct, torqueCmd, torqueLimitMaxPct);
+clamped       := (limitedTorque <> torqueCmd);
+
+// 6) Output
+slaveDriveTorqueLimit := limitedTorque;
+
+
+//slaveDriveTorqueLimit := LIMIT(torqueLimitMinPct, masterTorqueFeedback, torqueLimitMaxPct);]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_FormingBoardControl_V1">
+      <LineId Id="2920" Count="2" />
+      <LineId Id="3011" Count="0" />
+      <LineId Id="2923" Count="2" />
+      <LineId Id="2929" Count="0" />
+      <LineId Id="3013" Count="0" />
+      <LineId Id="2930" Count="1" />
+      <LineId Id="3010" Count="0" />
+      <LineId Id="1138" Count="0" />
+      <LineId Id="4882" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FormingBoardControl_V1._alarmsDisplay">
+      <LineId Id="55" Count="35" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FormingBoardControl_V1._auxiliaryControls">
+      <LineId Id="67" Count="39" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FormingBoardControl_V1._FeedbackDisplay">
+      <LineId Id="6" Count="5" />
+      <LineId Id="13" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FormingBoardControl_V1._GroupControl">
+      <LineId Id="563" Count="118" />
+      <LineId Id="128" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FormingBoardControl_V1._ReferenceGenerator">
+      <LineId Id="521" Count="78" />
+      <LineId Id="20" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FormingBoardControl_V1._Scale">
+      <LineId Id="1" Count="5" />
+    </LineIds>
+    <LineIds Name="FB_FormingBoardControl_V1._SlaveTorquePID">
+      <LineId Id="33" Count="30" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FormingBoardControl_V1._SpeedDifferenceCheck">
+      <LineId Id="52" Count="17" />
+      <LineId Id="27" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FormingBoardControl_V1._StateDisplay">
+      <LineId Id="66" Count="23" />
+      <LineId Id="92" Count="8" />
+      <LineId Id="103" Count="1" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FormingBoardControl_V1._TorqueReference">
+      <LineId Id="203" Count="26" />
+      <LineId Id="159" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

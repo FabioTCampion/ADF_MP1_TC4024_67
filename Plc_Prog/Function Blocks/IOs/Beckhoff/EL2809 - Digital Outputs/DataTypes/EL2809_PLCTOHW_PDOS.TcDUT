@@ -1,0 +1,28 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.15">
+  <DUT Name="EL2809_PLCTOHW_PDOS" Id="{7908127f-1b68-482e-8d36-cf35a92a1a0f}">
+    <Declaration><![CDATA[TYPE EL2809_PLCTOHW_PDOS :
+	STRUCT
+		
+		digitalOutput_01 AT %Q* : BOOL;
+		digitalOutput_02 AT %Q* : BOOL;
+		digitalOutput_03 AT %Q* : BOOL;
+		digitalOutput_04 AT %Q* : BOOL;
+		digitalOutput_05 AT %Q* : BOOL;
+		digitalOutput_06 AT %Q* : BOOL;
+		digitalOutput_07 AT %Q* : BOOL;
+		digitalOutput_08 AT %Q* : BOOL;
+		digitalOutput_09 AT %Q* : BOOL;
+		digitalOutput_10 AT %Q* : BOOL;
+		digitalOutput_11 AT %Q* : BOOL;
+		digitalOutput_12 AT %Q* : BOOL;
+		digitalOutput_13 AT %Q* : BOOL;
+		digitalOutput_14 AT %Q* : BOOL;
+		digitalOutput_15 AT %Q* : BOOL;
+		digitalOutput_16 AT %Q* : BOOL;
+
+	END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

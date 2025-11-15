@@ -1,0 +1,20 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.15">
+  <DUT Name="C2000_DIGITAL_INPUTS" Id="{7f8313f1-1261-01a4-264e-b064a4922aaa}">
+    <Declaration><![CDATA[TYPE C2000_DIGITAL_INPUTS :
+STRUCT
+		
+	MI1					: BOOL; (*Drive digital input - Term M1*)
+	MI2					: BOOL; (*Drive digital input - Term M2*)
+	MI3					: BOOL; (*Drive digital input - Term M3*)
+	MI4					: BOOL; (*Drive digital input - Term M4*)
+	MI5					: BOOL; (*Drive digital input - Term M5*)
+	MI6					: BOOL; (*Drive digital input - Term M6*)
+	MI7					: BOOL; (*Drive digital input - Term M7*)
+	MI8					: BOOL; (*Drive digital input - Term M8*)
+		
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

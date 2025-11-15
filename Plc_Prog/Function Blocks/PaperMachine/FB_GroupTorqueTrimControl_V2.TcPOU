@@ -1,0 +1,160 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.15">
+  <POU Name="FB_GroupTorqueTrimControl_V2" Id="{83cf7ee3-fad9-49c5-8b61-90e194389cd5}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_GroupTorqueTrimControl_V2
+VAR_INPUT
+    //----------------------------------------------------------------------
+    // TORQUE FEEDBACKS (already filtered)
+    //----------------------------------------------------------------------
+    group1MasterTorqueFeedback     : REAL;  // EN: Master torque feedback [% or Nm]
+    group1Slave1TorqueFeedback     : REAL;  // EN: Slave 1 torque feedback [% or Nm]
+    group1Slave2TorqueFeedback     : REAL;  // EN: Slave 2 torque feedback [% or Nm]
+    group2MasterTorqueFeedback     : REAL;  // EN: Master torque feedback [% or Nm]
+    group2Slave1TorqueFeedback     : REAL;  // EN: Slave 1 torque feedback [% or Nm]
+    group2Slave2TorqueFeedback     : REAL;  // EN: Slave 2 torque feedback [% or Nm]
+
+    //----------------------------------------------------------------------
+    // CONFIGURATION PARAMETERS
+    //----------------------------------------------------------------------
+    slaveTorqueOffset              : REAL := 0.0;     // EN: Fixed offset between master and slave [%]
+    torqueTrimLimit                : REAL := 10.0;    // EN: Max PID trim output [%]
+    torqueLimitMinPct              : REAL := -10.0;     // EN: Min torque command limit [%]
+    torqueLimitMaxPct              : REAL := 10.0;   // EN: Max torque command limit [%]
+
+	
+	upperAndLowerDifMinPct :  REAL :=  0.1;
+	upperAndLowerDifMaxPct	: REAL := -0.1;
+	   
+	
+    //----------------------------------------------------------------------
+    // PID GAINS
+    //----------------------------------------------------------------------
+    torqueCtrlKp                   : REAL := 1.0;
+    torqueCtrlTn                   : REAL := 8.0;
+    torqueCtrlTv                   : REAL := 0.0;
+
+    upperAndLowerPIDCtrlKp                   : REAL := 0.10;
+    upperAndLowerPIDCtrlTn                   : REAL := 1.0;
+    tupperAndLowerPIDCtrlTv                   : REAL := 0.0;
+	
+	
+    //----------------------------------------------------------------------
+    // CONTROL FLAGS
+    //----------------------------------------------------------------------
+    enableTorquePid                : BOOL := TRUE;    // EN: Enables PID control (FALSE = fixed torque)
+END_VAR
+
+
+VAR_OUTPUT
+    //----------------------------------------------------------------------
+    // TORQUE REFERENCES (%)
+    //----------------------------------------------------------------------
+    group1Slave1DriveTorqueRefPct  : REAL;
+    group1Slave2DriveTorqueRefPct  : REAL;
+    group2Slave1DriveTorqueRefPct  : REAL;
+    group2Slave2DriveTorqueRefPct  : REAL;
+
+    //----------------------------------------------------------------------
+    // INTERNAL PID OUTPUTS (for monitoring)
+    //----------------------------------------------------------------------
+    trimGroup1                     : REAL;
+    trimGroup2                     : REAL;
+	
+	
+	upperAndLowerSpeedTrim	 	: REAL;
+	
+	
+END_VAR
+
+
+VAR
+    //----------------------------------------------------------------------
+    // INTERNAL PID CONTROLLERS
+    //----------------------------------------------------------------------
+    instCTRL_PID_Group1TorqueTrim  : CTRL_PID;
+    instCTRL_PID_Group2TorqueTrim  : CTRL_PID;
+    instCTRL_PID_UpperAndLowerSpdTrim  : CTRL_PID;
+
+	
+    //----------------------------------------------------------------------
+    // INTERNAL SIGNALS
+    //----------------------------------------------------------------------
+    capMasterGroup1                : REAL;
+    capMasterGroup2                : REAL;
+    baseLimitGroup1                : REAL;
+    baseLimitGroup2                : REAL;
+    directTorqueGroup1             : REAL;
+    directTorqueGroup2             : REAL;
+    avgTorqueGroup1                : REAL;
+    avgTorqueGroup2                : REAL;
+	upperAndLowerTorqueDif: REAL;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[
+    instCTRL_PID_Group1TorqueTrim(
+        ACT := group1Slave1TorqueFeedback,
+        SET := group1MasterTorqueFeedback,
+        MAN := FALSE,
+        M_I := 0.0,
+        RST := FALSE,
+        KP  := torqueCtrlKp,
+        TN  := torqueCtrlTn,
+        TV  := torqueCtrlTv,
+        LL  := torqueLimitMinPct,                   // Bipolar output
+        LH  := torqueLimitMaxPct,
+        Y   => group1Slave1DriveTorqueRefPct
+    );
+
+
+	
+    instCTRL_PID_Group2TorqueTrim(
+        ACT := group2Slave1TorqueFeedback,
+        SET := group2MasterTorqueFeedback,
+        MAN := FALSE,
+        M_I := 0.0,
+        RST := FALSE,
+        KP  := torqueCtrlKp,
+        TN  := torqueCtrlTn,
+        TV  := torqueCtrlTv,
+        LL  := torqueLimitMinPct,                   // Bipolar output
+        LH  := torqueLimitMaxPct,
+        Y   => group2Slave1DriveTorqueRefPct
+    );
+
+
+	
+	
+		upperAndLowerTorqueDif := group1MasterTorqueFeedback - group2MasterTorqueFeedback;
+	
+	    instCTRL_PID_UpperAndLowerSpdTrim(
+        ACT := upperAndLowerTorqueDif,
+        SET := 0,
+        MAN := FALSE,
+        M_I := 0.0,
+        RST := FALSE,
+		SUP := 0,
+        KP  := upperAndLowerPIDCtrlKp,
+        TN  := upperAndLowerPIDCtrlTn,
+        TV  := tupperAndLowerPIDCtrlTv,
+        LL  := upperAndLowerDifMinPct,                   // Bipolar output
+        LH  := upperAndLowerDifMaxPct,
+        Y   => upperAndLowerSpeedTrim
+    );
+]]></ST>
+    </Implementation>
+    <LineIds Name="FB_GroupTorqueTrimControl_V2">
+      <LineId Id="484" Count="15" />
+      <LineId Id="9" Count="0" />
+      <LineId Id="502" Count="13" />
+      <LineId Id="538" Count="0" />
+      <LineId Id="516" Count="0" />
+      <LineId Id="542" Count="1" />
+      <LineId Id="539" Count="0" />
+      <LineId Id="520" Count="5" />
+      <LineId Id="554" Count="0" />
+      <LineId Id="526" Count="6" />
+      <LineId Id="500" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

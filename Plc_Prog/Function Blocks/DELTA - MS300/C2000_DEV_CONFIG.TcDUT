@@ -1,0 +1,58 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.15">
+  <DUT Name="C2000_DEV_CONFIG" Id="{1b86f962-26c1-0ba2-362a-6a0bf65016bb}">
+    <Declaration><![CDATA[TYPE C2000_DEV_CONFIG :
+    STRUCT
+        // Setpoint scaling
+        speedSetpointInputLow        : REAL := 0.0;   // Minimum input value for setpoint		
+        speedSetpointInputHigh       : REAL := 100.0; // Maximum input value for setpoint
+        speedSetpointOutputLow       : REAL := 0.0; // Minimum output value for setpoint
+        speedSetpointOutputHigh      : REAL := 6000.0; // Maximum output value for setpoint
+		
+        torqueSetpointInputLow        : REAL := 0.0;   // Minimum input value for setpoint
+        torqueSetpointInputHigh       : REAL := 100.0; // Maximum input value for setpoint
+        torqueSetpointOutputLow       : REAL := 0.0; // Minimum output value for setpoint				
+        torqueSetpointOutputHigh      : REAL := 1000; // Maximum output value for setpoint
+		
+		torqueLimiterEnabled			: BOOL := FALSE;
+		torqueDif						: REAL := 0.0;
+
+        // Motor speed scaling
+        MotorSpeedInputLow      : REAL := 0.0;    // Minimum input value for motor speed		
+        MotorSpeedInputHigh     : REAL := 6000.0; // Maximum input value for motor speed
+        MotorSpeedOutputLow     : REAL := 0.0;    // Minimum output value for motor speed		
+        MotorSpeedOutputHigh    : REAL := 100.0;  // Maximum output value for motor speed
+		
+		
+        // Motor speed MPM scaling
+        MotorSpeedMPMOutputLow     : REAL := 0.0;    // Minimum output value for motor speed		
+        MotorSpeedMPMOutputHigh    : REAL := 600.0;  // Maximum output value for motor speed
+		
+
+        // Output current scaling
+        OutputCurrentInputLow   : REAL	:= 0; 		// Minimum input value for output current		
+        OutputCurrentInputHigh  : REAL	:= 10000.0; // Maximum input value for output current
+        OutputCurrentOutputLow  : REAL 	:= 0.0;		// Minimum output value for output current		
+        OutputCurrentOutputHigh : REAL	:= 100.0; 	// Maximum output value for output current
+
+        // Output torque scaling
+        OutputTorqueInputLow    : REAL := -1500.0;     // Minimum input value for output torque		
+        OutputTorqueInputHigh   : REAL := 1500.0; // Maximum input value for output torque
+        OutputTorqueOutputLow   : REAL := -150.0;     // Minimum output value for output torque		
+        OutputTorqueOutputHigh  : REAL := 150.0;   // Maximum output value for output torque
+
+        // Current scaling
+        currentInputHigh        : REAL := 10000; // Maximum input value for current
+        currentaviInputLow      : REAL := 0;     // Minimum input value for current
+        currentOutputHigh       : REAL := 100.0; // Maximum output value for current
+        currentOutputLow        : REAL := 0.0;   // Minimum output value for current
+
+        // Operation mode
+        operationMode           : E_C2000_ModeOfOperation := 2; // 0 - Reserved / 1 - Profile Position Mode / 2 - Velocity Mode / 3 - Reserved / 4 - Profile Torque Mode
+
+    END_STRUCT
+END_TYPE
+
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

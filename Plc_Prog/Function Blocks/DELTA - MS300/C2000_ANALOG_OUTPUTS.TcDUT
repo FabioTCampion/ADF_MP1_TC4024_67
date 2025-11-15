@@ -1,0 +1,13 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.15">
+  <DUT Name="C2000_ANALOG_OUTPUTS" Id="{df94ce26-80a1-0b69-374a-5290d50b6a7d}">
+    <Declaration><![CDATA[TYPE C2000_ANALOG_OUTPUTS :
+STRUCT
+	
+	AFM : REAL;
+
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

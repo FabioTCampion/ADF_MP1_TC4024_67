@@ -1,0 +1,14 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.15">
+  <DUT Name="EL6910_ESTOP" Id="{a638af62-71a3-456b-a53b-798b1a02c9e1}">
+    <Declaration><![CDATA[TYPE EL6910_ESTOP :
+STRUCT
+	
+	diagnostics : EL6910_ESTOP_DIGNOSTICS;
+	status	: EL6910_ESTOP_STATUS;	
+
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

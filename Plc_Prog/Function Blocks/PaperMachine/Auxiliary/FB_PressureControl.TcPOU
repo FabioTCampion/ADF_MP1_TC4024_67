@@ -1,0 +1,211 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.15">
+  <POU Name="FB_PressureControl" Id="{ebf3eab8-63d9-429c-98bd-e88b5545568d}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_PressureControl
+VAR_INPUT
+    // Sequence commands
+    startCommand            : BOOL;  // Start command (Comando de partida)
+    stopCommand             : BOOL;  // Stop command  (Comando de parada)
+
+    // Mode
+    autoMode                : BOOL;  // TRUE=Automatic / FALSE=Manual (TRUE=Automático / FALSE=Manual)
+
+    // Process signals (engineering units for pressure)
+    pressureFeedback        : REAL;  // Process feedback (Pressão medida)
+    autoSetpoint            : REAL;  // Auto mode setpoint (Setpoint de pressão no modo automático)
+
+    // Manual output (direct % command to final element)
+    manualOutputPct         : REAL;  // 0..100% manual output (Saída manual 0..100%)
+
+    // PID parameters (OSCAT CTRL_PID) — initial conservative tuning
+    kp                      : REAL := 0.8;   // Proportional gain (Ganho proporcional)
+    tn                      : REAL := 3.0;   // Integral time [s] (Tempo integral)
+    tv                      : REAL := 0.0;   // Derivative time [s] (Tempo derivativo)
+
+    // Output limits and adjustments
+    outLowLimitPct          : REAL := 0.0;    // Lower output limit % (Limite inferior da saída)
+    outHighLimitPct         : REAL := 100.0;  // Upper output limit % (Limite superior da saída)
+    outputOffsetPct         : REAL := 0.0;    // Output offset % (Offset da saída)
+
+    // PID control housekeeping
+    resetPID                : BOOL;  // Reset integrator (Zerar integrador)
+
+    // ===== Input filter controls (OSCAT PT1) =====
+    enableInputFilter       : BOOL;        // TRUE=apply PT1, FALSE=bypass (Habilita filtro PT1)
+    inputFilterTime         : TIME := T#300ms; // PT1 time constant (Constante de tempo)
+    inputFilterGainK        : REAL := 1.0; // PT1 gain (Ganho do PT1, tipicamente 1.0)
+END_VAR
+
+VAR_OUTPUT
+    running                 : BOOL;  // TRUE while in RUN state (TRUE enquanto em operação)
+    controlOutputPct        : REAL;  // Final control output 0..100% (Saída final 0..100%)
+    pidDiff                 : REAL;  // PID difference (Diferença PID)
+    pidLimited              : BOOL;  // TRUE if PID is at limit (TRUE se PID saturado)
+END_VAR
+
+VAR
+    // State machine
+    step                    : INT;   // 0=Idle, 10=Starting, 20=Running, 90=Stopping
+    startOld                : BOOL;
+    rStart                  : BOOL;
+
+    // Internal / helpers
+    manualCmd               : REAL;
+    yPID                    : REAL;
+
+    // Filtered feedback
+    pressureFeedbackFiltered: REAL;
+
+    // OSCAT instances
+    instPID                 : CTRL_PID;
+    instsFT_PT1TInputFilter : FT_PT1;   // PT1 filter instance
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[
+// ============================ Edges ============================
+rStart := startCommand AND NOT startOld;
+startOld := startCommand;
+
+// ============================ Stop handling =====================
+IF stopCommand THEN
+    controlOutputPct := 0.0;
+    running := FALSE;
+    step := 0;
+END_IF
+
+
+// ============================ State machine =====================
+CASE step OF
+    // ------------------------------------------------------------
+    0: // Idle (Repouso)
+        running := FALSE;
+        controlOutputPct := 0.0;
+
+        IF rStart AND NOT stopCommand THEN
+            step := 10;   // go to starting
+        END_IF
+
+    // ------------------------------------------------------------
+    10: // Starting (Partida)
+        running := TRUE;
+        step := 20;
+
+    // ------------------------------------------------------------
+    20: // Running (Operando)
+        running := TRUE;
+
+        // --- Input filtering (PT1) ---
+        _InputFilter(
+            enableFilter  := enableInputFilter,
+            rawValue      := pressureFeedback,
+            filterTime    := inputFilterTime,
+            filterGainK   := inputFilterGainK,
+            filteredValue => pressureFeedbackFiltered
+        );
+
+        // 1) Bound manual command to 0..100%
+        manualCmd := manualOutputPct;
+        IF manualCmd < 0.0 THEN manualCmd := 0.0; END_IF;
+        IF manualCmd > 100.0 THEN manualCmd := 100.0; END_IF;
+
+        // 2) Call OSCAT PID (with bumpless transfer)
+        instPID(
+            ACT := pressureFeedbackFiltered,  // use filtered feedback
+            SET := autoSetpoint,
+            M_I := manualCmd,
+            MAN := NOT autoMode,
+            RST := resetPID,
+            KP  := kp,
+            TN  := tn,
+            TV  := tv,
+            LL  := outLowLimitPct,
+            LH  := outHighLimitPct,
+            Y   => yPID,
+            DIFF=> pidDiff,
+            LIM => pidLimited
+        );
+
+        // 3) Select output according to mode
+        IF autoMode THEN
+            controlOutputPct := yPID;
+        ELSE
+            controlOutputPct := manualCmd;
+        END_IF
+
+        // Clamp again for safety (Reforço dos limites)
+        IF controlOutputPct < outLowLimitPct THEN controlOutputPct := outLowLimitPct; END_IF;
+        IF controlOutputPct > outHighLimitPct THEN controlOutputPct := outHighLimitPct; END_IF;
+
+        // 4) Exit to Idle when start is released or stop asserted
+        IF NOT startCommand OR stopCommand THEN
+            step := 90; // go to stopping
+        END_IF
+
+    // ------------------------------------------------------------
+    90: // Stopping (Parando)
+        controlOutputPct := 0.0;
+        running := FALSE;
+        step := 0;
+
+    // ------------------------------------------------------------
+    ELSE
+        running := FALSE;
+        controlOutputPct := 0.0;
+        step := 0;
+END_CASE]]></ST>
+    </Implementation>
+    <Method Name="_InputFilter" Id="{69d63677-505f-4118-8b1b-a74dd990cf25}">
+      <Declaration><![CDATA[METHOD _InputFilter
+VAR_INPUT
+    enableFilter   : BOOL;  // TRUE=apply PT1, FALSE=bypass (TRUE=aplica PT1, FALSE=by-pass)
+    rawValue       : REAL;  // Input value to be filtered (Valor de entrada a filtrar)
+    filterTime     : TIME;  // PT1 time constant (Constante de tempo do PT1)
+    filterGainK    : REAL;  // PT1 gain, typically 1.0 (Ganho do PT1, tipicamente 1.0)
+END_VAR
+VAR_OUTPUT
+    filteredValue  : REAL;  // Filtered (or bypassed) value (Valor filtrado ou by-pass)
+END_VAR
+VAR
+    kUse           : REAL;
+    tUse           : TIME;
+    yPT1           : REAL;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// When filter is disabled, "preload" the PT1 TO track the input quickly,
+// so re-enabling is bumpless (sem degrau).
+IF enableFilter THEN
+    kUse := filterGainK;
+    tUse := filterTime;
+ELSE
+    kUse := 1.0;          // track input
+    tUse := T#10ms;       // tiny time constant
+END_IF;
+
+// Call the OSCAT PT1 filter instance
+instsFT_PT1TInputFilter(
+    in  := rawValue,
+    T   := tUse,
+    K   := kUse,
+    out => yPT1
+);
+
+// Output selection
+IF enableFilter THEN
+    filteredValue := yPT1;
+ELSE
+    filteredValue := rawValue;
+END_IF;]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_PressureControl">
+      <LineId Id="244" Count="50" />
+      <LineId Id="297" Count="39" />
+      <LineId Id="9" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_PressureControl._InputFilter">
+      <LineId Id="65" Count="22" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>
