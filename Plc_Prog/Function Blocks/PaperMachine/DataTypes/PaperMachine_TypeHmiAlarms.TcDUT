@@ -4,6 +4,14 @@
     <Declaration><![CDATA[TYPE PaperMachine_TypeHmiAlarms :
 STRUCT
 
+	alarmIndication	: BOOL; //Used to tell the hmi that we have an alarm active
+
+	
+	formingBoardSafetyAlarm			: BOOL;
+	pressSectionSafetyAlarm			: BOOL;
+	dryingSectionSafetyAlarm		: BOOL;
+	winderSectionSafetyAlarm		: BOOL;
+	
     // ─────────────── FORMING BOARD ROLLS ───────────────
     formingBoardSuctionRollFaultAlarm         : BOOL;  // Suction roll fault / trip
     formingBoardSuctionRollCoolingFaultAlarm  : BOOL;  // Suction roll forced cooling fault
@@ -70,6 +78,7 @@ STRUCT
     dryingSectionGroup1BabyDryerScraperOscFaultAlarm : BOOL;  // EN: G1 babydryer scraper oscillator fault / PT: Falha do oscilador da raspa do babydryer G1
     dryingSectionGroup1UpperScraperOscFaultAlarm     : BOOL;  // EN: G1 upper group scraper oscillator fault / PT: Falha do oscilador da raspa do grupo superior G1
     dryingSectionGroup1LowerScraperOscFaultAlarm     : BOOL;  // EN: G1 lower group scraper oscillator fault / PT: Falha do oscilador da raspa do grupo inferior G1
+	dryingSectionGroup1PaperBreakAlarm : BOOL;
 
     // ─────────────── DRYING SECTION — GROUP 2 ───────────────
     dryingSectionGroup2UpperMasterFaultAlarm         : BOOL;  // G2 Upper Master fault / trip
@@ -101,6 +110,7 @@ STRUCT
     dryingSectionGroup2BabyDryerScraperOscFaultAlarm : BOOL;  // EN: G2 babydryer scraper oscillator fault / PT: Falha do oscilador da raspa do babydryer G2
     dryingSectionGroup2UpperScraperOscFaultAlarm     : BOOL;  // EN: G2 upper group scraper oscillator fault / PT: Falha do oscilador da raspa do grupo superior G2
     dryingSectionGroup2LowerScraperOscFaultAlarm     : BOOL;  // EN: G2 lower group scraper oscillator fault / PT: Falha do oscilador da raspa do grupo inferior G2
+	dryingSectionGroup2PaperBreakAlarm : BOOL;
 
     // ─────────────── DRYING SECTION — GROUP 3 ───────────────
     dryingSectionGroup3UpperMasterFaultAlarm         : BOOL;  // G3 Upper Master fault / trip
@@ -132,7 +142,7 @@ STRUCT
     dryingSectionGroup3BabyDryerScraperOscFaultAlarm : BOOL;  // EN: G3 babydryer scraper oscillator fault / PT: Falha do oscilador da raspa do babydryer G3
     dryingSectionGroup3UpperScraperOscFaultAlarm     : BOOL;  // EN: G3 upper group scraper oscillator fault / PT: Falha do oscilador da raspa do grupo superior G3
     dryingSectionGroup3LowerScraperOscFaultAlarm     : BOOL;  // EN: G3 lower group scraper oscillator fault / PT: Falha do oscilador da raspa do grupo inferior G3
-
+	dryingSectionGroup3PaperBreakAlarm : BOOL;
     // ─────────────── CENTRIFUGAL PRESSURE SCREEN ───────────────
     cpsUnitFaultAlarm                        : BOOL;  // Screen unit fault / trip
 

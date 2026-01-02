@@ -117,6 +117,8 @@ VAR_INPUT
     //==============================================================
     // STEAM PRESSURE CONTROL (PID)
     //==============================================================
+	
+	paperPresenceSensor			: BOOL; //Detect if we have paper in the machine
     steamPressureAutoMan        : BOOL;  // EN: Steam pressure mode (0=Manual, 1=Auto) / PT: Modo de pressão do vapor (0=Manual, 1=Automático)
     steamPressureAutoSetpoint   : REAL;  // EN: Auto mode setpoint [bar] / PT: Setpoint em modo automático [bar]
     steamPressureManualSetpoint : REAL;  // EN: Manual mode setpoint [bar] / PT: Setpoint em modo manual [bar]
@@ -2364,8 +2366,8 @@ END_VAR
                             </o>
                             <o>
                               <o n="Operand" t="Operand">
-                                <v n="Operand">""</v>
-                                <n n="Type" />
+                                <v n="Operand">"4"</v>
+                                <v n="Type">"INT"</v>
                                 <v n="Comment">""</v>
                                 <v n="SymbolComment">""</v>
                                 <v n="Address">""</v>
@@ -4020,7 +4022,7 @@ END_VAR
                             </o>
                             <o>
                               <o n="Operand" t="Operand">
-                                <v n="Operand">"-0.6"</v>
+                                <v n="Operand">"-0.8"</v>
                                 <v n="Type">"LREAL"</v>
                                 <v n="Comment">""</v>
                                 <v n="SymbolComment">""</v>
@@ -4039,7 +4041,7 @@ END_VAR
                             </o>
                             <o>
                               <o n="Operand" t="Operand">
-                                <v n="Operand">"0.6"</v>
+                                <v n="Operand">"0.8"</v>
                                 <v n="Type">"LREAL"</v>
                                 <v n="Comment">""</v>
                                 <v n="SymbolComment">""</v>

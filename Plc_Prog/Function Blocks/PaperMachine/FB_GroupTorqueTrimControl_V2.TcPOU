@@ -94,7 +94,7 @@ END_VAR
       <ST><![CDATA[
     instCTRL_PID_Group1TorqueTrim(
         ACT := group1Slave1TorqueFeedback,
-        SET := group1MasterTorqueFeedback,
+        SET := group1MasterTorqueFeedback - slaveTorqueOffset,
         MAN := FALSE,
         M_I := 0.0,
         RST := FALSE,

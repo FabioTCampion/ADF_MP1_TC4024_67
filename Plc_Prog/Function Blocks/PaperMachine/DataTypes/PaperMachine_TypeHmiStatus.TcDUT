@@ -4,6 +4,7 @@
     <Declaration><![CDATA[TYPE PaperMachine_TypeHmiStatus :
 STRUCT
 
+	alarmIndication	: BOOL; //Used to tell the hmi that we have an alarm active
 
     // ─────────────── FORMING LIPS OPENNING CONTROL ───────────────
 	headboxLipsPosition_mm       		  : REAL;  // Head box lips position [mm]
@@ -16,6 +17,9 @@ STRUCT
     formingBoardTractionRollSpeed   : REAL;  // Traction roll speed (Velocidade do rolo tracionador)
     formingBoardTractionRollTorque  : REAL;  // Traction roll torque (Torque do rolo tracionador)
     formingBoardTractionRollState  	: INT;  // Traction roll state 
+	
+	formingTailCutterNozzleState   : INT; 
+	formingWireShowerState : INT; 
 	
 	// ─────────────── PRESS SECTION DRIVES ───────────────
 	firstPressSectionSpeed     : REAL;  // First Press (Master) speed [m/min or rpm] (Velocidade do rolo prensador 1 - mestre)

@@ -24,6 +24,18 @@ STRUCT
 	headboxLipsManualOpenCmd           : BOOL;          // Jog open while pressed
 	headboxLipsManualCloseCmd          : BOOL;          // Jog close while pressed		
 	
+	formingTailCutterNozzleStartCmd   : BOOL; 
+	formingTailCutterNozzleStopCmd   : BOOL; 
+	
+	formingTailCutterNozzleFwCmd   : BOOL; 
+	formingTailCutterNozzleRevCmd   : BOOL; 	
+	
+	
+	
+	formingWireShowerStartCmd : BOOL; 
+	formingWireShowerStopCmd : BOOL; 
+	
+	
 	// ─────────────── PRESS SECTION ───────────────
 	// Start/stop and speed control commands for the press section.
 	pressSectionStart            : BOOL;  // Start Press Section (Ligar Prensa)

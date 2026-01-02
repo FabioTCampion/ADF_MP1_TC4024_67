@@ -274,6 +274,9 @@
     <Compile Include="Function Blocks\PaperMachine\DriveControl\FB_FormingBoardControl_V3.TcPOU">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="Function Blocks\PaperMachine\DriveControl\FB_PressSectionDriveControl_V2_bak.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="Function Blocks\PaperMachine\DriveControl\FB_WinderDriveControl_V1.TcPOU">
       <SubType>Code</SubType>
     </Compile>
@@ -290,6 +293,9 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="Function Blocks\PaperMachine\DriveControl\FB_PressSectionDriveControl_V2.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Function Blocks\PaperMachine\FB_AlarmControl.TcPOU">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="Function Blocks\PaperMachine\FB_GroupDisplayFilters_V1.TcPOU">
@@ -397,6 +403,9 @@
     <PlaceholderReference Include="CPNTeck - OSCAT BASIC">
       <DefaultResolution>CPNTeck - OSCAT BASIC, * (CPNTeck - Automação Industrial)</DefaultResolution>
       <Namespace>CPNTeck_OSCAT_BASIC</Namespace>
+    </PlaceholderReference>
+    <PlaceholderReference Include="Tc2_EtherCAT">
+      <DefaultResolution>Tc2_EtherCAT, * (Beckhoff Automation GmbH)</DefaultResolution>
     </PlaceholderReference>
     <PlaceholderReference Include="Tc2_Standard">
       <DefaultResolution>Tc2_Standard, * (Beckhoff Automation GmbH)</DefaultResolution>

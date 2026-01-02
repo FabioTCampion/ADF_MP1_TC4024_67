@@ -123,7 +123,7 @@ CASE step OF
         // Condições para iniciar partida
         IF runLatch AND NOT faultActive AND motorStarterOK AND allInterlocksOK AND NOT stopCommand THEN
             // Inicia tempo de partida (ajuste o PT conforme desejado)
-            tonStartDelay(IN := TRUE, PT := T#1S);
+            tonStartDelay(IN := TRUE, PT := T#10MS);
             deviceState := 'Starting (Partida - softstarter)';
             step := 10;
         END_IF;
@@ -134,7 +134,7 @@ CASE step OF
     // ---------------------------------------------------------
     10:
         deviceState := 'Starting (Partida - softstarter)';
-        tonStartDelay(IN := TRUE, PT := T#3S);
+        tonStartDelay(IN := TRUE, PT := T#10MS);
 
         // Abort start se perder condição
         IF NOT runLatch OR stopCommand OR faultActive OR NOT allInterlocksOK OR NOT motorStarterOK THEN

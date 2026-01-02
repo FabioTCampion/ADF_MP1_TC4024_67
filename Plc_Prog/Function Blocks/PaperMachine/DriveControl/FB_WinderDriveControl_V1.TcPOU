@@ -171,12 +171,13 @@ VAR
 	riderRollWorkPositionCmdOld: BOOL;
 	rRiderRollReleasePositionCmd: BOOL;
 	riderRollReleasePositionCmdOld: BOOL;
-	instTONCoreAceleratorRampTime: TON;
+	instTONCoreAceleratorReturnTime: TON;
 	
 	operatorSideLastePressure : REAL;
 	driveSideLastePressure : REAL;
 
 	
+	instTONCoreBrakeMaxTime: TON;
 END_VAR
 
 VAR PERSISTENT
@@ -282,34 +283,32 @@ END_VAR
       <Implementation>
         <ST><![CDATA[
 
-IF NOT coreAceleratorMotorReady THEN
+//IF NOT coreAceleratorMotorReady THEN
 	
 	IF coreAceleratorEngageCmd AND NOT coreAceleratorDisengageCmd THEN
 		
-		instTONCoreAceleratorRampTime.IN := TRUE;
+		instTONCoreAceleratorReturnTime.IN := TRUE;
+		coreAceleratorEngageSolenoid := TRUE;
 		coreAceleratorMotorStart := TRUE;
-		
-
 	
 	END_IF
 	
 	
-		
 	
-	IF coreAceleratorDisengageCmd AND NOT coreAceleratorEngageCmd THEN
+	IF (coreAceleratorDisengageCmd AND NOT coreAceleratorEngageCmd) OR instTONCoreAceleratorReturnTime.Q THEN
 		
-		instTONCoreAceleratorRampTime.IN := FALSE;
+		instTONCoreAceleratorReturnTime.IN := FALSE;
+		coreAceleratorEngageSolenoid := FALSE;	
 		coreAceleratorMotorStart := FALSE;
-		coreAceleratorEngageSolenoid := FALSE;
 		
 	
 	END_IF
 	
-END_IF
+//END_IF
 
 
 
-instTONCoreAceleratorRampTime(PT := T#3S,Q => coreAceleratorEngageSolenoid);]]></ST>
+instTONCoreAceleratorReturnTime(PT := T#30S);]]></ST>
       </Implementation>
     </Method>
     <Method Name="_coreBrakeControl" Id="{9a1a8d61-d66e-4d8e-bb72-332626f42901}">
@@ -321,14 +320,20 @@ instTONCoreAceleratorRampTime(PT := T#3S,Q => coreAceleratorEngageSolenoid);]]><
 IF coreBrakeEnableCmd AND NOT coreBrakeDisableCmd THEN
 	
 	coreBrakeEnableSolenoid := TRUE;
+	instTONCoreBrakeMaxTime.IN := TRUE;	
 	
 END_IF
 
-IF coreBrakeDisableCmd AND NOT coreBrakeEnableCmd THEN
+IF (coreBrakeDisableCmd AND NOT coreBrakeEnableCmd) OR instTONCoreBrakeMaxTime.Q  THEN
 	
 	coreBrakeEnableSolenoid := FALSE;
+	instTONCoreBrakeMaxTime.IN := FALSE;	
+	
 
-END_IF]]></ST>
+END_IF
+
+
+instTONCoreBrakeMaxTime(PT := T#10S);]]></ST>
       </Implementation>
     </Method>
     <Method Name="_coreLock" Id="{a30ac320-9842-4fa7-9f3b-c311da26001b}">
@@ -3106,29 +3111,15 @@ CASE riderRollState OF
 //------------------------------------------------------------------
 3:
 
-    // Maintain working pressure (from HMI configuration)
-	IF operatorSideLastePressure = 0 OR driveSideLastePressure = 0 THEN
+	instTUNE2_PressureOperatorSide.SET_val := 1.2;
+	instTUNE2_PressureOperatorSide.SET := TRUE;
+	instTUNE2_PressureOperatorSide();
 		
-		instTUNE2_PressureOperatorSide.SET_val := 1.5;
-		instTUNE2_PressureOperatorSide.SET := TRUE;
-		instTUNE2_PressureOperatorSide();
+	instTUNE2_PressureDriveSide.SET_val := 1.2;
+	instTUNE2_PressureDriveSide.SET := TRUE;
+	instTUNE2_PressureDriveSide();
+
 		
-		instTUNE2_PressureDriveSide.SET_val := 1.5;
-		instTUNE2_PressureDriveSide.SET := TRUE;
-		instTUNE2_PressureDriveSide();
-
-	ELSE
-
-		instTUNE2_PressureOperatorSide.SET_val := operatorSideLastePressure;
-		instTUNE2_PressureOperatorSide.SET := TRUE;
-		instTUNE2_PressureOperatorSide();
-		
-		instTUNE2_PressureDriveSide.SET_val := driveSideLastePressure;
-		instTUNE2_PressureDriveSide.SET := TRUE;
-		instTUNE2_PressureDriveSide();
-
-	END_IF
-	
     // Solenoid keeps rider roll engaged
     riderRollSolenoid1 := FALSE;
     riderRollSolenoid2 := FALSE;
@@ -3207,10 +3198,15 @@ instTUNE2_PressureDriveSide(
       <LineId Id="23" Count="0" />
       <LineId Id="28" Count="1" />
       <LineId Id="50" Count="0" />
-      <LineId Id="54" Count="4" />
-      <LineId Id="63" Count="2" />
+      <LineId Id="54" Count="2" />
+      <LineId Id="121" Count="0" />
+      <LineId Id="57" Count="0" />
+      <LineId Id="64" Count="1" />
       <LineId Id="96" Count="2" />
-      <LineId Id="66" Count="9" />
+      <LineId Id="67" Count="2" />
+      <LineId Id="122" Count="0" />
+      <LineId Id="70" Count="0" />
+      <LineId Id="72" Count="3" />
       <LineId Id="51" Count="0" />
       <LineId Id="100" Count="0" />
       <LineId Id="99" Count="0" />
@@ -3222,12 +3218,19 @@ instTUNE2_PressureDriveSide(
       <LineId Id="9" Count="0" />
       <LineId Id="8" Count="0" />
       <LineId Id="10" Count="0" />
-      <LineId Id="21" Count="1" />
+      <LineId Id="21" Count="0" />
+      <LineId Id="29" Count="0" />
+      <LineId Id="22" Count="0" />
       <LineId Id="11" Count="0" />
       <LineId Id="16" Count="2" />
       <LineId Id="23" Count="0" />
+      <LineId Id="31" Count="0" />
+      <LineId Id="30" Count="0" />
       <LineId Id="20" Count="0" />
       <LineId Id="14" Count="0" />
+      <LineId Id="32" Count="0" />
+      <LineId Id="28" Count="0" />
+      <LineId Id="25" Count="0" />
     </LineIds>
     <LineIds Name="FB_WinderDriveControl_V1._coreLock">
       <LineId Id="15" Count="1" />
@@ -3290,16 +3293,9 @@ instTUNE2_PressureDriveSide(
       <LineId Id="184" Count="0" />
       <LineId Id="340" Count="0" />
       <LineId Id="185" Count="7" />
-      <LineId Id="194" Count="1" />
-      <LineId Id="379" Count="1" />
-      <LineId Id="343" Count="5" />
-      <LineId Id="342" Count="0" />
-      <LineId Id="383" Count="0" />
-      <LineId Id="382" Count="0" />
       <LineId Id="385" Count="0" />
       <LineId Id="387" Count="6" />
-      <LineId Id="384" Count="0" />
-      <LineId Id="198" Count="0" />
+      <LineId Id="407" Count="0" />
       <LineId Id="394" Count="0" />
       <LineId Id="199" Count="0" />
       <LineId Id="295" Count="0" />

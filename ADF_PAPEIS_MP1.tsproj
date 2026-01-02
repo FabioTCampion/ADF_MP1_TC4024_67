@@ -600,7 +600,7 @@
 		</System>
 		<Plc>
 			<Project GUID="{1B0ECF96-BA46-432C-8D32-86F6F536DF4A}" Name="Plc_Prog" PrjFilePath="Plc_Prog\Plc_Prog.plcproj" TmcFilePath="Plc_Prog\Plc_Prog.tmc" ReloadTmc="true" AmsPort="851" FileArchiveSettings="#x000e" CopyTmcToTarget="true" ClearInvalidPersist="true" SymbolicMapping="true">
-				<Instance Id="#x08502000" TcSmClass="TComPlcObjDef" KeepUnrestoredLinks="2" TmcPath="Plc_Prog\Plc_Prog.tmc" TmcHash="{1F6EF15E-9837-C685-EA44-EBD3245FA055}">
+				<Instance Id="#x08502000" TcSmClass="TComPlcObjDef" KeepUnrestoredLinks="2" TmcPath="Plc_Prog\Plc_Prog.tmc" TmcHash="{BE55CD9F-BF3B-A9BE-6A78-8CE079377027}">
 					<Name>Plc_Prog Instance</Name>
 					<CLSID ClassFactory="TcPlc30">{08500001-0000-0000-F000-000000000064}</CLSID>
 					<Vars VarGrpType="1">
@@ -6216,17 +6216,17 @@ Bit1: Value bigger/equal Limit2]]></Comment>
 								</Entry>
 							</Pdo>
 							<Pdo Name="Channel 3" Index="#x1602" InOut="1" Flags="#x0011" SyncMan="0">
-								<Entry Name="Output" Index="#x7020" Sub="#x01">
+								<Entry Name="Libera Safety Vacuo" Index="#x7020" Sub="#x01">
 									<Type>BIT</Type>
 								</Entry>
 							</Pdo>
 							<Pdo Name="Channel 4" Index="#x1603" InOut="1" Flags="#x0011" SyncMan="0">
-								<Entry Name="Output" Index="#x7030" Sub="#x01">
+								<Entry Name="Selagem do vacuo" Index="#x7030" Sub="#x01">
 									<Type>BIT</Type>
 								</Entry>
 							</Pdo>
 							<Pdo Name="Channel 5" Index="#x1604" InOut="1" Flags="#x0011" SyncMan="0">
-								<Entry Name="Output" Index="#x7040" Sub="#x01">
+								<Entry Name="Separador Baixo Vacuo" Index="#x7040" Sub="#x01">
 									<Type>BIT</Type>
 								</Entry>
 							</Pdo>
@@ -7184,12 +7184,12 @@ Bit1: Value bigger/equal Limit2]]></Comment>
 								</Entry>
 							</Pdo>
 							<Pdo Name="Channel 12" Index="#x1a0b" Flags="#x0011" SyncMan="0">
-								<Entry Name="Input" Index="#x60b0" Sub="#x01">
+								<Entry Name="Pressao Alta HPU" Index="#x60b0" Sub="#x01">
 									<Type>BIT</Type>
 								</Entry>
 							</Pdo>
 							<Pdo Name="Channel 13" Index="#x1a0c" Flags="#x0011" SyncMan="0">
-								<Entry Name="Input" Index="#x60c0" Sub="#x01">
+								<Entry Name="Pressao Baixa HPU" Index="#x60c0" Sub="#x01">
 									<Type>BIT</Type>
 								</Entry>
 							</Pdo>
@@ -7199,7 +7199,7 @@ Bit1: Value bigger/equal Limit2]]></Comment>
 								</Entry>
 							</Pdo>
 							<Pdo Name="Channel 15" Index="#x1a0e" Flags="#x0011" SyncMan="0">
-								<Entry Name="Input" Index="#x60e0" Sub="#x01">
+								<Entry Name="Nivel muito baixo HPU" Index="#x60e0" Sub="#x01">
 									<Type>BIT</Type>
 								</Entry>
 							</Pdo>
@@ -9145,7 +9145,7 @@ Bit1: Value bigger/equal Limit2]]></Comment>
 				<Box Id="32" BoxType="9099" BoxFlags="#x00000020">
 					<Name>+P13=501-UG1 - Dryer Section GR2 - Upper Master</Name>
 					<ImageId>1005</ImageId>
-					<EtherCAT SlaveType="2" PdiType="#x040a" CheckVendorId="false" CheckProductCode="false" MboxDataLinkLayer="true" StateMBoxPolling="true" CycleMBoxPollingTime="0" CoeType="13" VendorId="#x000001dd" ProductCode="#x10400160" RevisionNo="#x00030000" InfoDataAddr="true" InfoDataSoeDS401="true" InfoDataDcTimes="true" TimeoutStateChange1="5000" TimeoutStateChange2="9000" TimeoutMailbox2="2000" PortPhys="17" MaxSlotCount="256" MaxSlotGroupCount="1" SlotPdoIncrement="1" SlotIndexIncrement="16" Type="Delta CH2000 EtherCAT(CoE)" Desc="CH2000(CMC-EC01 Card)" PortABoxInfo="#x0100001f">
+					<EtherCAT SlaveType="2" PdiType="#x040a" CheckVendorId="false" CheckProductCode="false" MboxDataLinkLayer="true" StateMBoxPolling="true" CycleMBoxPollingTime="0" CoeType="13" VendorId="#x000001dd" ProductCode="#x10400140" RevisionNo="#x00040000" InfoDataAddr="true" InfoDataSoeDS401="true" InfoDataDcTimes="true" TimeoutStateChange1="5000" TimeoutStateChange2="9000" TimeoutMailbox2="2000" PortPhys="17" MaxSlotCount="256" MaxSlotGroupCount="1" SlotPdoIncrement="1" SlotIndexIncrement="16" Type="Delta C2000Plus EtherCAT(CoE)" Desc="C2000Plus(CMC-EC01 Card)" PortABoxInfo="#x0100001f">
 						<SyncMan>0010800026000100010000002200c0008000001026010000</SyncMan>
 						<SyncMan>c010800022000100020000002200c0008000c01022010000</SyncMan>
 						<SyncMan>80110b002400010003000000010000010b00801124010000</SyncMan>
@@ -9594,7 +9594,7 @@ Bit1: Value bigger/equal Limit2]]></Comment>
 				<Box Id="34" BoxType="9099" BoxFlags="#x00000020">
 					<Name>+P13=502-UG4 - Dryer Section GR3 - Upper Master</Name>
 					<ImageId>1005</ImageId>
-					<EtherCAT SlaveType="2" PdiType="#x040a" CheckVendorId="false" CheckProductCode="false" MboxDataLinkLayer="true" StateMBoxPolling="true" CycleMBoxPollingTime="0" CoeType="13" VendorId="#x000001dd" ProductCode="#x10400160" RevisionNo="#x00030000" InfoDataAddr="true" InfoDataSoeDS401="true" InfoDataDcTimes="true" TimeoutStateChange1="5000" TimeoutStateChange2="9000" TimeoutMailbox2="2000" PortPhys="17" MaxSlotCount="256" MaxSlotGroupCount="1" SlotPdoIncrement="1" SlotIndexIncrement="16" Type="Delta CH2000 EtherCAT(CoE)" Desc="CH2000(CMC-EC01 Card)" PortABoxInfo="#x01000021">
+					<EtherCAT SlaveType="2" PdiType="#x040a" CheckVendorId="false" CheckProductCode="false" MboxDataLinkLayer="true" StateMBoxPolling="true" CycleMBoxPollingTime="0" CoeType="13" VendorId="#x000001dd" ProductCode="#x10400140" RevisionNo="#x00030000" InfoDataAddr="true" InfoDataSoeDS401="true" InfoDataDcTimes="true" TimeoutStateChange1="5000" TimeoutStateChange2="9000" TimeoutMailbox2="2000" PortPhys="17" MaxSlotCount="256" MaxSlotGroupCount="1" SlotPdoIncrement="1" SlotIndexIncrement="16" Type="Delta C2000Plus EtherCAT(CoE)" Desc="C2000Plus(CMC-EC01 Card)" PortABoxInfo="#x01000021">
 						<SyncMan>0010800026000100010000002200c0008000001026010000</SyncMan>
 						<SyncMan>c010800022000100020000002200c0008000c01022010000</SyncMan>
 						<SyncMan>80110b002400010003000000010000010b00801124010000</SyncMan>
@@ -10197,7 +10197,7 @@ Bit1: Value bigger/equal Limit2]]></Comment>
 						<EtherCAT CycleMBoxPollingTime="0" VendorId="#x00000002" ProductCode="#x23333050" InfoDataState="false" MaxSlotCount="256" MaxSlotGroupCount="1" SlotPdoIncrement="1" SlotIndexIncrement="16" Type="EL9011 End Terminal" Desc="EL9011" PortABoxInfo="#x01000087"/>
 					</Box>
 				</Box>
-				<EtherCAT DcSyncMode="3" EnableVirtualSwitch="true" MaxSwitchPorts="3" MaxSwitchFrames="140"/>
+				<EtherCAT DcSyncMode="3" EnableVirtualSwitch="true" MaxSwitchPorts="3" MaxSwitchFrames="140" MaxSwitchMACs="100"/>
 			</Device>
 		</Io>
 	</Project>
@@ -10411,10 +10411,10 @@ Bit1: Value bigger/equal Limit2]]></Comment>
 				<Link VarA="PlcTask Inputs^.P10_050_DI8.PDOS.digitalInput_09" VarB="Channel 9^Input"/>
 				<Link VarA="PlcTask Inputs^.P10_050_DI8.PDOS.digitalInput_10" VarB="Channel 10^Input"/>
 				<Link VarA="PlcTask Inputs^.P10_050_DI8.PDOS.digitalInput_11" VarB="Channel 11^Input"/>
-				<Link VarA="PlcTask Inputs^.P10_050_DI8.PDOS.digitalInput_12" VarB="Channel 12^Input"/>
-				<Link VarA="PlcTask Inputs^.P10_050_DI8.PDOS.digitalInput_13" VarB="Channel 13^Input"/>
+				<Link VarA="PlcTask Inputs^.P10_050_DI8.PDOS.digitalInput_12" VarB="Channel 12^Pressao Alta HPU"/>
+				<Link VarA="PlcTask Inputs^.P10_050_DI8.PDOS.digitalInput_13" VarB="Channel 13^Pressao Baixa HPU"/>
 				<Link VarA="PlcTask Inputs^.P10_050_DI8.PDOS.digitalInput_14" VarB="Channel 14^Input"/>
-				<Link VarA="PlcTask Inputs^.P10_050_DI8.PDOS.digitalInput_15" VarB="Channel 15^Input"/>
+				<Link VarA="PlcTask Inputs^.P10_050_DI8.PDOS.digitalInput_15" VarB="Channel 15^Nivel muito baixo HPU"/>
 				<Link VarA="PlcTask Inputs^.P10_050_DI8.PDOS.digitalInput_16" VarB="Channel 16^Input"/>
 			</OwnerB>
 			<OwnerB Name="TIID^ETH^+P10=050-BC1 - Press / Dryer PLC Cabinet^+P10=050-DO1 (EL2809)">
@@ -11065,9 +11065,9 @@ Bit1: Value bigger/equal Limit2]]></Comment>
 			<OwnerB Name="TIID^ETH^+P9=050-BC1 - Vaccum PLC Cabinet^+P9=050-DO3 (EL2809)">
 				<Link VarA="PlcTask Outputs^.P9_050_DO3.PDOS.PlcToHw.digitalOutput_01" VarB="Channel 1^Output"/>
 				<Link VarA="PlcTask Outputs^.P9_050_DO3.PDOS.PlcToHw.digitalOutput_02" VarB="Channel 2^Output"/>
-				<Link VarA="PlcTask Outputs^.P9_050_DO3.PDOS.PlcToHw.digitalOutput_03" VarB="Channel 3^Output"/>
-				<Link VarA="PlcTask Outputs^.P9_050_DO3.PDOS.PlcToHw.digitalOutput_04" VarB="Channel 4^Output"/>
-				<Link VarA="PlcTask Outputs^.P9_050_DO3.PDOS.PlcToHw.digitalOutput_05" VarB="Channel 5^Output"/>
+				<Link VarA="PlcTask Outputs^.P9_050_DO3.PDOS.PlcToHw.digitalOutput_03" VarB="Channel 3^Libera Safety Vacuo"/>
+				<Link VarA="PlcTask Outputs^.P9_050_DO3.PDOS.PlcToHw.digitalOutput_04" VarB="Channel 4^Selagem do vacuo"/>
+				<Link VarA="PlcTask Outputs^.P9_050_DO3.PDOS.PlcToHw.digitalOutput_05" VarB="Channel 5^Separador Baixo Vacuo"/>
 				<Link VarA="PlcTask Outputs^.P9_050_DO3.PDOS.PlcToHw.digitalOutput_06" VarB="Channel 6^Output"/>
 				<Link VarA="PlcTask Outputs^.P9_050_DO3.PDOS.PlcToHw.digitalOutput_07" VarB="Channel 7^Output"/>
 				<Link VarA="PlcTask Outputs^.P9_050_DO3.PDOS.PlcToHw.digitalOutput_08" VarB="Channel 8^Output"/>
