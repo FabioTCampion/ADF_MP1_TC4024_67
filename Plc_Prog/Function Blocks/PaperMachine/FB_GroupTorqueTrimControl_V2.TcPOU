@@ -38,6 +38,8 @@ VAR_INPUT
     tupperAndLowerPIDCtrlTv                   : REAL := 0.0;
 	
 	
+	enableUpperLowerSpeedTrim			: BOOL;
+	
     //----------------------------------------------------------------------
     // CONTROL FLAGS
     //----------------------------------------------------------------------
@@ -123,6 +125,19 @@ END_VAR
     );
 
 
+	IF enableUpperLowerSpeedTrim THEN
+		
+		instCTRL_PID_UpperAndLowerSpdTrim.LL := upperAndLowerDifMinPct;
+		instCTRL_PID_UpperAndLowerSpdTrim.LH := upperAndLowerDifMaxPct;
+	
+	
+	ELSE
+		
+		instCTRL_PID_UpperAndLowerSpdTrim.LL := 0.0;
+		instCTRL_PID_UpperAndLowerSpdTrim.LH := 0.0;	
+	
+	END_IF
+	
 	
 	
 		upperAndLowerTorqueDif := group1MasterTorqueFeedback - group2MasterTorqueFeedback;
@@ -137,8 +152,8 @@ END_VAR
         KP  := upperAndLowerPIDCtrlKp,
         TN  := upperAndLowerPIDCtrlTn,
         TV  := tupperAndLowerPIDCtrlTv,
-        LL  := upperAndLowerDifMinPct,                   // Bipolar output
-        LH  := upperAndLowerDifMaxPct,
+//        LL  := upperAndLowerDifMinPct,                   // Bipolar output
+//        LH  := upperAndLowerDifMaxPct,
         Y   => upperAndLowerSpeedTrim
     );
 ]]></ST>
@@ -147,7 +162,18 @@ END_VAR
       <LineId Id="484" Count="15" />
       <LineId Id="9" Count="0" />
       <LineId Id="502" Count="13" />
+      <LineId Id="645" Count="0" />
       <LineId Id="538" Count="0" />
+      <LineId Id="647" Count="0" />
+      <LineId Id="649" Count="0" />
+      <LineId Id="656" Count="0" />
+      <LineId Id="655" Count="0" />
+      <LineId Id="651" Count="2" />
+      <LineId Id="658" Count="0" />
+      <LineId Id="657" Count="0" />
+      <LineId Id="654" Count="0" />
+      <LineId Id="648" Count="0" />
+      <LineId Id="646" Count="0" />
       <LineId Id="516" Count="0" />
       <LineId Id="542" Count="1" />
       <LineId Id="539" Count="0" />

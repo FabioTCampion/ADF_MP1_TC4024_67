@@ -8780,7 +8780,7 @@ END_VAR
                           <v n="LValue">false</v>
                           <v n="Boolean">false</v>
                           <v n="IsInstance">true</v>
-                          <v n="Id">214L</v>
+                          <v n="Id">221L</v>
                         </o>
                         <o n="OutputItems" t="OutputItemList">
                           <l2 n="OutputItems" cet="Operand">
@@ -9754,6 +9754,11 @@ END_VAR
                           <o>
                             <v n="Flags">0</v>
                             <v n="Fixed">true</v>
+                            <v n="Extensible">false</v>
+                          </o>
+                          <o>
+                            <v n="Flags">0</v>
+                            <v n="Fixed">false</v>
                             <v n="Extensible">false</v>
                           </o>
                           <o>
@@ -11015,6 +11020,25 @@ END_VAR
                           </o>
                           <o t="BoxTreeOperand">
                             <o n="Operand" t="Operand">
+                              <v n="Operand">"P10_050_DI5.digitalInput_03"</v>
+                              <v n="Type">"BOOL"</v>
+                              <v n="Comment">""</v>
+                              <v n="SymbolComment">""</v>
+                              <v n="Address">""</v>
+                              <o n="Flags" t="Flags">
+                                <v n="Flags">0</v>
+                                <v n="Fixed">false</v>
+                                <v n="Extensible">false</v>
+                              </o>
+                              <v n="LValue">false</v>
+                              <v n="Boolean">false</v>
+                              <v n="IsInstance">false</v>
+                              <v n="Id">224L</v>
+                            </o>
+                            <v n="Id">223L</v>
+                          </o>
+                          <o t="BoxTreeOperand">
+                            <o n="Operand" t="Operand">
                               <v n="Operand">"paperMachineHmiCommands.dryingSectionGroup2SteamPressureAutoMan"</v>
                               <v n="Type">"BOOL"</v>
                               <v n="Comment">""</v>
@@ -11337,6 +11361,7 @@ END_VAR
                             <v>lowerGroupScraperOscCmd</v>
                             <v>lowerGroupScraperOscFault</v>
                             <v>lowerGroupScraperOscRunning</v>
+                            <v>paperPresenceSensor</v>
                             <v>steamPressureAutoMan</v>
                             <v>steamPressureAutoSetpoint</v>
                             <v>steamPressureManualSetpoint</v>
@@ -11376,6 +11401,7 @@ END_VAR
                             <v>REAL</v>
                             <v>REAL</v>
                             <v>REAL</v>
+                            <v>BOOL</v>
                             <v>BOOL</v>
                             <v>BOOL</v>
                             <v>BOOL</v>
@@ -11524,7 +11550,7 @@ END_VAR
                         <n n="STSnippet" />
                         <v n="ContainsExtensibleInputs">false</v>
                         <v n="ProvidesSTSnippet">false</v>
-                        <v n="Id">215L</v>
+                        <v n="Id">222L</v>
                       </o>
                     </l2>
                     <l2 n="Connectors" />
@@ -11593,7 +11619,7 @@ END_VAR
                           <v n="LValue">false</v>
                           <v n="Boolean">false</v>
                           <v n="IsInstance">true</v>
-                          <v n="Id">800L</v>
+                          <v n="Id">807L</v>
                         </o>
                         <o n="OutputItems" t="OutputItemList">
                           <l2 n="OutputItems" cet="Operand">
@@ -12567,6 +12593,11 @@ END_VAR
                           <o>
                             <v n="Flags">0</v>
                             <v n="Fixed">true</v>
+                            <v n="Extensible">false</v>
+                          </o>
+                          <o>
+                            <v n="Flags">0</v>
+                            <v n="Fixed">false</v>
                             <v n="Extensible">false</v>
                           </o>
                           <o>
@@ -13828,6 +13859,25 @@ END_VAR
                           </o>
                           <o t="BoxTreeOperand">
                             <o n="Operand" t="Operand">
+                              <v n="Operand">"P10_050_DI5.digitalInput_03"</v>
+                              <v n="Type">"BOOL"</v>
+                              <v n="Comment">""</v>
+                              <v n="SymbolComment">""</v>
+                              <v n="Address">""</v>
+                              <o n="Flags" t="Flags">
+                                <v n="Flags">0</v>
+                                <v n="Fixed">false</v>
+                                <v n="Extensible">false</v>
+                              </o>
+                              <v n="LValue">false</v>
+                              <v n="Boolean">false</v>
+                              <v n="IsInstance">false</v>
+                              <v n="Id">810L</v>
+                            </o>
+                            <v n="Id">809L</v>
+                          </o>
+                          <o t="BoxTreeOperand">
+                            <o n="Operand" t="Operand">
                               <v n="Operand">"paperMachineHmiCommands.dryingSectionGroup3SteamPressureAutoMan"</v>
                               <v n="Type">"BOOL"</v>
                               <v n="Comment">""</v>
@@ -14150,6 +14200,7 @@ END_VAR
                             <v>lowerGroupScraperOscCmd</v>
                             <v>lowerGroupScraperOscFault</v>
                             <v>lowerGroupScraperOscRunning</v>
+                            <v>paperPresenceSensor</v>
                             <v>steamPressureAutoMan</v>
                             <v>steamPressureAutoSetpoint</v>
                             <v>steamPressureManualSetpoint</v>
@@ -14189,6 +14240,7 @@ END_VAR
                             <v>REAL</v>
                             <v>REAL</v>
                             <v>REAL</v>
+                            <v>BOOL</v>
                             <v>BOOL</v>
                             <v>BOOL</v>
                             <v>BOOL</v>
@@ -14337,7 +14389,7 @@ END_VAR
                         <n n="STSnippet" />
                         <v n="ContainsExtensibleInputs">false</v>
                         <v n="ProvidesSTSnippet">false</v>
-                        <v n="Id">801L</v>
+                        <v n="Id">808L</v>
                       </o>
                     </l2>
                     <l2 n="Connectors" />
