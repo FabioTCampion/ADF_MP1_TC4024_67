@@ -29,6 +29,7 @@ STRUCT
 	secondPressSectionSpeed    : REAL;  // Second Press (Slave) speed [m/min or rpm] (Velocidade do rolo prensador 2 - escravo)
 	secondPressSectionTorque   : REAL;  // Second Press (Slave) torque [% or Nm] (Torque do rolo prensador 2 - escravo)
 	secondPressSectionState    : INT;   // Second Press (Slave) state code (Estado do rolo prensador 2 - escravo)
+	presseGroupSpeedDif				: REAL;	
 		
 	
 	// ─────────────── DRYING SECTION — GROUP 1 ───────────────
@@ -62,6 +63,7 @@ STRUCT
 	dryingSectionGroup1LowerSlave2State   : INT;   // Group 1 Lower Slave 2 state code (Estado do motor escravo 2 inferior do grupo 1)
 	
 	dryingSectionGroup1SteamPressure   : REAL;   // Drying group 1 - Steam pressure display
+	dryingSectionGroup1SpeedDif				: REAL;	
 
 	// ─────────────── DRYING SECTION — GROUP 2 ───────────────
 	// Speed, torque, and state variables for upper and lower groups of Drying Section Group 2.
@@ -94,6 +96,7 @@ STRUCT
 	dryingSectionGroup2LowerSlave2State   : INT;   // Group 2 Lower Slave 2 state code (Estado do motor escravo 2 inferior do grupo 2)
 	
 	dryingSectionGroup2SteamPressure   : REAL;   // Drying group 1 - Steam pressure display
+	dryingSectionGroup2SpeedDif				: REAL;	
 		
 	
 	// ─────────────── DRYING SECTION — GROUP 3 ───────────────
@@ -127,6 +130,7 @@ STRUCT
 	dryingSectionGroup3LowerSlave2State   : INT;   // Group 2 Lower Slave 2 state code (Estado do motor escravo 2 inferior do grupo 2)
 
 	dryingSectionGroup3SteamPressure   : REAL;   // Drying group 1 - Steam pressure display
+	dryingSectionGroup3SpeedDif				: REAL;	
 	
 			
     // ─────────────── LUBRIFICATION UNIT ───────────────
@@ -198,6 +202,7 @@ STRUCT
 	winderSpeedMPM   : REAL;  // Group 2 Upper Slave 2 speed [m/min or rpm] (Velocidade do motor escravo 2 superior do grupo 2)
 	winderTorque  : REAL;  // Group 2 Upper Slave 2 torque [% or Nm] (Torque do motor escravo 2 superior do grupo 2)
 	winderState   : INT;   // Group 2 Upper Slave 2 state code (Estado do motor escravo 2 superior do grupo 2)
+	winderSpeedDif				: REAL;	
 		
 
 END_STRUCT

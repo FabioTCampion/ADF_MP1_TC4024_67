@@ -71,7 +71,7 @@ VAR_OUTPUT
     // ─────────────── HANDOFF TO NEXT GROUP ───────────────
     //==============================================================
     nextGroupSpeedRefMPM       : REAL;
-	
+	speedDif					: REAL;
 	
 	
 	
@@ -220,6 +220,9 @@ instTUNE2_GroupSpeedDiff(
     LIMIT_H := groupSpeedDifLimHigh,
     Y       => groupSpeedOffset);
 
+	
+speedDif := groupSpeedOffset;
+	
 groupDeltaRatioAll  := 1.0 + (groupSpeedOffset * 0.01);
 upperLowerBiasRatio := 1.0 + (upperAndLowerSpeedOffset * 0.01);
 
@@ -319,7 +322,11 @@ END_IF;
       <LineId Id="736" Count="2" />
       <LineId Id="901" Count="0" />
       <LineId Id="739" Count="23" />
-      <LineId Id="685" Count="48" />
+      <LineId Id="685" Count="15" />
+      <LineId Id="1014" Count="0" />
+      <LineId Id="701" Count="0" />
+      <LineId Id="1015" Count="1" />
+      <LineId Id="702" Count="31" />
       <LineId Id="9" Count="0" />
     </LineIds>
     <LineIds Name="FB_GroupSpeedControl_V1._CalculateGearRatios">

@@ -96,7 +96,7 @@ VAR_OUTPUT
     deviceState             : STRING; // EN: Current device state (text) / PT: Estado atual do grupo (texto)
     groupFault              : BOOL;   // EN: Group fault active / PT: Falha ativa no grupo
     statusCode              : INT;    // EN: 0=Idle, 1=Starting, 2=Running, 3=Fault / PT: 0=Parado, 1=Partindo, 2=Rodando, 3=Falha
-
+	speedDif	: REAL;
     //==============================================================
     // DRIVE SPEED REFERENCES (RPM)
     //==============================================================
@@ -1365,7 +1365,7 @@ END_VAR
                             <v n="LValue">false</v>
                             <v n="Boolean">false</v>
                             <v n="IsInstance">true</v>
-                            <v n="Id">890L</v>
+                            <v n="Id">1136L</v>
                           </o>
                           <o n="OutputItems" t="OutputItemList">
                             <l2 n="OutputItems" cet="Operand">
@@ -1561,6 +1561,22 @@ END_VAR
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
                                 <v n="Id">203L</v>
+                              </o>
+                              <o>
+                                <v n="Operand">"speedDif"</v>
+                                <v n="Type">"REAL"</v>
+                                <v n="Comment">""</v>
+                                <v n="SymbolComment">""</v>
+                                <v n="Address">""</v>
+                                <o n="Flags" t="Flags">
+                                  <v n="Flags">0</v>
+                                  <v n="Fixed">false</v>
+                                  <v n="Extensible">false</v>
+                                </o>
+                                <v n="LValue">true</v>
+                                <v n="Boolean">false</v>
+                                <v n="IsInstance">false</v>
+                                <v n="Id">1138L</v>
                               </o>
                             </l2>
                           </o>
@@ -2055,8 +2071,10 @@ END_VAR
                               <v>group2Slave1SpeedMPM</v>
                               <v>group2Slave2SpeedMPM</v>
                               <v>nextGroupSpeedRefMPM</v>
+                              <v>speedDif</v>
                             </l2>
                             <l2 n="Types" cet="String">
+                              <v>REAL</v>
                               <v>REAL</v>
                               <v>REAL</v>
                               <v>REAL</v>
@@ -2078,7 +2096,7 @@ END_VAR
                           <n n="STSnippet" />
                           <v n="ContainsExtensibleInputs">false</v>
                           <v n="ProvidesSTSnippet">false</v>
-                          <v n="Id">891L</v>
+                          <v n="Id">1137L</v>
                         </o>
                         <v n="Id">529L</v>
                       </o>
@@ -3111,11 +3129,11 @@ CASE riderRollState OF
 //------------------------------------------------------------------
 3:
 
-	instTUNE2_PressureOperatorSide.SET_val := 1.2;
+	instTUNE2_PressureOperatorSide.SET_val := 0.8;
 	instTUNE2_PressureOperatorSide.SET := TRUE;
 	instTUNE2_PressureOperatorSide();
 		
-	instTUNE2_PressureDriveSide.SET_val := 1.2;
+	instTUNE2_PressureDriveSide.SET_val := 0.8;
 	instTUNE2_PressureDriveSide.SET := TRUE;
 	instTUNE2_PressureDriveSide();
 

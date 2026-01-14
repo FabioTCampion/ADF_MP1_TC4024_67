@@ -600,7 +600,7 @@
 		</System>
 		<Plc>
 			<Project GUID="{1B0ECF96-BA46-432C-8D32-86F6F536DF4A}" Name="Plc_Prog" PrjFilePath="Plc_Prog\Plc_Prog.plcproj" TmcFilePath="Plc_Prog\Plc_Prog.tmc" ReloadTmc="true" AmsPort="851" FileArchiveSettings="#x000e" CopyTmcToTarget="true" ClearInvalidPersist="true" SymbolicMapping="true">
-				<Instance Id="#x08502000" TcSmClass="TComPlcObjDef" KeepUnrestoredLinks="2" TmcPath="Plc_Prog\Plc_Prog.tmc" TmcHash="{0AE6D7E0-ED2C-F56F-DF44-06AF8D1E516D}">
+				<Instance Id="#x08502000" TcSmClass="TComPlcObjDef" KeepUnrestoredLinks="2" TmcPath="Plc_Prog\Plc_Prog.tmc" TmcHash="{A87AB749-5D53-28C5-2387-F8C39904D53A}">
 					<Name>Plc_Prog Instance</Name>
 					<CLSID ClassFactory="TcPlc30">{08500001-0000-0000-F000-000000000064}</CLSID>
 					<Vars VarGrpType="1">

@@ -1,0 +1,1001 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.15">
+  <POU Name="FB_AlarmControl" Id="{9fd73fab-74c6-40d7-b430-b814672ecfa0}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_AlarmControl
+VAR_INPUT
+	
+
+	reset									: BOOL;
+	
+	formingBoardSafetyAlarm			: BOOL;
+	pressSectionSafetyAlarm			: BOOL;
+	dryingSectionSafetyAlarm		: BOOL;
+	winderSectionSafetyAlarm		: BOOL;
+	
+	
+   // ─────────────── FORMING BOARD ROLLS ───────────────
+    formingBoardSuctionRollFaultAlarm         : BOOL;  // Suction roll fault / trip
+    formingBoardSuctionRollCoolingFaultAlarm  : BOOL;  // Suction roll forced cooling fault
+    formingBoardTractionRollFaultAlarm        : BOOL;  // Traction roll fault / trip
+    formingBoardTractionRollCoolingFaultAlarm : BOOL;  // Traction roll forced cooling fault
+
+    formingBoardRollDriveFaultAlarm           : BOOL;  // Roll up/down motor fault
+    formingBoardStretchDriveFaultAlarm        : BOOL;  // Stretch motor fault
+
+    // ── WIRE EDGE / RUNNING SAFETY SENSORS ─────────────────────────────────────
+    formingBoardWireOverrunOperatorSideAlarm  : BOOL;  // Wire overrun detected on operator side (sensor active)
+    formingBoardWireOverrunDriveSideAlarm     : BOOL;  // Wire overrun detected on drive side (sensor active)
+
+    // ─────────────── PRESS SECTION DRIVES ───────────────
+    pressSectionFirstPressFaultAlarm          : BOOL;  // First press (master) fault / trip
+    pressSectionFirstPressCoolingFaultAlarm   : BOOL;  // First press forced cooling fault
+    pressSectionSecondPressFaultAlarm         : BOOL;  // Second press (slave) fault / trip
+    pressSectionSecondPressCoolingFaultAlarm  : BOOL;  // Second press forced cooling fault
+
+    // ─────────────── PRESS SECTION — AUXILIARY MOTORS ───────────────
+    pressSectionUpperFeltStretcherFaultAlarm  : BOOL;  // Upper felt stretcher motor fault / trip
+    pressSectionLowerFeltStretcherFaultAlarm  : BOOL;  // Lower felt stretcher motor fault / trip
+    pressSectionUpperInfeedRollFaultAlarm     : BOOL;  // Upper infeed roll motor fault / trip
+    pressSectionLowerInfeedRollFaultAlarm     : BOOL;  // Lower infeed roll motor fault / trip
+
+    // ── FELT EDGE / RUNNING SAFETY SENSORS ─────────────────────────────────────
+    pressSectionUpperFelt1OverrunOperatorSideAlarm : BOOL;  // Felt 1 overrun detected on operator side (sensor active)
+    pressSectionUpperFelt1OverrunDriveSideAlarm    : BOOL;  // Felt 1 overrun detected on drive side (sensor active)
+    pressSectionUpperFelt2OverrunOperatorSideAlarm : BOOL;  // Felt 2 overrun detected on operator side (sensor active)
+    pressSectionUpperFelt2OverrunDriveSideAlarm    : BOOL;  // Felt 2 overrun detected on drive side (sensor active)
+    pressSectionLowerFeltOverrunOperatorSideAlarm  : BOOL;  // Felt 3 overrun detected on operator side (sensor active)
+    pressSectionLowerFeltOverrunDriveSideAlarm     : BOOL;  // Felt 3 overrun detected on drive side (sensor active)
+
+    // ─────────────── PRESS SECTION — GROUP FAULT ───────────────
+    pressSectionGroupFaultAlarm               : BOOL;  // Global press section group fault / interlock active
+
+    // ─────────────── DRYING SECTION — GROUP 1 ───────────────
+    dryingSectionGroup1UpperMasterFaultAlarm         : BOOL;  // G1 Upper Master fault / trip
+    dryingSectionGroup1UpperMasterCoolingFaultAlarm  : BOOL;  // G1 Upper Master forced cooling fault
+    dryingSectionGroup1UpperSlave1FaultAlarm         : BOOL;  // G1 Upper Slave1 fault / trip
+    dryingSectionGroup1UpperSlave1CoolingFaultAlarm  : BOOL;  // G1 Upper Slave1 forced cooling fault
+    dryingSectionGroup1UpperSlave2FaultAlarm         : BOOL;  // G1 Upper Slave2 fault / trip
+    dryingSectionGroup1UpperSlave2CoolingFaultAlarm  : BOOL;  // G1 Upper Slave2 forced cooling fault
+
+    dryingSectionGroup1LowerMasterFaultAlarm         : BOOL;  // G1 Lower Master fault / trip
+    dryingSectionGroup1LowerMasterCoolingFaultAlarm  : BOOL;  // G1 Lower Master forced cooling fault
+    dryingSectionGroup1LowerSlave1FaultAlarm         : BOOL;  // G1 Lower Slave1 fault / trip
+    dryingSectionGroup1LowerSlave1CoolingFaultAlarm  : BOOL;  // G1 Lower Slave1 forced cooling fault
+    dryingSectionGroup1LowerSlave2FaultAlarm         : BOOL;  // G1 Lower Slave2 fault / trip
+    dryingSectionGroup1LowerSlave2CoolingFaultAlarm  : BOOL;  // G1 Lower Slave2 forced cooling fault
+
+    // ── FABRIC OVERRUN PROTECTION — GROUP 1 ───────────────────────────────────
+    upperDryingSectionGroup1FabricOverrunOperatorSideAlarm : BOOL;  // Fabric overrun detected on operator side (sensor active)
+    upperDryingSectionGroup1FabricOverrunDriveSideAlarm    : BOOL;  // Fabric overrun detected on drive side (sensor active)
+    lowerDryingSectionGroup1FabricOverrunOperatorSideAlarm : BOOL;  // Fabric overrun detected on operator side (sensor active)
+    lowerDryingSectionGroup1FabricOverrunDriveSideAlarm    : BOOL;  // Fabric overrun detected on drive side (sensor active)
+
+    // ───────── DRYING SECTION — FABRIC STRETCHER — GROUP 1 ─────────
+    upperDryingSectionGroup1FabricStretcherMotorFaultAlarm : BOOL;  // Upper fabric stretcher motor fault (G1)
+    lowerDryingSectionGroup1FabricStretcherMotorFaultAlarm : BOOL;  // Lower fabric stretcher motor fault (G1)
+
+    // ───────── DRYING SECTION — AUXILIARIES — GROUP 1 ─────────
+    dryingSectionGroup1PickUpRollPosFaultAlarm       : BOOL;  // EN: G1 pick-up roll positioner fault / PT: Falha do posicionador do rolo pick-up G1
+    dryingSectionGroup1BabyDryerScraperOscFaultAlarm : BOOL;  // EN: G1 babydryer scraper oscillator fault / PT: Falha do oscilador da raspa do babydryer G1
+    dryingSectionGroup1UpperScraperOscFaultAlarm     : BOOL;  // EN: G1 upper group scraper oscillator fault / PT: Falha do oscilador da raspa do grupo superior G1
+    dryingSectionGroup1LowerScraperOscFaultAlarm     : BOOL;  // EN: G1 lower group scraper oscillator fault / PT: Falha do oscilador da raspa do grupo inferior G1
+    dryingSectionGroup1PaperBreakAlarm     : BOOL;  // EN: G1 lower group scraper oscillator fault / PT: Falha do oscilador da raspa do grupo inferior G1
+
+    // ─────────────── DRYING SECTION — GROUP 2 ───────────────
+    dryingSectionGroup2UpperMasterFaultAlarm         : BOOL;  // G2 Upper Master fault / trip
+    dryingSectionGroup2UpperMasterCoolingFaultAlarm  : BOOL;  // G2 Upper Master forced cooling fault
+    dryingSectionGroup2UpperSlave1FaultAlarm         : BOOL;  // G2 Upper Slave1 fault / trip
+    dryingSectionGroup2UpperSlave1CoolingFaultAlarm  : BOOL;  // G2 Upper Slave1 forced cooling fault
+    dryingSectionGroup2UpperSlave2FaultAlarm         : BOOL;  // G2 Upper Slave2 fault / trip
+    dryingSectionGroup2UpperSlave2CoolingFaultAlarm  : BOOL;  // G2 Upper Slave2 forced cooling fault
+
+    dryingSectionGroup2LowerMasterFaultAlarm         : BOOL;  // G2 Lower Master fault / trip
+    dryingSectionGroup2LowerMasterCoolingFaultAlarm  : BOOL;  // G2 Lower Master forced cooling fault
+    dryingSectionGroup2LowerSlave1FaultAlarm         : BOOL;  // G2 Lower Slave1 fault / trip
+    dryingSectionGroup2LowerSlave1CoolingFaultAlarm  : BOOL;  // G2 Lower Slave1 forced cooling fault
+    dryingSectionGroup2LowerSlave2FaultAlarm         : BOOL;  // G2 Lower Slave2 fault / trip
+    dryingSectionGroup2LowerSlave2CoolingFaultAlarm  : BOOL;  // G2 Lower Slave2 forced cooling fault
+
+    // ── FABRIC OVERRUN PROTECTION — GROUP 2 ───────────────────────────────────
+    upperDryingSectionGroup2FabricOverrunOperatorSideAlarm : BOOL;  // Fabric overrun detected on operator side (sensor active)
+    upperDryingSectionGroup2FabricOverrunDriveSideAlarm    : BOOL;  // Fabric overrun detected on drive side (sensor active)
+    lowerDryingSectionGroup2FabricOverrunOperatorSideAlarm : BOOL;  // Fabric overrun detected on operator side (sensor active)
+    lowerDryingSectionGroup2FabricOverrunDriveSideAlarm    : BOOL;  // Fabric overrun detected on drive side (sensor active)
+
+    // ───────── DRYING SECTION — FABRIC STRETCHER — GROUP 2 ─────────
+    upperDryingSectionGroup2FabricStretcherMotorFaultAlarm : BOOL;  // Upper fabric stretcher motor fault (G2)
+    lowerDryingSectionGroup2FabricStretcherMotorFaultAlarm : BOOL;  // Lower fabric stretcher motor fault (G2)
+
+    // ───────── DRYING SECTION — AUXILIARIES — GROUP 2 ─────────
+    dryingSectionGroup2PickUpRollPosFaultAlarm       : BOOL;  // EN: G2 pick-up roll positioner fault / PT: Falha do posicionador do rolo pick-up G2
+    dryingSectionGroup2BabyDryerScraperOscFaultAlarm : BOOL;  // EN: G2 babydryer scraper oscillator fault / PT: Falha do oscilador da raspa do babydryer G2
+    dryingSectionGroup2UpperScraperOscFaultAlarm     : BOOL;  // EN: G2 upper group scraper oscillator fault / PT: Falha do oscilador da raspa do grupo superior G2
+    dryingSectionGroup2LowerScraperOscFaultAlarm     : BOOL;  // EN: G2 lower group scraper oscillator fault / PT: Falha do oscilador da raspa do grupo inferior G2
+    dryingSectionGroup2PaperBreakAlarm     : BOOL;  // EN: G1 lower group scraper oscillator fault / PT: Falha do oscilador da raspa do grupo inferior G1
+
+    // ─────────────── DRYING SECTION — GROUP 3 ───────────────
+    dryingSectionGroup3UpperMasterFaultAlarm         : BOOL;  // G3 Upper Master fault / trip
+    dryingSectionGroup3UpperMasterCoolingFaultAlarm  : BOOL;  // G3 Upper Master forced cooling fault
+    dryingSectionGroup3UpperSlave1FaultAlarm         : BOOL;  // G3 Upper Slave1 fault / trip
+    dryingSectionGroup3UpperSlave1CoolingFaultAlarm  : BOOL;  // G3 Upper Slave1 forced cooling fault
+    dryingSectionGroup3UpperSlave2FaultAlarm         : BOOL;  // G3 Upper Slave2 fault / trip
+    dryingSectionGroup3UpperSlave2CoolingFaultAlarm  : BOOL;  // G3 Upper Slave2 forced cooling fault
+
+    dryingSectionGroup3LowerMasterFaultAlarm         : BOOL;  // G3 Lower Master fault / trip
+    dryingSectionGroup3LowerMasterCoolingFaultAlarm  : BOOL;  // G3 Lower Master forced cooling fault
+    dryingSectionGroup3LowerSlave1FaultAlarm         : BOOL;  // G3 Lower Slave1 fault / trip
+    dryingSectionGroup3LowerSlave1CoolingFaultAlarm  : BOOL;  // G3 Lower Slave1 forced cooling fault
+    dryingSectionGroup3LowerSlave2FaultAlarm         : BOOL;  // G3 Lower Slave2 fault / trip
+    dryingSectionGroup3LowerSlave2CoolingFaultAlarm  : BOOL;  // G3 Lower Slave2 forced cooling fault
+
+    // ── FABRIC OVERRUN PROTECTION — GROUP 3 ───────────────────────────────────
+    upperDryingSectionGroup3FabricOverrunOperatorSideAlarm : BOOL;  // Fabric overrun detected on operator side (sensor active)
+    upperDryingSectionGroup3FabricOverrunDriveSideAlarm    : BOOL;  // Fabric overrun detected on drive side (sensor active)
+    lowerDryingSectionGroup3FabricOverrunOperatorSideAlarm : BOOL;  // Fabric overrun detected on operator side (sensor active)
+    lowerDryingSectionGroup3FabricOverrunDriveSideAlarm    : BOOL;  // Fabric overrun detected on drive side (sensor active)
+
+    // ───────── DRYING SECTION — FABRIC STRETCHER — GROUP 3 ─────────
+    upperDryingSectionGroup3FabricStretcherMotorFaultAlarm : BOOL;  // Upper fabric stretcher motor fault (G3)
+    lowerDryingSectionGroup3FabricStretcherMotorFaultAlarm : BOOL;  // Lower fabric stretcher motor fault (G3)
+
+    // ───────── DRYING SECTION — AUXILIARIES — GROUP 3 ─────────
+    dryingSectionGroup3PickUpRollPosFaultAlarm       : BOOL;  // EN: G3 pick-up roll positioner fault / PT: Falha do posicionador do rolo pick-up G3
+    dryingSectionGroup3BabyDryerScraperOscFaultAlarm : BOOL;  // EN: G3 babydryer scraper oscillator fault / PT: Falha do oscilador da raspa do babydryer G3
+    dryingSectionGroup3UpperScraperOscFaultAlarm     : BOOL;  // EN: G3 upper group scraper oscillator fault / PT: Falha do oscilador da raspa do grupo superior G3
+    dryingSectionGroup3LowerScraperOscFaultAlarm     : BOOL;  // EN: G3 lower group scraper oscillator fault / PT: Falha do oscilador da raspa do grupo inferior G3
+    dryingSectionGroup3PaperBreakAlarm     : BOOL;  // EN: G1 lower group scraper oscillator fault / PT: Falha do oscilador da raspa do grupo inferior G1
+
+    // ─────────────── CENTRIFUGAL PRESSURE SCREEN ───────────────
+    cpsUnitFaultAlarm                        : BOOL;  // Screen unit fault / trip
+
+    // ─────────────── COUCH PIT PUMP & MIXER ───────────────
+    couchPitPumpFaultAlarm                   : BOOL;  // Couch pit pump fault / trip
+
+    // ─────────────── WIRE PIT PUMP ───────────────
+    wirePitPumpFaultAlarm                    : BOOL;  // Wire pit pump fault / trip
+
+    // ─────────────── STOCK PUMP ───────────────
+    stockPumpFaultAlarm                      : BOOL;  // Stock pump fault / trip
+
+    // ─────────────── MIXING PUMP ───────────────
+    mixingPumpFaultAlarm                     : BOOL;  // Mixing pump fault / trip
+
+    // ─────────────── VACUUM PUMPS ───────────────
+    vacuumPump1FaultAlarm                    : BOOL;  // Vacuum pump 1 fault / trip
+    vacuumPump2FaultAlarm                    : BOOL;  // Vacuum pump 2 fault / trip
+
+    // ─────────────── LOW VACUUM EXHAUST FAN ───────────────
+    lowVacuumFanFaultAlarm                   : BOOL;  // Low vacuum exhaust fan fault / trip
+
+    // ─────────────── LUBRIFICATION PUMPS ───────────────
+    lubricationPump1FaultAlarm              : BOOL;  // Lubrication pump 1 fault / trip
+    lubricationPump2FaultAlarm              : BOOL;  // Lubrication pump 2 fault / trip
+    lubricationMinPressureFaultAlarm        : BOOL;  // Minimum pressure not reached / trip
+    lubricationMaxPressureFaultAlarm        : BOOL;  // Overpressure in lubrication circuit / trip
+	lubricationTankHighTemperatureAlarm 	: BOOL;
+	lubricationCircuitHighTemperatureAlarm 	: BOOL;
+
+END_VAR
+VAR_OUTPUT
+	
+    alarmsDisplay    : PaperMachine_TypeHmiAlarms;
+	alarmIndication	: BOOL;
+
+END_VAR
+VAR
+	
+    alarmsVariables    : PaperMachine_TypeHmiAlarms;
+
+	resetOld: BOOL;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[_00_Reset();
+_01_FormingBoardAlarms();
+_02_PressSectionAlarms();
+_03_DryingSectionAlarms();
+_04_WinderSectionAlarms();
+_08_AlarmIndication();]]></ST>
+    </Implementation>
+    <Method Name="_00_Reset" Id="{ba53e245-2dcb-41e0-8ad5-cfee590a0e92}">
+      <Declaration><![CDATA[METHOD _00_Reset
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF reset AND NOT resetOld THEN
+	
+	//Copy values from a holder variable with zero value to reset
+	alarmsDisplay := alarmsVariables;
+	
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_01_FormingBoardAlarms" Id="{07bf1036-81d8-4558-bcc0-4302b5df20ee}">
+      <Declaration><![CDATA[METHOD _01_FormingBoardAlarms
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF formingBoardSafetyAlarm THEN
+	
+	alarmsDisplay.formingBoardSafetyAlarm := TRUE;
+
+END_IF
+
+//────────────────────────────────────────────
+// FORMING BOARD — ROLLS & DRIVES
+//────────────────────────────────────────────
+IF formingBoardSuctionRollFaultAlarm THEN
+    alarmsDisplay.formingBoardSuctionRollFaultAlarm := TRUE;
+END_IF
+
+IF formingBoardSuctionRollCoolingFaultAlarm THEN
+    alarmsDisplay.formingBoardSuctionRollCoolingFaultAlarm := TRUE;
+END_IF
+
+IF formingBoardTractionRollFaultAlarm THEN
+    alarmsDisplay.formingBoardTractionRollFaultAlarm := TRUE;
+END_IF
+
+IF formingBoardTractionRollCoolingFaultAlarm THEN
+    alarmsDisplay.formingBoardTractionRollCoolingFaultAlarm := TRUE;
+END_IF
+
+IF formingBoardRollDriveFaultAlarm THEN
+    alarmsDisplay.formingBoardRollDriveFaultAlarm := TRUE;
+END_IF
+
+IF formingBoardStretchDriveFaultAlarm THEN
+    alarmsDisplay.formingBoardStretchDriveFaultAlarm := TRUE;
+END_IF
+
+
+//────────────────────────────────────────────
+// FORMING BOARD — WIRE EDGE / RUNNING SAFETY
+//────────────────────────────────────────────
+IF formingBoardWireOverrunOperatorSideAlarm THEN
+    alarmsDisplay.formingBoardWireOverrunOperatorSideAlarm := TRUE;
+END_IF
+
+IF formingBoardWireOverrunDriveSideAlarm THEN
+    alarmsDisplay.formingBoardWireOverrunDriveSideAlarm := TRUE;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_02_PressSectionAlarms" Id="{80b82e4d-aada-438f-9155-bae61ecb5b52}">
+      <Declaration><![CDATA[METHOD _02_PressSectionAlarms
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[//────────────────────────────────────────────
+// PRESS SECTION — DRIVES
+//────────────────────────────────────────────
+IF pressSectionFirstPressFaultAlarm THEN
+    alarmsDisplay.pressSectionFirstPressFaultAlarm := TRUE;
+END_IF
+
+IF pressSectionFirstPressCoolingFaultAlarm THEN
+    alarmsDisplay.pressSectionFirstPressCoolingFaultAlarm := TRUE;
+END_IF
+
+IF pressSectionSecondPressFaultAlarm THEN
+    alarmsDisplay.pressSectionSecondPressFaultAlarm := TRUE;
+END_IF
+
+IF pressSectionSecondPressCoolingFaultAlarm THEN
+    alarmsDisplay.pressSectionSecondPressCoolingFaultAlarm := TRUE;
+END_IF
+
+
+//────────────────────────────────────────────
+// PRESS SECTION — AUXILIARY MOTORS
+//────────────────────────────────────────────
+IF pressSectionUpperFeltStretcherFaultAlarm THEN
+    alarmsDisplay.pressSectionUpperFeltStretcherFaultAlarm := TRUE;
+END_IF
+
+IF pressSectionLowerFeltStretcherFaultAlarm THEN
+    alarmsDisplay.pressSectionLowerFeltStretcherFaultAlarm := TRUE;
+END_IF
+
+IF pressSectionUpperInfeedRollFaultAlarm THEN
+    alarmsDisplay.pressSectionUpperInfeedRollFaultAlarm := TRUE;
+END_IF
+
+IF pressSectionLowerInfeedRollFaultAlarm THEN
+    alarmsDisplay.pressSectionLowerInfeedRollFaultAlarm := TRUE;
+END_IF
+
+
+//────────────────────────────────────────────
+// PRESS SECTION — FELT EDGE / RUNNING SAFETY
+//────────────────────────────────────────────
+IF pressSectionUpperFelt1OverrunOperatorSideAlarm THEN
+    alarmsDisplay.pressSectionUpperFelt1OverrunOperatorSideAlarm := TRUE;
+END_IF
+
+IF pressSectionUpperFelt1OverrunDriveSideAlarm THEN
+    alarmsDisplay.pressSectionUpperFelt1OverrunDriveSideAlarm := TRUE;
+END_IF
+
+IF pressSectionUpperFelt2OverrunOperatorSideAlarm THEN
+    alarmsDisplay.pressSectionUpperFelt2OverrunOperatorSideAlarm := TRUE;
+END_IF
+
+IF pressSectionUpperFelt2OverrunDriveSideAlarm THEN
+    alarmsDisplay.pressSectionUpperFelt2OverrunDriveSideAlarm := TRUE;
+END_IF
+
+IF pressSectionLowerFeltOverrunOperatorSideAlarm THEN
+    alarmsDisplay.pressSectionLowerFeltOverrunOperatorSideAlarm := TRUE;
+END_IF
+
+IF pressSectionLowerFeltOverrunDriveSideAlarm THEN
+    alarmsDisplay.pressSectionLowerFeltOverrunDriveSideAlarm := TRUE;
+END_IF
+
+
+//────────────────────────────────────────────
+// PRESS SECTION — GROUP FAULT
+//────────────────────────────────────────────
+IF pressSectionGroupFaultAlarm THEN
+    alarmsDisplay.pressSectionGroupFaultAlarm := TRUE;
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_03_DryingSectionAlarms" Id="{6f2fc1cd-bc1c-4203-8abc-8df9ade87478}">
+      <Declaration><![CDATA[METHOD _03_DryingSectionAlarms
+VAR_INPUT
+END_VAR
+(*
+
+    // ─────────────── DRYING SECTION — GROUP 1 ───────────────
+    dryingSectionGroup1UpperMasterFaultAlarm         : BOOL;  // G1 Upper Master fault / trip
+    dryingSectionGroup1UpperMasterCoolingFaultAlarm  : BOOL;  // G1 Upper Master forced cooling fault
+    dryingSectionGroup1UpperSlave1FaultAlarm         : BOOL;  // G1 Upper Slave1 fault / trip
+    dryingSectionGroup1UpperSlave1CoolingFaultAlarm  : BOOL;  // G1 Upper Slave1 forced cooling fault
+    dryingSectionGroup1UpperSlave2FaultAlarm         : BOOL;  // G1 Upper Slave2 fault / trip
+    dryingSectionGroup1UpperSlave2CoolingFaultAlarm  : BOOL;  // G1 Upper Slave2 forced cooling fault
+
+    dryingSectionGroup1LowerMasterFaultAlarm         : BOOL;  // G1 Lower Master fault / trip
+    dryingSectionGroup1LowerMasterCoolingFaultAlarm  : BOOL;  // G1 Lower Master forced cooling fault
+    dryingSectionGroup1LowerSlave1FaultAlarm         : BOOL;  // G1 Lower Slave1 fault / trip
+    dryingSectionGroup1LowerSlave1CoolingFaultAlarm  : BOOL;  // G1 Lower Slave1 forced cooling fault
+    dryingSectionGroup1LowerSlave2FaultAlarm         : BOOL;  // G1 Lower Slave2 fault / trip
+    dryingSectionGroup1LowerSlave2CoolingFaultAlarm  : BOOL;  // G1 Lower Slave2 forced cooling fault
+
+    // ── FABRIC OVERRUN PROTECTION — GROUP 1 ───────────────────────────────────
+    upperDryingSectionGroup1FabricOverrunOperatorSideAlarm : BOOL;  // Fabric overrun detected on operator side (sensor active)
+    upperDryingSectionGroup1FabricOverrunDriveSideAlarm    : BOOL;  // Fabric overrun detected on drive side (sensor active)
+    lowerDryingSectionGroup1FabricOverrunOperatorSideAlarm : BOOL;  // Fabric overrun detected on operator side (sensor active)
+    lowerDryingSectionGroup1FabricOverrunDriveSideAlarm    : BOOL;  // Fabric overrun detected on drive side (sensor active)
+
+    // ───────── DRYING SECTION — FABRIC STRETCHER — GROUP 1 ─────────
+    upperDryingSectionGroup1FabricStretcherMotorFaultAlarm : BOOL;  // Upper fabric stretcher motor fault (G1)
+    lowerDryingSectionGroup1FabricStretcherMotorFaultAlarm : BOOL;  // Lower fabric stretcher motor fault (G1)
+
+    // ───────── DRYING SECTION — AUXILIARIES — GROUP 1 ─────────
+    dryingSectionGroup1PickUpRollPosFaultAlarm       : BOOL;  // EN: G1 pick-up roll positioner fault / PT: Falha do posicionador do rolo pick-up G1
+    dryingSectionGroup1BabyDryerScraperOscFaultAlarm : BOOL;  // EN: G1 babydryer scraper oscillator fault / PT: Falha do oscilador da raspa do babydryer G1
+    dryingSectionGroup1UpperScraperOscFaultAlarm     : BOOL;  // EN: G1 upper group scraper oscillator fault / PT: Falha do oscilador da raspa do grupo superior G1
+    dryingSectionGroup1LowerScraperOscFaultAlarm     : BOOL;  // EN: G1 lower group scraper oscillator fault / PT: Falha do oscilador da raspa do grupo inferior G1
+    dryingSectionGroup1PaperBreakAlarm     : BOOL;  // EN: G1 lower group scraper oscillator fault / PT: Falha do oscilador da raspa do grupo inferior G1
+
+    // ─────────────── DRYING SECTION — GROUP 2 ───────────────
+    dryingSectionGroup2UpperMasterFaultAlarm         : BOOL;  // G2 Upper Master fault / trip
+    dryingSectionGroup2UpperMasterCoolingFaultAlarm  : BOOL;  // G2 Upper Master forced cooling fault
+    dryingSectionGroup2UpperSlave1FaultAlarm         : BOOL;  // G2 Upper Slave1 fault / trip
+    dryingSectionGroup2UpperSlave1CoolingFaultAlarm  : BOOL;  // G2 Upper Slave1 forced cooling fault
+    dryingSectionGroup2UpperSlave2FaultAlarm         : BOOL;  // G2 Upper Slave2 fault / trip
+    dryingSectionGroup2UpperSlave2CoolingFaultAlarm  : BOOL;  // G2 Upper Slave2 forced cooling fault
+
+    dryingSectionGroup2LowerMasterFaultAlarm         : BOOL;  // G2 Lower Master fault / trip
+    dryingSectionGroup2LowerMasterCoolingFaultAlarm  : BOOL;  // G2 Lower Master forced cooling fault
+    dryingSectionGroup2LowerSlave1FaultAlarm         : BOOL;  // G2 Lower Slave1 fault / trip
+    dryingSectionGroup2LowerSlave1CoolingFaultAlarm  : BOOL;  // G2 Lower Slave1 forced cooling fault
+    dryingSectionGroup2LowerSlave2FaultAlarm         : BOOL;  // G2 Lower Slave2 fault / trip
+    dryingSectionGroup2LowerSlave2CoolingFaultAlarm  : BOOL;  // G2 Lower Slave2 forced cooling fault
+
+    // ── FABRIC OVERRUN PROTECTION — GROUP 2 ───────────────────────────────────
+    upperDryingSectionGroup2FabricOverrunOperatorSideAlarm : BOOL;  // Fabric overrun detected on operator side (sensor active)
+    upperDryingSectionGroup2FabricOverrunDriveSideAlarm    : BOOL;  // Fabric overrun detected on drive side (sensor active)
+    lowerDryingSectionGroup2FabricOverrunOperatorSideAlarm : BOOL;  // Fabric overrun detected on operator side (sensor active)
+    lowerDryingSectionGroup2FabricOverrunDriveSideAlarm    : BOOL;  // Fabric overrun detected on drive side (sensor active)
+
+    // ───────── DRYING SECTION — FABRIC STRETCHER — GROUP 2 ─────────
+    upperDryingSectionGroup2FabricStretcherMotorFaultAlarm : BOOL;  // Upper fabric stretcher motor fault (G2)
+    lowerDryingSectionGroup2FabricStretcherMotorFaultAlarm : BOOL;  // Lower fabric stretcher motor fault (G2)
+
+    // ───────── DRYING SECTION — AUXILIARIES — GROUP 2 ─────────
+    dryingSectionGroup2PickUpRollPosFaultAlarm       : BOOL;  // EN: G2 pick-up roll positioner fault / PT: Falha do posicionador do rolo pick-up G2
+    dryingSectionGroup2BabyDryerScraperOscFaultAlarm : BOOL;  // EN: G2 babydryer scraper oscillator fault / PT: Falha do oscilador da raspa do babydryer G2
+    dryingSectionGroup2UpperScraperOscFaultAlarm     : BOOL;  // EN: G2 upper group scraper oscillator fault / PT: Falha do oscilador da raspa do grupo superior G2
+    dryingSectionGroup2LowerScraperOscFaultAlarm     : BOOL;  // EN: G2 lower group scraper oscillator fault / PT: Falha do oscilador da raspa do grupo inferior G2
+    dryingSectionGroup2PaperBreakAlarm     : BOOL;  // EN: G1 lower group scraper oscillator fault / PT: Falha do oscilador da raspa do grupo inferior G1
+
+    // ─────────────── DRYING SECTION — GROUP 3 ───────────────
+    dryingSectionGroup3UpperMasterFaultAlarm         : BOOL;  // G3 Upper Master fault / trip
+    dryingSectionGroup3UpperMasterCoolingFaultAlarm  : BOOL;  // G3 Upper Master forced cooling fault
+    dryingSectionGroup3UpperSlave1FaultAlarm         : BOOL;  // G3 Upper Slave1 fault / trip
+    dryingSectionGroup3UpperSlave1CoolingFaultAlarm  : BOOL;  // G3 Upper Slave1 forced cooling fault
+    dryingSectionGroup3UpperSlave2FaultAlarm         : BOOL;  // G3 Upper Slave2 fault / trip
+    dryingSectionGroup3UpperSlave2CoolingFaultAlarm  : BOOL;  // G3 Upper Slave2 forced cooling fault
+
+    dryingSectionGroup3LowerMasterFaultAlarm         : BOOL;  // G3 Lower Master fault / trip
+    dryingSectionGroup3LowerMasterCoolingFaultAlarm  : BOOL;  // G3 Lower Master forced cooling fault
+    dryingSectionGroup3LowerSlave1FaultAlarm         : BOOL;  // G3 Lower Slave1 fault / trip
+    dryingSectionGroup3LowerSlave1CoolingFaultAlarm  : BOOL;  // G3 Lower Slave1 forced cooling fault
+    dryingSectionGroup3LowerSlave2FaultAlarm         : BOOL;  // G3 Lower Slave2 fault / trip
+    dryingSectionGroup3LowerSlave2CoolingFaultAlarm  : BOOL;  // G3 Lower Slave2 forced cooling fault
+
+    // ── FABRIC OVERRUN PROTECTION — GROUP 3 ───────────────────────────────────
+    upperDryingSectionGroup3FabricOverrunOperatorSideAlarm : BOOL;  // Fabric overrun detected on operator side (sensor active)
+    upperDryingSectionGroup3FabricOverrunDriveSideAlarm    : BOOL;  // Fabric overrun detected on drive side (sensor active)
+    lowerDryingSectionGroup3FabricOverrunOperatorSideAlarm : BOOL;  // Fabric overrun detected on operator side (sensor active)
+    lowerDryingSectionGroup3FabricOverrunDriveSideAlarm    : BOOL;  // Fabric overrun detected on drive side (sensor active)
+
+    // ───────── DRYING SECTION — FABRIC STRETCHER — GROUP 3 ─────────
+    upperDryingSectionGroup3FabricStretcherMotorFaultAlarm : BOOL;  // Upper fabric stretcher motor fault (G3)
+    lowerDryingSectionGroup3FabricStretcherMotorFaultAlarm : BOOL;  // Lower fabric stretcher motor fault (G3)
+
+    // ───────── DRYING SECTION — AUXILIARIES — GROUP 3 ─────────
+    dryingSectionGroup3PickUpRollPosFaultAlarm       : BOOL;  // EN: G3 pick-up roll positioner fault / PT: Falha do posicionador do rolo pick-up G3
+    dryingSectionGroup3BabyDryerScraperOscFaultAlarm : BOOL;  // EN: G3 babydryer scraper oscillator fault / PT: Falha do oscilador da raspa do babydryer G3
+    dryingSectionGroup3UpperScraperOscFaultAlarm     : BOOL;  // EN: G3 upper group scraper oscillator fault / PT: Falha do oscilador da raspa do grupo superior G3
+    dryingSectionGroup3LowerScraperOscFaultAlarm     : BOOL;  // EN: G3 lower group scraper oscillator fault / PT: Falha do oscilador da raspa do grupo inferior G3
+    dryingSectionGroup3PaperBreakAlarm     : BOOL;  // EN: G1 lower group scraper oscillator fault / PT: Falha do oscilador da raspa do grupo inferior G1
+
+*)]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[//==============================================================
+// DRYING SECTION — GROUP 1
+//==============================================================
+
+//----------------------------
+// Drives — Upper (G1)
+//----------------------------
+IF 	dryingSectionSafetyAlarm THEN
+	
+	alarmsDisplay.dryingSectionSafetyAlarm := TRUE;
+	
+END_IF
+
+
+IF dryingSectionGroup1UpperMasterFaultAlarm THEN
+    alarmsDisplay.dryingSectionGroup1UpperMasterFaultAlarm := TRUE;
+END_IF
+
+IF dryingSectionGroup1UpperMasterCoolingFaultAlarm THEN
+    alarmsDisplay.dryingSectionGroup1UpperMasterCoolingFaultAlarm := TRUE;
+END_IF
+
+IF dryingSectionGroup1UpperSlave1FaultAlarm THEN
+    alarmsDisplay.dryingSectionGroup1UpperSlave1FaultAlarm := TRUE;
+END_IF
+
+IF dryingSectionGroup1UpperSlave1CoolingFaultAlarm THEN
+    alarmsDisplay.dryingSectionGroup1UpperSlave1CoolingFaultAlarm := TRUE;
+END_IF
+
+IF dryingSectionGroup1UpperSlave2FaultAlarm THEN
+    alarmsDisplay.dryingSectionGroup1UpperSlave2FaultAlarm := TRUE;
+END_IF
+
+IF dryingSectionGroup1UpperSlave2CoolingFaultAlarm THEN
+    alarmsDisplay.dryingSectionGroup1UpperSlave2CoolingFaultAlarm := TRUE;
+END_IF
+
+//----------------------------
+// Drives — Lower (G1)
+//----------------------------
+IF dryingSectionGroup1LowerMasterFaultAlarm THEN
+    alarmsDisplay.dryingSectionGroup1LowerMasterFaultAlarm := TRUE;
+END_IF
+
+IF dryingSectionGroup1LowerMasterCoolingFaultAlarm THEN
+    alarmsDisplay.dryingSectionGroup1LowerMasterCoolingFaultAlarm := TRUE;
+END_IF
+
+IF dryingSectionGroup1LowerSlave1FaultAlarm THEN
+    alarmsDisplay.dryingSectionGroup1LowerSlave1FaultAlarm := TRUE;
+END_IF
+
+IF dryingSectionGroup1LowerSlave1CoolingFaultAlarm THEN
+    alarmsDisplay.dryingSectionGroup1LowerSlave1CoolingFaultAlarm := TRUE;
+END_IF
+
+IF dryingSectionGroup1LowerSlave2FaultAlarm THEN
+    alarmsDisplay.dryingSectionGroup1LowerSlave2FaultAlarm := TRUE;
+END_IF
+
+IF dryingSectionGroup1LowerSlave2CoolingFaultAlarm THEN
+    alarmsDisplay.dryingSectionGroup1LowerSlave2CoolingFaultAlarm := TRUE;
+END_IF
+
+//----------------------------
+// Fabric overrun protection (G1)
+//----------------------------
+IF upperDryingSectionGroup1FabricOverrunOperatorSideAlarm THEN
+    alarmsDisplay.upperDryingSectionGroup1FabricOverrunOperatorSideAlarm := TRUE;
+END_IF
+
+IF upperDryingSectionGroup1FabricOverrunDriveSideAlarm THEN
+    alarmsDisplay.upperDryingSectionGroup1FabricOverrunDriveSideAlarm := TRUE;
+END_IF
+
+IF lowerDryingSectionGroup1FabricOverrunOperatorSideAlarm THEN
+    alarmsDisplay.lowerDryingSectionGroup1FabricOverrunOperatorSideAlarm := TRUE;
+END_IF
+
+IF lowerDryingSectionGroup1FabricOverrunDriveSideAlarm THEN
+    alarmsDisplay.lowerDryingSectionGroup1FabricOverrunDriveSideAlarm := TRUE;
+END_IF
+
+//----------------------------
+// Fabric stretcher (G1)
+//----------------------------
+IF upperDryingSectionGroup1FabricStretcherMotorFaultAlarm THEN
+    alarmsDisplay.upperDryingSectionGroup1FabricStretcherMotorFaultAlarm := TRUE;
+END_IF
+
+IF lowerDryingSectionGroup1FabricStretcherMotorFaultAlarm THEN
+    alarmsDisplay.lowerDryingSectionGroup1FabricStretcherMotorFaultAlarm := TRUE;
+END_IF
+
+//----------------------------
+// Auxiliaries (G1)
+//----------------------------
+IF dryingSectionGroup1PickUpRollPosFaultAlarm THEN
+    alarmsDisplay.dryingSectionGroup1PickUpRollPosFaultAlarm := TRUE;
+END_IF
+
+IF dryingSectionGroup1BabyDryerScraperOscFaultAlarm THEN
+    alarmsDisplay.dryingSectionGroup1BabyDryerScraperOscFaultAlarm := TRUE;
+END_IF
+
+IF dryingSectionGroup1UpperScraperOscFaultAlarm THEN
+    alarmsDisplay.dryingSectionGroup1UpperScraperOscFaultAlarm := TRUE;
+END_IF
+
+IF dryingSectionGroup1LowerScraperOscFaultAlarm THEN
+    alarmsDisplay.dryingSectionGroup1LowerScraperOscFaultAlarm := TRUE;
+END_IF
+
+dryingSectionGroup1PaperBreakAlarm := alarmsDisplay.dryingSectionGroup1PaperBreakAlarm;
+
+
+//==============================================================
+// DRYING SECTION — GROUP 2
+//==============================================================
+
+//----------------------------
+// Drives — Upper (G2)
+//----------------------------
+IF dryingSectionGroup2UpperMasterFaultAlarm THEN
+    alarmsDisplay.dryingSectionGroup2UpperMasterFaultAlarm := TRUE;
+END_IF
+
+IF dryingSectionGroup2UpperMasterCoolingFaultAlarm THEN
+    alarmsDisplay.dryingSectionGroup2UpperMasterCoolingFaultAlarm := TRUE;
+END_IF
+
+IF dryingSectionGroup2UpperSlave1FaultAlarm THEN
+    alarmsDisplay.dryingSectionGroup2UpperSlave1FaultAlarm := TRUE;
+END_IF
+
+IF dryingSectionGroup2UpperSlave1CoolingFaultAlarm THEN
+    alarmsDisplay.dryingSectionGroup2UpperSlave1CoolingFaultAlarm := TRUE;
+END_IF
+
+IF dryingSectionGroup2UpperSlave2FaultAlarm THEN
+    alarmsDisplay.dryingSectionGroup2UpperSlave2FaultAlarm := TRUE;
+END_IF
+
+IF dryingSectionGroup2UpperSlave2CoolingFaultAlarm THEN
+    alarmsDisplay.dryingSectionGroup2UpperSlave2CoolingFaultAlarm := TRUE;
+END_IF
+
+//----------------------------
+// Drives — Lower (G2)
+//----------------------------
+IF dryingSectionGroup2LowerMasterFaultAlarm THEN
+    alarmsDisplay.dryingSectionGroup2LowerMasterFaultAlarm := TRUE;
+END_IF
+
+IF dryingSectionGroup2LowerMasterCoolingFaultAlarm THEN
+    alarmsDisplay.dryingSectionGroup2LowerMasterCoolingFaultAlarm := TRUE;
+END_IF
+
+IF dryingSectionGroup2LowerSlave1FaultAlarm THEN
+    alarmsDisplay.dryingSectionGroup2LowerSlave1FaultAlarm := TRUE;
+END_IF
+
+IF dryingSectionGroup2LowerSlave1CoolingFaultAlarm THEN
+    alarmsDisplay.dryingSectionGroup2LowerSlave1CoolingFaultAlarm := TRUE;
+END_IF
+
+IF dryingSectionGroup2LowerSlave2FaultAlarm THEN
+    alarmsDisplay.dryingSectionGroup2LowerSlave2FaultAlarm := TRUE;
+END_IF
+
+IF dryingSectionGroup2LowerSlave2CoolingFaultAlarm THEN
+    alarmsDisplay.dryingSectionGroup2LowerSlave2CoolingFaultAlarm := TRUE;
+END_IF
+
+//----------------------------
+// Fabric overrun protection (G2)
+//----------------------------
+IF upperDryingSectionGroup2FabricOverrunOperatorSideAlarm THEN
+    alarmsDisplay.upperDryingSectionGroup2FabricOverrunOperatorSideAlarm := TRUE;
+END_IF
+
+IF upperDryingSectionGroup2FabricOverrunDriveSideAlarm THEN
+    alarmsDisplay.upperDryingSectionGroup2FabricOverrunDriveSideAlarm := TRUE;
+END_IF
+
+IF lowerDryingSectionGroup2FabricOverrunOperatorSideAlarm THEN
+    alarmsDisplay.lowerDryingSectionGroup2FabricOverrunOperatorSideAlarm := TRUE;
+END_IF
+
+IF lowerDryingSectionGroup2FabricOverrunDriveSideAlarm THEN
+    alarmsDisplay.lowerDryingSectionGroup2FabricOverrunDriveSideAlarm := TRUE;
+END_IF
+
+//----------------------------
+// Fabric stretcher (G2)
+//----------------------------
+IF upperDryingSectionGroup2FabricStretcherMotorFaultAlarm THEN
+    alarmsDisplay.upperDryingSectionGroup2FabricStretcherMotorFaultAlarm := TRUE;
+END_IF
+
+IF lowerDryingSectionGroup2FabricStretcherMotorFaultAlarm THEN
+    alarmsDisplay.lowerDryingSectionGroup2FabricStretcherMotorFaultAlarm := TRUE;
+END_IF
+
+//----------------------------
+// Auxiliaries (G2)
+//----------------------------
+IF dryingSectionGroup2PickUpRollPosFaultAlarm THEN
+    alarmsDisplay.dryingSectionGroup2PickUpRollPosFaultAlarm := TRUE;
+END_IF
+
+IF dryingSectionGroup2BabyDryerScraperOscFaultAlarm THEN
+    alarmsDisplay.dryingSectionGroup2BabyDryerScraperOscFaultAlarm := TRUE;
+END_IF
+
+IF dryingSectionGroup2UpperScraperOscFaultAlarm THEN
+    alarmsDisplay.dryingSectionGroup2UpperScraperOscFaultAlarm := TRUE;
+END_IF
+
+IF dryingSectionGroup2LowerScraperOscFaultAlarm THEN
+    alarmsDisplay.dryingSectionGroup2LowerScraperOscFaultAlarm := TRUE;
+END_IF
+
+IF dryingSectionGroup2PaperBreakAlarm THEN
+    alarmsDisplay.dryingSectionGroup2PaperBreakAlarm := TRUE;
+END_IF
+
+
+//==============================================================
+// DRYING SECTION — GROUP 3
+//==============================================================
+
+//----------------------------
+// Drives — Upper (G3)
+//----------------------------
+IF dryingSectionGroup3UpperMasterFaultAlarm THEN
+    alarmsDisplay.dryingSectionGroup3UpperMasterFaultAlarm := TRUE;
+END_IF
+
+IF dryingSectionGroup3UpperMasterCoolingFaultAlarm THEN
+    alarmsDisplay.dryingSectionGroup3UpperMasterCoolingFaultAlarm := TRUE;
+END_IF
+
+IF dryingSectionGroup3UpperSlave1FaultAlarm THEN
+    alarmsDisplay.dryingSectionGroup3UpperSlave1FaultAlarm := TRUE;
+END_IF
+
+IF dryingSectionGroup3UpperSlave1CoolingFaultAlarm THEN
+    alarmsDisplay.dryingSectionGroup3UpperSlave1CoolingFaultAlarm := TRUE;
+END_IF
+
+IF dryingSectionGroup3UpperSlave2FaultAlarm THEN
+    alarmsDisplay.dryingSectionGroup3UpperSlave2FaultAlarm := TRUE;
+END_IF
+
+IF dryingSectionGroup3UpperSlave2CoolingFaultAlarm THEN
+    alarmsDisplay.dryingSectionGroup3UpperSlave2CoolingFaultAlarm := TRUE;
+END_IF
+
+//----------------------------
+// Drives — Lower (G3)
+//----------------------------
+IF dryingSectionGroup3LowerMasterFaultAlarm THEN
+    alarmsDisplay.dryingSectionGroup3LowerMasterFaultAlarm := TRUE;
+END_IF
+
+IF dryingSectionGroup3LowerMasterCoolingFaultAlarm THEN
+    alarmsDisplay.dryingSectionGroup3LowerMasterCoolingFaultAlarm := TRUE;
+END_IF
+
+IF dryingSectionGroup3LowerSlave1FaultAlarm THEN
+    alarmsDisplay.dryingSectionGroup3LowerSlave1FaultAlarm := TRUE;
+END_IF
+
+IF dryingSectionGroup3LowerSlave1CoolingFaultAlarm THEN
+    alarmsDisplay.dryingSectionGroup3LowerSlave1CoolingFaultAlarm := TRUE;
+END_IF
+
+IF dryingSectionGroup3LowerSlave2FaultAlarm THEN
+    alarmsDisplay.dryingSectionGroup3LowerSlave2FaultAlarm := TRUE;
+END_IF
+
+IF dryingSectionGroup3LowerSlave2CoolingFaultAlarm THEN
+    alarmsDisplay.dryingSectionGroup3LowerSlave2CoolingFaultAlarm := TRUE;
+END_IF
+
+//----------------------------
+// Fabric overrun protection (G3)
+//----------------------------
+IF upperDryingSectionGroup3FabricOverrunOperatorSideAlarm THEN
+    alarmsDisplay.upperDryingSectionGroup3FabricOverrunOperatorSideAlarm := TRUE;
+END_IF
+
+IF upperDryingSectionGroup3FabricOverrunDriveSideAlarm THEN
+    alarmsDisplay.upperDryingSectionGroup3FabricOverrunDriveSideAlarm := TRUE;
+END_IF
+
+IF lowerDryingSectionGroup3FabricOverrunOperatorSideAlarm THEN
+    alarmsDisplay.lowerDryingSectionGroup3FabricOverrunOperatorSideAlarm := TRUE;
+END_IF
+
+IF lowerDryingSectionGroup3FabricOverrunDriveSideAlarm THEN
+    alarmsDisplay.lowerDryingSectionGroup3FabricOverrunDriveSideAlarm := TRUE;
+END_IF
+
+//----------------------------
+// Fabric stretcher (G3)
+//----------------------------
+IF upperDryingSectionGroup3FabricStretcherMotorFaultAlarm THEN
+    alarmsDisplay.upperDryingSectionGroup3FabricStretcherMotorFaultAlarm := TRUE;
+END_IF
+
+IF lowerDryingSectionGroup3FabricStretcherMotorFaultAlarm THEN
+    alarmsDisplay.lowerDryingSectionGroup3FabricStretcherMotorFaultAlarm := TRUE;
+END_IF
+
+//----------------------------
+// Auxiliaries (G3)
+//----------------------------
+IF dryingSectionGroup3PickUpRollPosFaultAlarm THEN
+    alarmsDisplay.dryingSectionGroup3PickUpRollPosFaultAlarm := TRUE;
+END_IF
+
+IF dryingSectionGroup3BabyDryerScraperOscFaultAlarm THEN
+    alarmsDisplay.dryingSectionGroup3BabyDryerScraperOscFaultAlarm := TRUE;
+END_IF
+
+IF dryingSectionGroup3UpperScraperOscFaultAlarm THEN
+    alarmsDisplay.dryingSectionGroup3UpperScraperOscFaultAlarm := TRUE;
+END_IF
+
+IF dryingSectionGroup3LowerScraperOscFaultAlarm THEN
+    alarmsDisplay.dryingSectionGroup3LowerScraperOscFaultAlarm := TRUE;
+END_IF
+
+IF dryingSectionGroup3PaperBreakAlarm THEN
+    alarmsDisplay.dryingSectionGroup3PaperBreakAlarm := TRUE;
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_04_WinderSectionAlarms" Id="{9396f1ed-c6b5-418e-9dfa-e55ae0fb5bb5}">
+      <Declaration><![CDATA[METHOD _04_WinderSectionAlarms
+VAR_INPUT
+END_VAR
+(*
+
+    // ─────────────── DRYING SECTION — GROUP 1 ───────────────
+    dryingSectionGroup1UpperMasterFaultAlarm         : BOOL;  // G1 Upper Master fault / trip
+    dryingSectionGroup1UpperMasterCoolingFaultAlarm  : BOOL;  // G1 Upper Master forced cooling fault
+    dryingSectionGroup1UpperSlave1FaultAlarm         : BOOL;  // G1 Upper Slave1 fault / trip
+    dryingSectionGroup1UpperSlave1CoolingFaultAlarm  : BOOL;  // G1 Upper Slave1 forced cooling fault
+    dryingSectionGroup1UpperSlave2FaultAlarm         : BOOL;  // G1 Upper Slave2 fault / trip
+    dryingSectionGroup1UpperSlave2CoolingFaultAlarm  : BOOL;  // G1 Upper Slave2 forced cooling fault
+
+    dryingSectionGroup1LowerMasterFaultAlarm         : BOOL;  // G1 Lower Master fault / trip
+    dryingSectionGroup1LowerMasterCoolingFaultAlarm  : BOOL;  // G1 Lower Master forced cooling fault
+    dryingSectionGroup1LowerSlave1FaultAlarm         : BOOL;  // G1 Lower Slave1 fault / trip
+    dryingSectionGroup1LowerSlave1CoolingFaultAlarm  : BOOL;  // G1 Lower Slave1 forced cooling fault
+    dryingSectionGroup1LowerSlave2FaultAlarm         : BOOL;  // G1 Lower Slave2 fault / trip
+    dryingSectionGroup1LowerSlave2CoolingFaultAlarm  : BOOL;  // G1 Lower Slave2 forced cooling fault
+
+    // ── FABRIC OVERRUN PROTECTION — GROUP 1 ───────────────────────────────────
+    upperDryingSectionGroup1FabricOverrunOperatorSideAlarm : BOOL;  // Fabric overrun detected on operator side (sensor active)
+    upperDryingSectionGroup1FabricOverrunDriveSideAlarm    : BOOL;  // Fabric overrun detected on drive side (sensor active)
+    lowerDryingSectionGroup1FabricOverrunOperatorSideAlarm : BOOL;  // Fabric overrun detected on operator side (sensor active)
+    lowerDryingSectionGroup1FabricOverrunDriveSideAlarm    : BOOL;  // Fabric overrun detected on drive side (sensor active)
+
+    // ───────── DRYING SECTION — FABRIC STRETCHER — GROUP 1 ─────────
+    upperDryingSectionGroup1FabricStretcherMotorFaultAlarm : BOOL;  // Upper fabric stretcher motor fault (G1)
+    lowerDryingSectionGroup1FabricStretcherMotorFaultAlarm : BOOL;  // Lower fabric stretcher motor fault (G1)
+
+    // ───────── DRYING SECTION — AUXILIARIES — GROUP 1 ─────────
+    dryingSectionGroup1PickUpRollPosFaultAlarm       : BOOL;  // EN: G1 pick-up roll positioner fault / PT: Falha do posicionador do rolo pick-up G1
+    dryingSectionGroup1BabyDryerScraperOscFaultAlarm : BOOL;  // EN: G1 babydryer scraper oscillator fault / PT: Falha do oscilador da raspa do babydryer G1
+    dryingSectionGroup1UpperScraperOscFaultAlarm     : BOOL;  // EN: G1 upper group scraper oscillator fault / PT: Falha do oscilador da raspa do grupo superior G1
+    dryingSectionGroup1LowerScraperOscFaultAlarm     : BOOL;  // EN: G1 lower group scraper oscillator fault / PT: Falha do oscilador da raspa do grupo inferior G1
+    dryingSectionGroup1PaperBreakAlarm     : BOOL;  // EN: G1 lower group scraper oscillator fault / PT: Falha do oscilador da raspa do grupo inferior G1
+
+    // ─────────────── DRYING SECTION — GROUP 2 ───────────────
+    dryingSectionGroup2UpperMasterFaultAlarm         : BOOL;  // G2 Upper Master fault / trip
+    dryingSectionGroup2UpperMasterCoolingFaultAlarm  : BOOL;  // G2 Upper Master forced cooling fault
+    dryingSectionGroup2UpperSlave1FaultAlarm         : BOOL;  // G2 Upper Slave1 fault / trip
+    dryingSectionGroup2UpperSlave1CoolingFaultAlarm  : BOOL;  // G2 Upper Slave1 forced cooling fault
+    dryingSectionGroup2UpperSlave2FaultAlarm         : BOOL;  // G2 Upper Slave2 fault / trip
+    dryingSectionGroup2UpperSlave2CoolingFaultAlarm  : BOOL;  // G2 Upper Slave2 forced cooling fault
+
+    dryingSectionGroup2LowerMasterFaultAlarm         : BOOL;  // G2 Lower Master fault / trip
+    dryingSectionGroup2LowerMasterCoolingFaultAlarm  : BOOL;  // G2 Lower Master forced cooling fault
+    dryingSectionGroup2LowerSlave1FaultAlarm         : BOOL;  // G2 Lower Slave1 fault / trip
+    dryingSectionGroup2LowerSlave1CoolingFaultAlarm  : BOOL;  // G2 Lower Slave1 forced cooling fault
+    dryingSectionGroup2LowerSlave2FaultAlarm         : BOOL;  // G2 Lower Slave2 fault / trip
+    dryingSectionGroup2LowerSlave2CoolingFaultAlarm  : BOOL;  // G2 Lower Slave2 forced cooling fault
+
+    // ── FABRIC OVERRUN PROTECTION — GROUP 2 ───────────────────────────────────
+    upperDryingSectionGroup2FabricOverrunOperatorSideAlarm : BOOL;  // Fabric overrun detected on operator side (sensor active)
+    upperDryingSectionGroup2FabricOverrunDriveSideAlarm    : BOOL;  // Fabric overrun detected on drive side (sensor active)
+    lowerDryingSectionGroup2FabricOverrunOperatorSideAlarm : BOOL;  // Fabric overrun detected on operator side (sensor active)
+    lowerDryingSectionGroup2FabricOverrunDriveSideAlarm    : BOOL;  // Fabric overrun detected on drive side (sensor active)
+
+    // ───────── DRYING SECTION — FABRIC STRETCHER — GROUP 2 ─────────
+    upperDryingSectionGroup2FabricStretcherMotorFaultAlarm : BOOL;  // Upper fabric stretcher motor fault (G2)
+    lowerDryingSectionGroup2FabricStretcherMotorFaultAlarm : BOOL;  // Lower fabric stretcher motor fault (G2)
+
+    // ───────── DRYING SECTION — AUXILIARIES — GROUP 2 ─────────
+    dryingSectionGroup2PickUpRollPosFaultAlarm       : BOOL;  // EN: G2 pick-up roll positioner fault / PT: Falha do posicionador do rolo pick-up G2
+    dryingSectionGroup2BabyDryerScraperOscFaultAlarm : BOOL;  // EN: G2 babydryer scraper oscillator fault / PT: Falha do oscilador da raspa do babydryer G2
+    dryingSectionGroup2UpperScraperOscFaultAlarm     : BOOL;  // EN: G2 upper group scraper oscillator fault / PT: Falha do oscilador da raspa do grupo superior G2
+    dryingSectionGroup2LowerScraperOscFaultAlarm     : BOOL;  // EN: G2 lower group scraper oscillator fault / PT: Falha do oscilador da raspa do grupo inferior G2
+    dryingSectionGroup2PaperBreakAlarm     : BOOL;  // EN: G1 lower group scraper oscillator fault / PT: Falha do oscilador da raspa do grupo inferior G1
+
+    // ─────────────── DRYING SECTION — GROUP 3 ───────────────
+    dryingSectionGroup3UpperMasterFaultAlarm         : BOOL;  // G3 Upper Master fault / trip
+    dryingSectionGroup3UpperMasterCoolingFaultAlarm  : BOOL;  // G3 Upper Master forced cooling fault
+    dryingSectionGroup3UpperSlave1FaultAlarm         : BOOL;  // G3 Upper Slave1 fault / trip
+    dryingSectionGroup3UpperSlave1CoolingFaultAlarm  : BOOL;  // G3 Upper Slave1 forced cooling fault
+    dryingSectionGroup3UpperSlave2FaultAlarm         : BOOL;  // G3 Upper Slave2 fault / trip
+    dryingSectionGroup3UpperSlave2CoolingFaultAlarm  : BOOL;  // G3 Upper Slave2 forced cooling fault
+
+    dryingSectionGroup3LowerMasterFaultAlarm         : BOOL;  // G3 Lower Master fault / trip
+    dryingSectionGroup3LowerMasterCoolingFaultAlarm  : BOOL;  // G3 Lower Master forced cooling fault
+    dryingSectionGroup3LowerSlave1FaultAlarm         : BOOL;  // G3 Lower Slave1 fault / trip
+    dryingSectionGroup3LowerSlave1CoolingFaultAlarm  : BOOL;  // G3 Lower Slave1 forced cooling fault
+    dryingSectionGroup3LowerSlave2FaultAlarm         : BOOL;  // G3 Lower Slave2 fault / trip
+    dryingSectionGroup3LowerSlave2CoolingFaultAlarm  : BOOL;  // G3 Lower Slave2 forced cooling fault
+
+    // ── FABRIC OVERRUN PROTECTION — GROUP 3 ───────────────────────────────────
+    upperDryingSectionGroup3FabricOverrunOperatorSideAlarm : BOOL;  // Fabric overrun detected on operator side (sensor active)
+    upperDryingSectionGroup3FabricOverrunDriveSideAlarm    : BOOL;  // Fabric overrun detected on drive side (sensor active)
+    lowerDryingSectionGroup3FabricOverrunOperatorSideAlarm : BOOL;  // Fabric overrun detected on operator side (sensor active)
+    lowerDryingSectionGroup3FabricOverrunDriveSideAlarm    : BOOL;  // Fabric overrun detected on drive side (sensor active)
+
+    // ───────── DRYING SECTION — FABRIC STRETCHER — GROUP 3 ─────────
+    upperDryingSectionGroup3FabricStretcherMotorFaultAlarm : BOOL;  // Upper fabric stretcher motor fault (G3)
+    lowerDryingSectionGroup3FabricStretcherMotorFaultAlarm : BOOL;  // Lower fabric stretcher motor fault (G3)
+
+    // ───────── DRYING SECTION — AUXILIARIES — GROUP 3 ─────────
+    dryingSectionGroup3PickUpRollPosFaultAlarm       : BOOL;  // EN: G3 pick-up roll positioner fault / PT: Falha do posicionador do rolo pick-up G3
+    dryingSectionGroup3BabyDryerScraperOscFaultAlarm : BOOL;  // EN: G3 babydryer scraper oscillator fault / PT: Falha do oscilador da raspa do babydryer G3
+    dryingSectionGroup3UpperScraperOscFaultAlarm     : BOOL;  // EN: G3 upper group scraper oscillator fault / PT: Falha do oscilador da raspa do grupo superior G3
+    dryingSectionGroup3LowerScraperOscFaultAlarm     : BOOL;  // EN: G3 lower group scraper oscillator fault / PT: Falha do oscilador da raspa do grupo inferior G3
+    dryingSectionGroup3PaperBreakAlarm     : BOOL;  // EN: G1 lower group scraper oscillator fault / PT: Falha do oscilador da raspa do grupo inferior G1
+
+*)]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[//==============================================================
+// DRYING SECTION — GROUP 1
+//==============================================================
+
+//----------------------------
+// Drives — Upper (G1)
+//----------------------------
+IF 	winderSectionSafetyAlarm THEN
+	
+	alarmsDisplay.winderSectionSafetyAlarm := TRUE;
+	
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_08_AlarmIndication" Id="{819c32ea-9ce2-4de3-9c0d-95060ea30965}">
+      <Declaration><![CDATA[METHOD _08_AlarmIndication
+
+VAR
+	
+	alarmCompResult	: DINT;
+
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[
+alarmCompResult := MEMCMP(pBuf1:= ADR(alarmsVariables) , pBuf2:= ADR(alarmsDisplay) , n:= SIZEOF(alarmsDisplay));
+
+//alarmCompResult := alarmsVariables <> alarmsDisplay;
+
+IF alarmCompResult <> 0 THEN
+
+	alarmIndication := TRUE;
+ELSE
+	
+	alarmIndication := FALSE;
+	
+END_IF
+
+]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_AlarmControl">
+      <LineId Id="194" Count="4" />
+      <LineId Id="189" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_AlarmControl._00_Reset">
+      <LineId Id="5" Count="0" />
+      <LineId Id="8" Count="0" />
+      <LineId Id="10" Count="0" />
+      <LineId Id="9" Count="0" />
+      <LineId Id="6" Count="1" />
+    </LineIds>
+    <LineIds Name="FB_AlarmControl._01_FormingBoardAlarms">
+      <LineId Id="5" Count="1" />
+      <LineId Id="8" Count="1" />
+      <LineId Id="7" Count="0" />
+      <LineId Id="11" Count="37" />
+      <LineId Id="10" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_AlarmControl._02_PressSectionAlarms">
+      <LineId Id="6" Count="73" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_AlarmControl._03_DryingSectionAlarms">
+      <LineId Id="112" Count="6" />
+      <LineId Id="447" Count="0" />
+      <LineId Id="451" Count="0" />
+      <LineId Id="453" Count="0" />
+      <LineId Id="452" Count="0" />
+      <LineId Id="450" Count="0" />
+      <LineId Id="448" Count="0" />
+      <LineId Id="446" Count="0" />
+      <LineId Id="119" Count="100" />
+      <LineId Id="222" Count="223" />
+      <LineId Id="108" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_AlarmControl._04_WinderSectionAlarms">
+      <LineId Id="112" Count="6" />
+      <LineId Id="447" Count="0" />
+      <LineId Id="451" Count="0" />
+      <LineId Id="453" Count="0" />
+      <LineId Id="452" Count="0" />
+      <LineId Id="450" Count="0" />
+      <LineId Id="108" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_AlarmControl._08_AlarmIndication">
+      <LineId Id="8" Count="0" />
+      <LineId Id="20" Count="0" />
+      <LineId Id="26" Count="1" />
+      <LineId Id="9" Count="0" />
+      <LineId Id="6" Count="0" />
+      <LineId Id="13" Count="0" />
+      <LineId Id="7" Count="0" />
+      <LineId Id="23" Count="1" />
+      <LineId Id="22" Count="0" />
+      <LineId Id="21" Count="0" />
+      <LineId Id="11" Count="0" />
+      <LineId Id="15" Count="0" />
+      <LineId Id="14" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

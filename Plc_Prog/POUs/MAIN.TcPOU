@@ -4084,7 +4084,7 @@ P1_400_UG03();	//Second drying group slave 2
                           <v n="LValue">false</v>
                           <v n="Boolean">false</v>
                           <v n="IsInstance">true</v>
-                          <v n="Id">539L</v>
+                          <v n="Id">562L</v>
                         </o>
                         <o n="OutputItems" t="OutputItemList">
                           <l2 n="OutputItems" cet="Operand">
@@ -4120,6 +4120,22 @@ P1_400_UG03();	//Second drying group slave 2
                               <v n="Boolean">false</v>
                               <v n="IsInstance">false</v>
                               <v n="Id">297L</v>
+                            </o>
+                            <o>
+                              <v n="Operand">"paperMachineHmiStatus.presseGroupSpeedDif"</v>
+                              <v n="Type">"REAL"</v>
+                              <v n="Comment">""</v>
+                              <v n="SymbolComment">""</v>
+                              <v n="Address">""</v>
+                              <o n="Flags" t="Flags">
+                                <v n="Flags">0</v>
+                                <v n="Fixed">false</v>
+                                <v n="Extensible">false</v>
+                              </o>
+                              <v n="LValue">true</v>
+                              <v n="Boolean">false</v>
+                              <v n="IsInstance">false</v>
+                              <v n="Id">559L</v>
                             </o>
                             <o>
                               <v n="Operand">"P12_400_UG01_FirstPress.speedSetpoint"</v>
@@ -5797,6 +5813,7 @@ P1_400_UG03();	//Second drying group slave 2
                             <v>deviceState</v>
                             <v>statusCode</v>
                             <v>groupFault</v>
+                            <v>speedDif</v>
                             <v>firstPressSpeedSetpointRPM</v>
                             <v>secondPressSpeedSetpointRPM</v>
                             <v>firstPressSpeedFeedbackRPM</v>
@@ -5839,6 +5856,7 @@ P1_400_UG03();	//Second drying group slave 2
                             <v>REAL</v>
                             <v>REAL</v>
                             <v>REAL</v>
+                            <v>REAL</v>
                             <v>BOOL</v>
                             <v>BOOL</v>
                             <v>BOOL</v>
@@ -5864,7 +5882,7 @@ P1_400_UG03();	//Second drying group slave 2
                         <n n="STSnippet" />
                         <v n="ContainsExtensibleInputs">false</v>
                         <v n="ProvidesSTSnippet">false</v>
-                        <v n="Id">540L</v>
+                        <v n="Id">563L</v>
                       </o>
                     </l2>
                     <l2 n="Connectors" />
@@ -5941,7 +5959,7 @@ END_VAR
                           <v n="LValue">false</v>
                           <v n="Boolean">false</v>
                           <v n="IsInstance">true</v>
-                          <v n="Id">271L</v>
+                          <v n="Id">289L</v>
                         </o>
                         <o n="OutputItems" t="OutputItemList">
                           <l2 n="OutputItems" cet="Operand">
@@ -5977,6 +5995,22 @@ END_VAR
                               <v n="Boolean">false</v>
                               <v n="IsInstance">false</v>
                               <v n="Id">23L</v>
+                            </o>
+                            <o>
+                              <v n="Operand">"paperMachineHmiStatus.dryingSectionGroup1SpeedDif"</v>
+                              <v n="Type">"REAL"</v>
+                              <v n="Comment">""</v>
+                              <v n="SymbolComment">""</v>
+                              <v n="Address">""</v>
+                              <o n="Flags" t="Flags">
+                                <v n="Flags">0</v>
+                                <v n="Fixed">false</v>
+                                <v n="Extensible">false</v>
+                              </o>
+                              <v n="LValue">true</v>
+                              <v n="Boolean">false</v>
+                              <v n="IsInstance">false</v>
+                              <v n="Id">288L</v>
                             </o>
                             <o>
                               <v n="Operand">"P13_500_UG03_1GR_UpperMaster.speedSetpoint"</v>
@@ -6919,22 +6953,32 @@ END_VAR
                           </o>
                           <o>
                             <v n="Flags">0</v>
+                            <v n="Fixed">true</v>
+                            <v n="Extensible">false</v>
+                          </o>
+                          <o>
+                            <v n="Flags">0</v>
+                            <v n="Fixed">true</v>
+                            <v n="Extensible">false</v>
+                          </o>
+                          <o>
+                            <v n="Flags">0</v>
+                            <v n="Fixed">true</v>
+                            <v n="Extensible">false</v>
+                          </o>
+                          <o>
+                            <v n="Flags">0</v>
+                            <v n="Fixed">true</v>
+                            <v n="Extensible">false</v>
+                          </o>
+                          <o>
+                            <v n="Flags">0</v>
                             <v n="Fixed">false</v>
                             <v n="Extensible">false</v>
                           </o>
                           <o>
                             <v n="Flags">0</v>
-                            <v n="Fixed">true</v>
-                            <v n="Extensible">false</v>
-                          </o>
-                          <o>
-                            <v n="Flags">0</v>
-                            <v n="Fixed">true</v>
-                            <v n="Extensible">false</v>
-                          </o>
-                          <o>
-                            <v n="Flags">0</v>
-                            <v n="Fixed">true</v>
+                            <v n="Fixed">false</v>
                             <v n="Extensible">false</v>
                           </o>
                           <o>
@@ -8257,6 +8301,44 @@ END_VAR
                           </o>
                           <o t="BoxTreeOperand">
                             <o n="Operand" t="Operand">
+                              <v n="Operand">"paperMachineHmiCommands.dryingSectionGroup1PaperBreakSteamPressure1"</v>
+                              <v n="Type">"REAL"</v>
+                              <v n="Comment">""</v>
+                              <v n="SymbolComment">""</v>
+                              <v n="Address">""</v>
+                              <o n="Flags" t="Flags">
+                                <v n="Flags">0</v>
+                                <v n="Fixed">false</v>
+                                <v n="Extensible">false</v>
+                              </o>
+                              <v n="LValue">false</v>
+                              <v n="Boolean">false</v>
+                              <v n="IsInstance">false</v>
+                              <v n="Id">292L</v>
+                            </o>
+                            <v n="Id">291L</v>
+                          </o>
+                          <o t="BoxTreeOperand">
+                            <o n="Operand" t="Operand">
+                              <v n="Operand">"paperMachineHmiCommands.dryingSectionGroup1PaperBreakSteamPressure2"</v>
+                              <v n="Type">"REAL"</v>
+                              <v n="Comment">""</v>
+                              <v n="SymbolComment">""</v>
+                              <v n="Address">""</v>
+                              <o n="Flags" t="Flags">
+                                <v n="Flags">0</v>
+                                <v n="Fixed">false</v>
+                                <v n="Extensible">false</v>
+                              </o>
+                              <v n="LValue">false</v>
+                              <v n="Boolean">false</v>
+                              <v n="IsInstance">false</v>
+                              <v n="Id">294L</v>
+                            </o>
+                            <v n="Id">293L</v>
+                          </o>
+                          <o t="BoxTreeOperand">
+                            <o n="Operand" t="Operand">
                               <v n="Operand">"P10_050_AI1.Channel1"</v>
                               <v n="Type">"REAL"</v>
                               <v n="Comment">""</v>
@@ -8526,6 +8608,8 @@ END_VAR
                             <v>steamPressureAutoMan</v>
                             <v>steamPressureAutoSetpoint</v>
                             <v>steamPressureManualSetpoint</v>
+                            <v>steamPressure1</v>
+                            <v>steamPressure2</v>
                             <v>steamPressureFeedback</v>
                             <v>steamPressureKp</v>
                             <v>steamPressureTn</v>
@@ -8608,6 +8692,8 @@ END_VAR
                             <v>REAL</v>
                             <v>REAL</v>
                             <v>REAL</v>
+                            <v>REAL</v>
+                            <v>REAL</v>
                             <v>PaperMachine_TypeHmiConfig</v>
                           </l2>
                         </o>
@@ -8616,6 +8702,7 @@ END_VAR
                             <v>deviceState</v>
                             <v>groupFault</v>
                             <v>statusCode</v>
+                            <v>speedDif</v>
                             <v>upperMasterSpeedSetpointRPM</v>
                             <v>upperSlaveSpeedSetpointRPM</v>
                             <v>lowerMasterSpeedSetpointRPM</v>
@@ -8671,6 +8758,7 @@ END_VAR
                             <v>REAL</v>
                             <v>REAL</v>
                             <v>REAL</v>
+                            <v>REAL</v>
                             <v>BOOL</v>
                             <v>BOOL</v>
                             <v>BOOL</v>
@@ -8711,7 +8799,7 @@ END_VAR
                         <n n="STSnippet" />
                         <v n="ContainsExtensibleInputs">false</v>
                         <v n="ProvidesSTSnippet">false</v>
-                        <v n="Id">272L</v>
+                        <v n="Id">290L</v>
                       </o>
                     </l2>
                     <l2 n="Connectors" />
@@ -8780,7 +8868,7 @@ END_VAR
                           <v n="LValue">false</v>
                           <v n="Boolean">false</v>
                           <v n="IsInstance">true</v>
-                          <v n="Id">221L</v>
+                          <v n="Id">231L</v>
                         </o>
                         <o n="OutputItems" t="OutputItemList">
                           <l2 n="OutputItems" cet="Operand">
@@ -8816,6 +8904,22 @@ END_VAR
                               <v n="Boolean">false</v>
                               <v n="IsInstance">false</v>
                               <v n="Id">13L</v>
+                            </o>
+                            <o>
+                              <v n="Operand">"paperMachineHmiStatus.dryingSectionGroup2SpeedDif"</v>
+                              <v n="Type">"REAL"</v>
+                              <v n="Comment">""</v>
+                              <v n="SymbolComment">""</v>
+                              <v n="Address">""</v>
+                              <o n="Flags" t="Flags">
+                                <v n="Flags">0</v>
+                                <v n="Fixed">false</v>
+                                <v n="Extensible">false</v>
+                              </o>
+                              <v n="LValue">true</v>
+                              <v n="Boolean">false</v>
+                              <v n="IsInstance">false</v>
+                              <v n="Id">230L</v>
                             </o>
                             <o>
                               <v n="Operand">"P14_501_UG01_2GR_UpperMaster.speedSetpoint"</v>
@@ -9758,22 +9862,32 @@ END_VAR
                           </o>
                           <o>
                             <v n="Flags">0</v>
+                            <v n="Fixed">true</v>
+                            <v n="Extensible">false</v>
+                          </o>
+                          <o>
+                            <v n="Flags">0</v>
+                            <v n="Fixed">true</v>
+                            <v n="Extensible">false</v>
+                          </o>
+                          <o>
+                            <v n="Flags">0</v>
+                            <v n="Fixed">true</v>
+                            <v n="Extensible">false</v>
+                          </o>
+                          <o>
+                            <v n="Flags">0</v>
+                            <v n="Fixed">true</v>
+                            <v n="Extensible">false</v>
+                          </o>
+                          <o>
+                            <v n="Flags">0</v>
                             <v n="Fixed">false</v>
                             <v n="Extensible">false</v>
                           </o>
                           <o>
                             <v n="Flags">0</v>
-                            <v n="Fixed">true</v>
-                            <v n="Extensible">false</v>
-                          </o>
-                          <o>
-                            <v n="Flags">0</v>
-                            <v n="Fixed">true</v>
-                            <v n="Extensible">false</v>
-                          </o>
-                          <o>
-                            <v n="Flags">0</v>
-                            <v n="Fixed">true</v>
+                            <v n="Fixed">false</v>
                             <v n="Extensible">false</v>
                           </o>
                           <o>
@@ -11096,6 +11210,44 @@ END_VAR
                           </o>
                           <o t="BoxTreeOperand">
                             <o n="Operand" t="Operand">
+                              <v n="Operand">"paperMachineHmiCommands.dryingSectionGroup2PaperBreakSteamPressure1"</v>
+                              <v n="Type">"REAL"</v>
+                              <v n="Comment">""</v>
+                              <v n="SymbolComment">""</v>
+                              <v n="Address">""</v>
+                              <o n="Flags" t="Flags">
+                                <v n="Flags">0</v>
+                                <v n="Fixed">false</v>
+                                <v n="Extensible">false</v>
+                              </o>
+                              <v n="LValue">false</v>
+                              <v n="Boolean">false</v>
+                              <v n="IsInstance">false</v>
+                              <v n="Id">234L</v>
+                            </o>
+                            <v n="Id">233L</v>
+                          </o>
+                          <o t="BoxTreeOperand">
+                            <o n="Operand" t="Operand">
+                              <v n="Operand">"paperMachineHmiCommands.dryingSectionGroup2PaperBreakSteamPressure2"</v>
+                              <v n="Type">"REAL"</v>
+                              <v n="Comment">""</v>
+                              <v n="SymbolComment">""</v>
+                              <v n="Address">""</v>
+                              <o n="Flags" t="Flags">
+                                <v n="Flags">0</v>
+                                <v n="Fixed">false</v>
+                                <v n="Extensible">false</v>
+                              </o>
+                              <v n="LValue">false</v>
+                              <v n="Boolean">false</v>
+                              <v n="IsInstance">false</v>
+                              <v n="Id">236L</v>
+                            </o>
+                            <v n="Id">235L</v>
+                          </o>
+                          <o t="BoxTreeOperand">
+                            <o n="Operand" t="Operand">
                               <v n="Operand">"P10_050_AI1.Channel2"</v>
                               <v n="Type">"REAL"</v>
                               <v n="Comment">""</v>
@@ -11365,6 +11517,8 @@ END_VAR
                             <v>steamPressureAutoMan</v>
                             <v>steamPressureAutoSetpoint</v>
                             <v>steamPressureManualSetpoint</v>
+                            <v>steamPressure1</v>
+                            <v>steamPressure2</v>
                             <v>steamPressureFeedback</v>
                             <v>steamPressureKp</v>
                             <v>steamPressureTn</v>
@@ -11447,6 +11601,8 @@ END_VAR
                             <v>REAL</v>
                             <v>REAL</v>
                             <v>REAL</v>
+                            <v>REAL</v>
+                            <v>REAL</v>
                             <v>PaperMachine_TypeHmiConfig</v>
                           </l2>
                         </o>
@@ -11455,6 +11611,7 @@ END_VAR
                             <v>deviceState</v>
                             <v>groupFault</v>
                             <v>statusCode</v>
+                            <v>speedDif</v>
                             <v>upperMasterSpeedSetpointRPM</v>
                             <v>upperSlaveSpeedSetpointRPM</v>
                             <v>lowerMasterSpeedSetpointRPM</v>
@@ -11510,6 +11667,7 @@ END_VAR
                             <v>REAL</v>
                             <v>REAL</v>
                             <v>REAL</v>
+                            <v>REAL</v>
                             <v>BOOL</v>
                             <v>BOOL</v>
                             <v>BOOL</v>
@@ -11550,7 +11708,7 @@ END_VAR
                         <n n="STSnippet" />
                         <v n="ContainsExtensibleInputs">false</v>
                         <v n="ProvidesSTSnippet">false</v>
-                        <v n="Id">222L</v>
+                        <v n="Id">232L</v>
                       </o>
                     </l2>
                     <l2 n="Connectors" />
@@ -11619,7 +11777,7 @@ END_VAR
                           <v n="LValue">false</v>
                           <v n="Boolean">false</v>
                           <v n="IsInstance">true</v>
-                          <v n="Id">807L</v>
+                          <v n="Id">817L</v>
                         </o>
                         <o n="OutputItems" t="OutputItemList">
                           <l2 n="OutputItems" cet="Operand">
@@ -11655,6 +11813,22 @@ END_VAR
                               <v n="Boolean">false</v>
                               <v n="IsInstance">false</v>
                               <v n="Id">601L</v>
+                            </o>
+                            <o>
+                              <v n="Operand">"paperMachineHmiStatus.dryingSectionGroup3SpeedDif"</v>
+                              <v n="Type">"REAL"</v>
+                              <v n="Comment">""</v>
+                              <v n="SymbolComment">""</v>
+                              <v n="Address">""</v>
+                              <o n="Flags" t="Flags">
+                                <v n="Flags">0</v>
+                                <v n="Fixed">false</v>
+                                <v n="Extensible">false</v>
+                              </o>
+                              <v n="LValue">true</v>
+                              <v n="Boolean">false</v>
+                              <v n="IsInstance">false</v>
+                              <v n="Id">816L</v>
                             </o>
                             <o>
                               <v n="Operand">"P14_502_UG04_3GR_UpperMaster.speedSetpoint"</v>
@@ -12597,22 +12771,32 @@ END_VAR
                           </o>
                           <o>
                             <v n="Flags">0</v>
+                            <v n="Fixed">true</v>
+                            <v n="Extensible">false</v>
+                          </o>
+                          <o>
+                            <v n="Flags">0</v>
+                            <v n="Fixed">true</v>
+                            <v n="Extensible">false</v>
+                          </o>
+                          <o>
+                            <v n="Flags">0</v>
+                            <v n="Fixed">true</v>
+                            <v n="Extensible">false</v>
+                          </o>
+                          <o>
+                            <v n="Flags">0</v>
+                            <v n="Fixed">true</v>
+                            <v n="Extensible">false</v>
+                          </o>
+                          <o>
+                            <v n="Flags">0</v>
                             <v n="Fixed">false</v>
                             <v n="Extensible">false</v>
                           </o>
                           <o>
                             <v n="Flags">0</v>
-                            <v n="Fixed">true</v>
-                            <v n="Extensible">false</v>
-                          </o>
-                          <o>
-                            <v n="Flags">0</v>
-                            <v n="Fixed">true</v>
-                            <v n="Extensible">false</v>
-                          </o>
-                          <o>
-                            <v n="Flags">0</v>
-                            <v n="Fixed">true</v>
+                            <v n="Fixed">false</v>
                             <v n="Extensible">false</v>
                           </o>
                           <o>
@@ -13935,6 +14119,44 @@ END_VAR
                           </o>
                           <o t="BoxTreeOperand">
                             <o n="Operand" t="Operand">
+                              <v n="Operand">"paperMachineHmiCommands.dryingSectionGroup3PaperBreakSteamPressure1"</v>
+                              <v n="Type">"REAL"</v>
+                              <v n="Comment">""</v>
+                              <v n="SymbolComment">""</v>
+                              <v n="Address">""</v>
+                              <o n="Flags" t="Flags">
+                                <v n="Flags">0</v>
+                                <v n="Fixed">false</v>
+                                <v n="Extensible">false</v>
+                              </o>
+                              <v n="LValue">false</v>
+                              <v n="Boolean">false</v>
+                              <v n="IsInstance">false</v>
+                              <v n="Id">820L</v>
+                            </o>
+                            <v n="Id">819L</v>
+                          </o>
+                          <o t="BoxTreeOperand">
+                            <o n="Operand" t="Operand">
+                              <v n="Operand">"paperMachineHmiCommands.dryingSectionGroup3PaperBreakSteamPressure2"</v>
+                              <v n="Type">"REAL"</v>
+                              <v n="Comment">""</v>
+                              <v n="SymbolComment">""</v>
+                              <v n="Address">""</v>
+                              <o n="Flags" t="Flags">
+                                <v n="Flags">0</v>
+                                <v n="Fixed">false</v>
+                                <v n="Extensible">false</v>
+                              </o>
+                              <v n="LValue">false</v>
+                              <v n="Boolean">false</v>
+                              <v n="IsInstance">false</v>
+                              <v n="Id">822L</v>
+                            </o>
+                            <v n="Id">821L</v>
+                          </o>
+                          <o t="BoxTreeOperand">
+                            <o n="Operand" t="Operand">
                               <v n="Operand">"P10_050_AI1.Channel3"</v>
                               <v n="Type">"REAL"</v>
                               <v n="Comment">""</v>
@@ -14204,6 +14426,8 @@ END_VAR
                             <v>steamPressureAutoMan</v>
                             <v>steamPressureAutoSetpoint</v>
                             <v>steamPressureManualSetpoint</v>
+                            <v>steamPressure1</v>
+                            <v>steamPressure2</v>
                             <v>steamPressureFeedback</v>
                             <v>steamPressureKp</v>
                             <v>steamPressureTn</v>
@@ -14286,6 +14510,8 @@ END_VAR
                             <v>REAL</v>
                             <v>REAL</v>
                             <v>REAL</v>
+                            <v>REAL</v>
+                            <v>REAL</v>
                             <v>PaperMachine_TypeHmiConfig</v>
                           </l2>
                         </o>
@@ -14294,6 +14520,7 @@ END_VAR
                             <v>deviceState</v>
                             <v>groupFault</v>
                             <v>statusCode</v>
+                            <v>speedDif</v>
                             <v>upperMasterSpeedSetpointRPM</v>
                             <v>upperSlaveSpeedSetpointRPM</v>
                             <v>lowerMasterSpeedSetpointRPM</v>
@@ -14349,6 +14576,7 @@ END_VAR
                             <v>REAL</v>
                             <v>REAL</v>
                             <v>REAL</v>
+                            <v>REAL</v>
                             <v>BOOL</v>
                             <v>BOOL</v>
                             <v>BOOL</v>
@@ -14389,7 +14617,7 @@ END_VAR
                         <n n="STSnippet" />
                         <v n="ContainsExtensibleInputs">false</v>
                         <v n="ProvidesSTSnippet">false</v>
-                        <v n="Id">808L</v>
+                        <v n="Id">818L</v>
                       </o>
                     </l2>
                     <l2 n="Connectors" />
@@ -15474,7 +15702,7 @@ END_VAR
                           <v n="LValue">false</v>
                           <v n="Boolean">false</v>
                           <v n="IsInstance">true</v>
-                          <v n="Id">963L</v>
+                          <v n="Id">1045L</v>
                         </o>
                         <o n="OutputItems" t="OutputItemList">
                           <l2 n="OutputItems" cet="Operand">
@@ -15510,6 +15738,22 @@ END_VAR
                               <v n="Boolean">false</v>
                               <v n="IsInstance">false</v>
                               <v n="Id">797L</v>
+                            </o>
+                            <o>
+                              <v n="Operand">"paperMachineHmiStatus.winderSpeedDif"</v>
+                              <v n="Type">"REAL"</v>
+                              <v n="Comment">""</v>
+                              <v n="SymbolComment">""</v>
+                              <v n="Address">""</v>
+                              <o n="Flags" t="Flags">
+                                <v n="Flags">0</v>
+                                <v n="Fixed">false</v>
+                                <v n="Extensible">false</v>
+                              </o>
+                              <v n="LValue">true</v>
+                              <v n="Boolean">false</v>
+                              <v n="IsInstance">false</v>
+                              <v n="Id">1047L</v>
                             </o>
                             <o>
                               <v n="Operand">"P15_600_UG01_Rewinder.speedSetpoint"</v>
@@ -16001,17 +16245,17 @@ END_VAR
                           </o>
                           <o>
                             <v n="Flags">0</v>
-                            <v n="Fixed">false</v>
+                            <v n="Fixed">true</v>
                             <v n="Extensible">false</v>
                           </o>
                           <o>
                             <v n="Flags">0</v>
-                            <v n="Fixed">false</v>
+                            <v n="Fixed">true</v>
                             <v n="Extensible">false</v>
                           </o>
                           <o>
                             <v n="Flags">0</v>
-                            <v n="Fixed">false</v>
+                            <v n="Fixed">true</v>
                             <v n="Extensible">false</v>
                           </o>
                         </l2>
@@ -16763,6 +17007,7 @@ END_VAR
                             <v>deviceState</v>
                             <v>groupFault</v>
                             <v>statusCode</v>
+                            <v>speedDif</v>
                             <v>masterSpeedSetpointRPM</v>
                             <v>nextGroupSpeedRefMPM</v>
                             <v>masterEnable</v>
@@ -16788,6 +17033,7 @@ END_VAR
                             <v>STRING</v>
                             <v>BOOL</v>
                             <v>INT</v>
+                            <v>REAL</v>
                             <v>REAL</v>
                             <v>REAL</v>
                             <v>BOOL</v>
@@ -16816,7 +17062,7 @@ END_VAR
                         <n n="STSnippet" />
                         <v n="ContainsExtensibleInputs">false</v>
                         <v n="ProvidesSTSnippet">false</v>
-                        <v n="Id">964L</v>
+                        <v n="Id">1046L</v>
                       </o>
                     </l2>
                     <l2 n="Connectors" />

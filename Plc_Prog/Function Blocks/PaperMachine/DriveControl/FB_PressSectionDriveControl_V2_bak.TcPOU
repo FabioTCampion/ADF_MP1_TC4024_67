@@ -1,7 +1,7 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.15">
-  <POU Name="FB_PressSectionDriveControl_V2" Id="{49382426-f0e2-445d-aa11-01f9bf1a4c1e}" SpecialFunc="None">
-    <Declaration><![CDATA[FUNCTION_BLOCK FB_PressSectionDriveControl_V2
+  <POU Name="FB_PressSectionDriveControl_V2_bak" Id="{b4fc8681-3b45-4b8f-a60d-b34f273b6ce7}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_PressSectionDriveControl_V2_bak
 
 VAR_INPUT
 
@@ -108,7 +108,7 @@ VAR_OUTPUT
     deviceState                 : STRING; // Current state string / Estado atual em texto
     statusCode                  : INT;    // 0=Idle, 1=Starting, 2=Running, 3=Fault
     groupFault                  : BOOL;   // TRUE if any group fault active / Falha geral do grupo
-	speedDif						: REAL;
+
 
     //────────────────────────────────────────────
     // SPEED REFERENCES (TO DRIVES) AND DISPLAY
@@ -132,7 +132,6 @@ VAR_OUTPUT
     // TORQUE REFERENCES / LIMITS (SLAVE)
     //────────────────────────────────────────────
     firstPressTorqueRefPct : REAL; // Torque setpoint for slave / Referência de torque escravo
-//    secondPressTorqueRefPct : REAL; // Torque setpoint for slave / Referência de torque escravo
 
     //────────────────────────────────────────────
     // DRIVE COMMANDS (ENABLE / RESET)
@@ -184,8 +183,8 @@ VAR
 	instFB_GroupTorqueTrimControl_V1 : FB_GroupTorqueTrimControl_V1;
 
 	instFB_GroupTorqueTrimControl_V2: FB_GroupTorqueTrimControl_V2;
+	speedDif: REAL;
 	speedDifError: BOOL;
-	speedDifCheck: REAL;
 END_VAR
 
 VAR PERSISTENT
@@ -204,7 +203,7 @@ _auxiliaryControls();
 
 _alarmsDisplay();]]></ST>
     </Implementation>
-    <Method Name="_alarmsDisplay" Id="{d5db9d72-8463-449a-add4-a1c6e32231a6}">
+    <Method Name="_alarmsDisplay" Id="{b0deda9d-f19c-4cf5-b28d-2e913bc34b83}">
       <Declaration><![CDATA[METHOD _alarmsDisplay
 VAR_INPUT
 END_VAR
@@ -305,7 +304,7 @@ groupFault := hmiAlarms.pressSectionFirstPressFaultAlarm OR
 ]]></ST>
       </Implementation>
     </Method>
-    <Method Name="_auxiliaryControls" Id="{a6bf70bf-0e9a-4603-9d57-ee11036782ac}">
+    <Method Name="_auxiliaryControls" Id="{dd958152-4880-4c0a-acb2-95912180848d}">
       <Declaration><![CDATA[METHOD _auxiliaryControls
 VAR_INPUT
 END_VAR
@@ -417,7 +416,7 @@ END_IF;
 ]]></ST>
       </Implementation>
     </Method>
-    <Method Name="_GroupControl" Id="{ac78b62b-6858-4102-8433-7a7a818e15e5}">
+    <Method Name="_GroupControl" Id="{a30edc36-99d4-48b4-8d2d-308480737910}">
       <Declaration><![CDATA[METHOD _GroupControl
 VAR_INPUT
 END_VAR
@@ -457,7 +456,7 @@ END_VAR
                               <v n="LValue">true</v>
                               <v n="Boolean">false</v>
                               <v n="IsInstance">false</v>
-                              <v n="Id">771L</v>
+                              <v n="Id">519L</v>
                             </o>
                           </l2>
                         </o>
@@ -482,7 +481,7 @@ END_VAR
                             <v n="LValue">false</v>
                             <v n="Boolean">false</v>
                             <v n="IsInstance">true</v>
-                            <v n="Id">705L</v>
+                            <v n="Id">651L</v>
                           </o>
                           <o n="OutputItems" t="OutputItemList">
                             <l2 n="OutputItems" cet="Operand">
@@ -501,7 +500,7 @@ END_VAR
                                 <v n="LValue">true</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">707L</v>
+                                <v n="Id">25L</v>
                               </o>
                               <o>
                                 <v n="Operand">""</v>
@@ -517,7 +516,7 @@ END_VAR
                                 <v n="LValue">true</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">708L</v>
+                                <v n="Id">26L</v>
                               </o>
                               <o>
                                 <v n="Operand">""</v>
@@ -533,7 +532,7 @@ END_VAR
                                 <v n="LValue">true</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">709L</v>
+                                <v n="Id">27L</v>
                               </o>
                               <o>
                                 <v n="Operand">""</v>
@@ -549,7 +548,7 @@ END_VAR
                                 <v n="LValue">true</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">710L</v>
+                                <v n="Id">28L</v>
                               </o>
                               <o>
                                 <v n="Operand">""</v>
@@ -565,7 +564,7 @@ END_VAR
                                 <v n="LValue">true</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">711L</v>
+                                <v n="Id">29L</v>
                               </o>
                               <o>
                                 <v n="Operand">"deviceState"</v>
@@ -581,7 +580,7 @@ END_VAR
                                 <v n="LValue">true</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">712L</v>
+                                <v n="Id">30L</v>
                               </o>
                               <o>
                                 <v n="Operand">""</v>
@@ -597,7 +596,7 @@ END_VAR
                                 <v n="LValue">true</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">713L</v>
+                                <v n="Id">31L</v>
                               </o>
                               <o>
                                 <v n="Operand">"statusCode"</v>
@@ -613,7 +612,7 @@ END_VAR
                                 <v n="LValue">true</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">714L</v>
+                                <v n="Id">32L</v>
                               </o>
                             </l2>
                           </o>
@@ -639,9 +638,9 @@ END_VAR
                                 <v n="LValue">false</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">716L</v>
+                                <v n="Id">20L</v>
                               </o>
-                              <v n="Id">715L</v>
+                              <v n="Id">19L</v>
                             </o>
                             <o t="BoxTreeOperand">
                               <o n="Operand" t="Operand">
@@ -658,9 +657,9 @@ END_VAR
                                 <v n="LValue">false</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">718L</v>
+                                <v n="Id">22L</v>
                               </o>
-                              <v n="Id">717L</v>
+                              <v n="Id">21L</v>
                             </o>
                             <o t="BoxTreeBox">
                               <v n="BoxType">"OR"</v>
@@ -678,7 +677,7 @@ END_VAR
                                 <v n="LValue">false</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">true</v>
-                                <v n="Id">719L</v>
+                                <v n="Id">435L</v>
                               </o>
                               <o n="OutputItems" t="OutputItemList">
                                 <l2 n="OutputItems">
@@ -738,9 +737,9 @@ END_VAR
                                     <v n="LValue">false</v>
                                     <v n="Boolean">false</v>
                                     <v n="IsInstance">false</v>
-                                    <v n="Id">722L</v>
+                                    <v n="Id">34L</v>
                                   </o>
-                                  <v n="Id">721L</v>
+                                  <v n="Id">33L</v>
                                 </o>
                                 <o>
                                   <o n="Operand" t="Operand">
@@ -757,9 +756,9 @@ END_VAR
                                     <v n="LValue">false</v>
                                     <v n="Boolean">false</v>
                                     <v n="IsInstance">false</v>
-                                    <v n="Id">724L</v>
+                                    <v n="Id">434L</v>
                                   </o>
-                                  <v n="Id">723L</v>
+                                  <v n="Id">433L</v>
                                 </o>
                                 <o>
                                   <o n="Operand" t="Operand">
@@ -776,9 +775,9 @@ END_VAR
                                     <v n="LValue">false</v>
                                     <v n="Boolean">false</v>
                                     <v n="IsInstance">false</v>
-                                    <v n="Id">726L</v>
+                                    <v n="Id">522L</v>
                                   </o>
-                                  <v n="Id">725L</v>
+                                  <v n="Id">521L</v>
                                 </o>
                                 <o>
                                   <o n="Operand" t="Operand">
@@ -795,9 +794,9 @@ END_VAR
                                     <v n="LValue">false</v>
                                     <v n="Boolean">false</v>
                                     <v n="IsInstance">false</v>
-                                    <v n="Id">728L</v>
+                                    <v n="Id">524L</v>
                                   </o>
-                                  <v n="Id">727L</v>
+                                  <v n="Id">523L</v>
                                 </o>
                                 <o>
                                   <o n="Operand" t="Operand">
@@ -814,9 +813,9 @@ END_VAR
                                     <v n="LValue">false</v>
                                     <v n="Boolean">false</v>
                                     <v n="IsInstance">false</v>
-                                    <v n="Id">730L</v>
+                                    <v n="Id">657L</v>
                                   </o>
-                                  <v n="Id">729L</v>
+                                  <v n="Id">656L</v>
                                 </o>
                                 <o>
                                   <o n="Operand" t="Operand">
@@ -833,9 +832,9 @@ END_VAR
                                     <v n="LValue">false</v>
                                     <v n="Boolean">false</v>
                                     <v n="IsInstance">false</v>
-                                    <v n="Id">732L</v>
+                                    <v n="Id">659L</v>
                                   </o>
-                                  <v n="Id">731L</v>
+                                  <v n="Id">658L</v>
                                 </o>
                               </l2>
                               <o n="InputParam" t="ParamList">
@@ -856,7 +855,7 @@ END_VAR
                               <n n="STSnippet" />
                               <v n="ContainsExtensibleInputs">false</v>
                               <v n="ProvidesSTSnippet">false</v>
-                              <v n="Id">720L</v>
+                              <v n="Id">436L</v>
                             </o>
                             <o t="BoxTreeOperand">
                               <o n="Operand" t="Operand">
@@ -873,9 +872,9 @@ END_VAR
                                 <v n="LValue">false</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">734L</v>
+                                <v n="Id">36L</v>
                               </o>
-                              <v n="Id">733L</v>
+                              <v n="Id">35L</v>
                             </o>
                             <o t="BoxTreeOperand">
                               <o n="Operand" t="Operand">
@@ -892,9 +891,9 @@ END_VAR
                                 <v n="LValue">false</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">736L</v>
+                                <v n="Id">38L</v>
                               </o>
-                              <v n="Id">735L</v>
+                              <v n="Id">37L</v>
                             </o>
                             <o t="BoxTreeOperand">
                               <o n="Operand" t="Operand">
@@ -911,9 +910,9 @@ END_VAR
                                 <v n="LValue">false</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">738L</v>
+                                <v n="Id">40L</v>
                               </o>
-                              <v n="Id">737L</v>
+                              <v n="Id">39L</v>
                             </o>
                             <o t="BoxTreeOperand">
                               <o n="Operand" t="Operand">
@@ -930,9 +929,9 @@ END_VAR
                                 <v n="LValue">false</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">740L</v>
+                                <v n="Id">42L</v>
                               </o>
-                              <v n="Id">739L</v>
+                              <v n="Id">41L</v>
                             </o>
                             <o t="BoxTreeOperand">
                               <o n="Operand" t="Operand">
@@ -949,9 +948,9 @@ END_VAR
                                 <v n="LValue">false</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">742L</v>
+                                <v n="Id">44L</v>
                               </o>
-                              <v n="Id">741L</v>
+                              <v n="Id">43L</v>
                             </o>
                             <o t="BoxTreeOperand">
                               <o n="Operand" t="Operand">
@@ -968,9 +967,9 @@ END_VAR
                                 <v n="LValue">false</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">744L</v>
+                                <v n="Id">46L</v>
                               </o>
-                              <v n="Id">743L</v>
+                              <v n="Id">45L</v>
                             </o>
                             <o t="BoxTreeOperand">
                               <o n="Operand" t="Operand">
@@ -987,9 +986,9 @@ END_VAR
                                 <v n="LValue">false</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">746L</v>
+                                <v n="Id">48L</v>
                               </o>
-                              <v n="Id">745L</v>
+                              <v n="Id">47L</v>
                             </o>
                             <o t="BoxTreeOperand">
                               <o n="Operand" t="Operand">
@@ -1006,9 +1005,9 @@ END_VAR
                                 <v n="LValue">false</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">748L</v>
+                                <v n="Id">50L</v>
                               </o>
-                              <v n="Id">747L</v>
+                              <v n="Id">49L</v>
                             </o>
                             <o t="BoxTreeOperand">
                               <o n="Operand" t="Operand">
@@ -1025,9 +1024,9 @@ END_VAR
                                 <v n="LValue">false</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">750L</v>
+                                <v n="Id">52L</v>
                               </o>
-                              <v n="Id">749L</v>
+                              <v n="Id">51L</v>
                             </o>
                             <o t="BoxTreeOperand">
                               <o n="Operand" t="Operand">
@@ -1044,9 +1043,9 @@ END_VAR
                                 <v n="LValue">false</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">752L</v>
+                                <v n="Id">54L</v>
                               </o>
-                              <v n="Id">751L</v>
+                              <v n="Id">53L</v>
                             </o>
                             <o t="BoxTreeOperand">
                               <o n="Operand" t="Operand">
@@ -1063,9 +1062,9 @@ END_VAR
                                 <v n="LValue">false</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">754L</v>
+                                <v n="Id">56L</v>
                               </o>
-                              <v n="Id">753L</v>
+                              <v n="Id">55L</v>
                             </o>
                             <o t="BoxTreeOperand">
                               <o n="Operand" t="Operand">
@@ -1082,9 +1081,9 @@ END_VAR
                                 <v n="LValue">false</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">756L</v>
+                                <v n="Id">58L</v>
                               </o>
-                              <v n="Id">755L</v>
+                              <v n="Id">57L</v>
                             </o>
                             <o t="BoxTreeOperand">
                               <o n="Operand" t="Operand">
@@ -1101,9 +1100,9 @@ END_VAR
                                 <v n="LValue">false</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">758L</v>
+                                <v n="Id">60L</v>
                               </o>
-                              <v n="Id">757L</v>
+                              <v n="Id">59L</v>
                             </o>
                             <o t="BoxTreeOperand">
                               <o n="Operand" t="Operand">
@@ -1120,9 +1119,9 @@ END_VAR
                                 <v n="LValue">false</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">760L</v>
+                                <v n="Id">62L</v>
                               </o>
-                              <v n="Id">759L</v>
+                              <v n="Id">61L</v>
                             </o>
                             <o t="BoxTreeOperand">
                               <o n="Operand" t="Operand">
@@ -1139,9 +1138,9 @@ END_VAR
                                 <v n="LValue">false</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">762L</v>
+                                <v n="Id">64L</v>
                               </o>
-                              <v n="Id">761L</v>
+                              <v n="Id">63L</v>
                             </o>
                             <o t="BoxTreeOperand">
                               <o n="Operand" t="Operand">
@@ -1158,9 +1157,9 @@ END_VAR
                                 <v n="LValue">false</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">764L</v>
+                                <v n="Id">66L</v>
                               </o>
-                              <v n="Id">763L</v>
+                              <v n="Id">65L</v>
                             </o>
                             <o t="BoxTreeOperand">
                               <o n="Operand" t="Operand">
@@ -1177,9 +1176,9 @@ END_VAR
                                 <v n="LValue">false</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">766L</v>
+                                <v n="Id">68L</v>
                               </o>
-                              <v n="Id">765L</v>
+                              <v n="Id">67L</v>
                             </o>
                             <o t="BoxTreeOperand">
                               <o n="Operand" t="Operand">
@@ -1196,9 +1195,9 @@ END_VAR
                                 <v n="LValue">false</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">768L</v>
+                                <v n="Id">70L</v>
                               </o>
-                              <v n="Id">767L</v>
+                              <v n="Id">69L</v>
                             </o>
                             <o t="BoxTreeOperand">
                               <o n="Operand" t="Operand">
@@ -1215,9 +1214,9 @@ END_VAR
                                 <v n="LValue">false</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">770L</v>
+                                <v n="Id">72L</v>
                               </o>
-                              <v n="Id">769L</v>
+                              <v n="Id">71L</v>
                             </o>
                           </l2>
                           <o n="InputParam" t="ParamList">
@@ -1300,13 +1299,13 @@ END_VAR
                           <n n="STSnippet" />
                           <v n="ContainsExtensibleInputs">false</v>
                           <v n="ProvidesSTSnippet">false</v>
-                          <v n="Id">706L</v>
+                          <v n="Id">652L</v>
                         </o>
-                        <v n="Id">772L</v>
+                        <v n="Id">520L</v>
                       </o>
                     </l2>
                     <l2 n="Connectors" />
-                    <v n="Id">704L</v>
+                    <v n="Id">5L</v>
                   </o>
                   <o>
                     <v n="ILActive">false</v>
@@ -1335,7 +1334,7 @@ END_VAR
                               <v n="LValue">true</v>
                               <v n="Boolean">false</v>
                               <v n="IsInstance">false</v>
-                              <v n="Id">832L</v>
+                              <v n="Id">528L</v>
                             </o>
                           </l2>
                         </o>
@@ -1360,7 +1359,7 @@ END_VAR
                             <v n="LValue">false</v>
                             <v n="Boolean">false</v>
                             <v n="IsInstance">true</v>
-                            <v n="Id">981L</v>
+                            <v n="Id">190L</v>
                           </o>
                           <o n="OutputItems" t="OutputItemList">
                             <l2 n="OutputItems" cet="Operand">
@@ -1379,7 +1378,7 @@ END_VAR
                                 <v n="LValue">true</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">776L</v>
+                                <v n="Id">192L</v>
                               </o>
                               <o>
                                 <v n="Operand">""</v>
@@ -1395,7 +1394,7 @@ END_VAR
                                 <v n="LValue">true</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">777L</v>
+                                <v n="Id">193L</v>
                               </o>
                               <o>
                                 <v n="Operand">""</v>
@@ -1411,7 +1410,7 @@ END_VAR
                                 <v n="LValue">true</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">778L</v>
+                                <v n="Id">194L</v>
                               </o>
                               <o>
                                 <v n="Operand">""</v>
@@ -1427,7 +1426,7 @@ END_VAR
                                 <v n="LValue">true</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">779L</v>
+                                <v n="Id">195L</v>
                               </o>
                               <o>
                                 <v n="Operand">""</v>
@@ -1443,7 +1442,7 @@ END_VAR
                                 <v n="LValue">true</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">780L</v>
+                                <v n="Id">196L</v>
                               </o>
                               <o>
                                 <v n="Operand">""</v>
@@ -1459,7 +1458,7 @@ END_VAR
                                 <v n="LValue">true</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">781L</v>
+                                <v n="Id">197L</v>
                               </o>
                               <o>
                                 <v n="Operand">""</v>
@@ -1475,7 +1474,7 @@ END_VAR
                                 <v n="LValue">true</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">782L</v>
+                                <v n="Id">198L</v>
                               </o>
                               <o>
                                 <v n="Operand">""</v>
@@ -1491,7 +1490,7 @@ END_VAR
                                 <v n="LValue">true</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">783L</v>
+                                <v n="Id">199L</v>
                               </o>
                               <o>
                                 <v n="Operand">""</v>
@@ -1507,7 +1506,7 @@ END_VAR
                                 <v n="LValue">true</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">784L</v>
+                                <v n="Id">200L</v>
                               </o>
                               <o>
                                 <v n="Operand">""</v>
@@ -1523,7 +1522,7 @@ END_VAR
                                 <v n="LValue">true</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">785L</v>
+                                <v n="Id">201L</v>
                               </o>
                               <o>
                                 <v n="Operand">""</v>
@@ -1539,7 +1538,7 @@ END_VAR
                                 <v n="LValue">true</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">786L</v>
+                                <v n="Id">202L</v>
                               </o>
                               <o>
                                 <v n="Operand">"nextGroupSpeedRefMPM"</v>
@@ -1555,23 +1554,7 @@ END_VAR
                                 <v n="LValue">true</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">787L</v>
-                              </o>
-                              <o>
-                                <v n="Operand">"speedDif"</v>
-                                <v n="Type">"REAL"</v>
-                                <v n="Comment">""</v>
-                                <v n="SymbolComment">""</v>
-                                <v n="Address">""</v>
-                                <o n="Flags" t="Flags">
-                                  <v n="Flags">0</v>
-                                  <v n="Fixed">false</v>
-                                  <v n="Extensible">false</v>
-                                </o>
-                                <v n="LValue">true</v>
-                                <v n="Boolean">false</v>
-                                <v n="IsInstance">false</v>
-                                <v n="Id">983L</v>
+                                <v n="Id">203L</v>
                               </o>
                             </l2>
                           </o>
@@ -1597,9 +1580,9 @@ END_VAR
                                 <v n="LValue">false</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">789L</v>
+                                <v n="Id">205L</v>
                               </o>
-                              <v n="Id">788L</v>
+                              <v n="Id">204L</v>
                             </o>
                             <o>
                               <o n="Operand" t="Operand">
@@ -1616,9 +1599,9 @@ END_VAR
                                 <v n="LValue">false</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">791L</v>
+                                <v n="Id">207L</v>
                               </o>
-                              <v n="Id">790L</v>
+                              <v n="Id">206L</v>
                             </o>
                             <o>
                               <o n="Operand" t="Operand">
@@ -1635,9 +1618,9 @@ END_VAR
                                 <v n="LValue">false</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">793L</v>
+                                <v n="Id">209L</v>
                               </o>
-                              <v n="Id">792L</v>
+                              <v n="Id">208L</v>
                             </o>
                             <o>
                               <o n="Operand" t="Operand">
@@ -1654,9 +1637,9 @@ END_VAR
                                 <v n="LValue">false</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">795L</v>
+                                <v n="Id">211L</v>
                               </o>
-                              <v n="Id">794L</v>
+                              <v n="Id">210L</v>
                             </o>
                             <o>
                               <o n="Operand" t="Operand">
@@ -1673,9 +1656,9 @@ END_VAR
                                 <v n="LValue">false</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">797L</v>
+                                <v n="Id">213L</v>
                               </o>
-                              <v n="Id">796L</v>
+                              <v n="Id">212L</v>
                             </o>
                             <o>
                               <o n="Operand" t="Operand">
@@ -1692,9 +1675,9 @@ END_VAR
                                 <v n="LValue">false</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">799L</v>
+                                <v n="Id">215L</v>
                               </o>
-                              <v n="Id">798L</v>
+                              <v n="Id">214L</v>
                             </o>
                             <o>
                               <o n="Operand" t="Operand">
@@ -1711,9 +1694,9 @@ END_VAR
                                 <v n="LValue">false</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">801L</v>
+                                <v n="Id">217L</v>
                               </o>
-                              <v n="Id">800L</v>
+                              <v n="Id">216L</v>
                             </o>
                             <o>
                               <o n="Operand" t="Operand">
@@ -1730,9 +1713,9 @@ END_VAR
                                 <v n="LValue">false</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">803L</v>
+                                <v n="Id">219L</v>
                               </o>
-                              <v n="Id">802L</v>
+                              <v n="Id">218L</v>
                             </o>
                             <o>
                               <o n="Operand" t="Operand">
@@ -1749,9 +1732,9 @@ END_VAR
                                 <v n="LValue">false</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">805L</v>
+                                <v n="Id">221L</v>
                               </o>
-                              <v n="Id">804L</v>
+                              <v n="Id">220L</v>
                             </o>
                             <o>
                               <o n="Operand" t="Operand">
@@ -1768,9 +1751,9 @@ END_VAR
                                 <v n="LValue">false</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">807L</v>
+                                <v n="Id">223L</v>
                               </o>
-                              <v n="Id">806L</v>
+                              <v n="Id">222L</v>
                             </o>
                             <o>
                               <o n="Operand" t="Operand">
@@ -1787,9 +1770,9 @@ END_VAR
                                 <v n="LValue">false</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">809L</v>
+                                <v n="Id">225L</v>
                               </o>
-                              <v n="Id">808L</v>
+                              <v n="Id">224L</v>
                             </o>
                             <o>
                               <o n="Operand" t="Operand">
@@ -1806,9 +1789,9 @@ END_VAR
                                 <v n="LValue">false</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">811L</v>
+                                <v n="Id">227L</v>
                               </o>
-                              <v n="Id">810L</v>
+                              <v n="Id">226L</v>
                             </o>
                             <o>
                               <o n="Operand" t="Operand">
@@ -1825,9 +1808,9 @@ END_VAR
                                 <v n="LValue">false</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">813L</v>
+                                <v n="Id">229L</v>
                               </o>
-                              <v n="Id">812L</v>
+                              <v n="Id">228L</v>
                             </o>
                             <o>
                               <o n="Operand" t="Operand">
@@ -1844,9 +1827,9 @@ END_VAR
                                 <v n="LValue">false</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">815L</v>
+                                <v n="Id">231L</v>
                               </o>
-                              <v n="Id">814L</v>
+                              <v n="Id">230L</v>
                             </o>
                             <o>
                               <o n="Operand" t="Operand">
@@ -1863,9 +1846,9 @@ END_VAR
                                 <v n="LValue">false</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">817L</v>
+                                <v n="Id">233L</v>
                               </o>
-                              <v n="Id">816L</v>
+                              <v n="Id">232L</v>
                             </o>
                             <o>
                               <o n="Operand" t="Operand">
@@ -1882,9 +1865,9 @@ END_VAR
                                 <v n="LValue">false</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">819L</v>
+                                <v n="Id">235L</v>
                               </o>
-                              <v n="Id">818L</v>
+                              <v n="Id">234L</v>
                             </o>
                             <o>
                               <o n="Operand" t="Operand">
@@ -1901,9 +1884,9 @@ END_VAR
                                 <v n="LValue">false</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">821L</v>
+                                <v n="Id">237L</v>
                               </o>
-                              <v n="Id">820L</v>
+                              <v n="Id">236L</v>
                             </o>
                             <o>
                               <o n="Operand" t="Operand">
@@ -1920,47 +1903,9 @@ END_VAR
                                 <v n="LValue">false</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">823L</v>
+                                <v n="Id">239L</v>
                               </o>
-                              <v n="Id">822L</v>
-                            </o>
-                            <o>
-                              <o n="Operand" t="Operand">
-                                <v n="Operand">"-25"</v>
-                                <v n="Type">"INT"</v>
-                                <v n="Comment">""</v>
-                                <v n="SymbolComment">""</v>
-                                <v n="Address">""</v>
-                                <o n="Flags" t="Flags">
-                                  <v n="Flags">0</v>
-                                  <v n="Fixed">false</v>
-                                  <v n="Extensible">false</v>
-                                </o>
-                                <v n="LValue">false</v>
-                                <v n="Boolean">false</v>
-                                <v n="IsInstance">false</v>
-                                <v n="Id">825L</v>
-                              </o>
-                              <v n="Id">824L</v>
-                            </o>
-                            <o>
-                              <o n="Operand" t="Operand">
-                                <v n="Operand">"25"</v>
-                                <v n="Type">"INT"</v>
-                                <v n="Comment">""</v>
-                                <v n="SymbolComment">""</v>
-                                <v n="Address">""</v>
-                                <o n="Flags" t="Flags">
-                                  <v n="Flags">0</v>
-                                  <v n="Fixed">false</v>
-                                  <v n="Extensible">false</v>
-                                </o>
-                                <v n="LValue">false</v>
-                                <v n="Boolean">false</v>
-                                <v n="IsInstance">false</v>
-                                <v n="Id">827L</v>
-                              </o>
-                              <v n="Id">826L</v>
+                              <v n="Id">238L</v>
                             </o>
                             <o>
                               <o n="Operand" t="Operand">
@@ -1977,9 +1922,47 @@ END_VAR
                                 <v n="LValue">false</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">829L</v>
+                                <v n="Id">241L</v>
                               </o>
-                              <v n="Id">828L</v>
+                              <v n="Id">240L</v>
+                            </o>
+                            <o>
+                              <o n="Operand" t="Operand">
+                                <v n="Operand">""</v>
+                                <n n="Type" />
+                                <v n="Comment">""</v>
+                                <v n="SymbolComment">""</v>
+                                <v n="Address">""</v>
+                                <o n="Flags" t="Flags">
+                                  <v n="Flags">0</v>
+                                  <v n="Fixed">false</v>
+                                  <v n="Extensible">false</v>
+                                </o>
+                                <v n="LValue">false</v>
+                                <v n="Boolean">false</v>
+                                <v n="IsInstance">false</v>
+                                <v n="Id">243L</v>
+                              </o>
+                              <v n="Id">242L</v>
+                            </o>
+                            <o>
+                              <o n="Operand" t="Operand">
+                                <v n="Operand">""</v>
+                                <n n="Type" />
+                                <v n="Comment">""</v>
+                                <v n="SymbolComment">""</v>
+                                <v n="Address">""</v>
+                                <o n="Flags" t="Flags">
+                                  <v n="Flags">0</v>
+                                  <v n="Fixed">false</v>
+                                  <v n="Extensible">false</v>
+                                </o>
+                                <v n="LValue">false</v>
+                                <v n="Boolean">false</v>
+                                <v n="IsInstance">false</v>
+                                <v n="Id">245L</v>
+                              </o>
+                              <v n="Id">244L</v>
                             </o>
                             <o>
                               <o n="Operand" t="Operand">
@@ -1996,9 +1979,9 @@ END_VAR
                                 <v n="LValue">false</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">831L</v>
+                                <v n="Id">247L</v>
                               </o>
-                              <v n="Id">830L</v>
+                              <v n="Id">246L</v>
                             </o>
                           </l2>
                           <o n="InputParam" t="ParamList">
@@ -2066,10 +2049,8 @@ END_VAR
                               <v>group2Slave1SpeedMPM</v>
                               <v>group2Slave2SpeedMPM</v>
                               <v>nextGroupSpeedRefMPM</v>
-                              <v>speedDif</v>
                             </l2>
                             <l2 n="Types" cet="String">
-                              <v>REAL</v>
                               <v>REAL</v>
                               <v>REAL</v>
                               <v>REAL</v>
@@ -2091,13 +2072,13 @@ END_VAR
                           <n n="STSnippet" />
                           <v n="ContainsExtensibleInputs">false</v>
                           <v n="ProvidesSTSnippet">false</v>
-                          <v n="Id">982L</v>
+                          <v n="Id">191L</v>
                         </o>
-                        <v n="Id">833L</v>
+                        <v n="Id">529L</v>
                       </o>
                     </l2>
                     <l2 n="Connectors" />
-                    <v n="Id">773L</v>
+                    <v n="Id">73L</v>
                   </o>
                   <o>
                     <v n="ILActive">false</v>
@@ -2126,7 +2107,7 @@ END_VAR
                               <v n="LValue">true</v>
                               <v n="Boolean">false</v>
                               <v n="IsInstance">false</v>
-                              <v n="Id">900L</v>
+                              <v n="Id">644L</v>
                             </o>
                           </l2>
                         </o>
@@ -2151,7 +2132,7 @@ END_VAR
                             <v n="LValue">false</v>
                             <v n="Boolean">false</v>
                             <v n="IsInstance">true</v>
-                            <v n="Id">835L</v>
+                            <v n="Id">646L</v>
                           </o>
                           <o n="OutputItems" t="OutputItemList">
                             <l2 n="OutputItems" cet="Operand">
@@ -2170,7 +2151,7 @@ END_VAR
                                 <v n="LValue">true</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">837L</v>
+                                <v n="Id">600L</v>
                               </o>
                               <o>
                                 <v n="Operand">""</v>
@@ -2186,7 +2167,7 @@ END_VAR
                                 <v n="LValue">true</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">838L</v>
+                                <v n="Id">601L</v>
                               </o>
                               <o>
                                 <v n="Operand">""</v>
@@ -2202,7 +2183,7 @@ END_VAR
                                 <v n="LValue">true</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">839L</v>
+                                <v n="Id">602L</v>
                               </o>
                               <o>
                                 <v n="Operand">""</v>
@@ -2218,7 +2199,7 @@ END_VAR
                                 <v n="LValue">true</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">840L</v>
+                                <v n="Id">603L</v>
                               </o>
                               <o>
                                 <v n="Operand">""</v>
@@ -2234,7 +2215,7 @@ END_VAR
                                 <v n="LValue">true</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">841L</v>
+                                <v n="Id">604L</v>
                               </o>
                               <o>
                                 <v n="Operand">"secondPressSpeedFeedbackRPM"</v>
@@ -2250,7 +2231,7 @@ END_VAR
                                 <v n="LValue">true</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">842L</v>
+                                <v n="Id">605L</v>
                               </o>
                               <o>
                                 <v n="Operand">"firstPressSpeedFeedbackRPM"</v>
@@ -2266,7 +2247,7 @@ END_VAR
                                 <v n="LValue">true</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">843L</v>
+                                <v n="Id">606L</v>
                               </o>
                               <o>
                                 <v n="Operand">""</v>
@@ -2282,7 +2263,7 @@ END_VAR
                                 <v n="LValue">true</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">844L</v>
+                                <v n="Id">607L</v>
                               </o>
                               <o>
                                 <v n="Operand">""</v>
@@ -2298,7 +2279,7 @@ END_VAR
                                 <v n="LValue">true</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">845L</v>
+                                <v n="Id">608L</v>
                               </o>
                               <o>
                                 <v n="Operand">""</v>
@@ -2314,7 +2295,7 @@ END_VAR
                                 <v n="LValue">true</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">846L</v>
+                                <v n="Id">609L</v>
                               </o>
                               <o>
                                 <v n="Operand">""</v>
@@ -2330,7 +2311,7 @@ END_VAR
                                 <v n="LValue">true</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">847L</v>
+                                <v n="Id">610L</v>
                               </o>
                               <o>
                                 <v n="Operand">"secondPressTorqueFeedbackPct"</v>
@@ -2346,7 +2327,7 @@ END_VAR
                                 <v n="LValue">true</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">848L</v>
+                                <v n="Id">611L</v>
                               </o>
                               <o>
                                 <v n="Operand">"firstPressTorqueFeedbackPct"</v>
@@ -2362,7 +2343,7 @@ END_VAR
                                 <v n="LValue">true</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">849L</v>
+                                <v n="Id">612L</v>
                               </o>
                               <o>
                                 <v n="Operand">""</v>
@@ -2378,7 +2359,7 @@ END_VAR
                                 <v n="LValue">true</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">850L</v>
+                                <v n="Id">613L</v>
                               </o>
                               <o>
                                 <v n="Operand">""</v>
@@ -2394,7 +2375,7 @@ END_VAR
                                 <v n="LValue">true</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">851L</v>
+                                <v n="Id">614L</v>
                               </o>
                               <o>
                                 <v n="Operand">""</v>
@@ -2410,7 +2391,7 @@ END_VAR
                                 <v n="LValue">true</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">852L</v>
+                                <v n="Id">615L</v>
                               </o>
                               <o>
                                 <v n="Operand">""</v>
@@ -2426,7 +2407,7 @@ END_VAR
                                 <v n="LValue">true</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">853L</v>
+                                <v n="Id">616L</v>
                               </o>
                             </l2>
                           </o>
@@ -2452,9 +2433,9 @@ END_VAR
                                 <v n="LValue">false</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">855L</v>
+                                <v n="Id">545L</v>
                               </o>
-                              <v n="Id">854L</v>
+                              <v n="Id">544L</v>
                             </o>
                             <o>
                               <o n="Operand" t="Operand">
@@ -2471,9 +2452,9 @@ END_VAR
                                 <v n="LValue">false</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">857L</v>
+                                <v n="Id">547L</v>
                               </o>
-                              <v n="Id">856L</v>
+                              <v n="Id">546L</v>
                             </o>
                             <o>
                               <o n="Operand" t="Operand">
@@ -2490,9 +2471,9 @@ END_VAR
                                 <v n="LValue">false</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">859L</v>
+                                <v n="Id">549L</v>
                               </o>
-                              <v n="Id">858L</v>
+                              <v n="Id">548L</v>
                             </o>
                             <o>
                               <o n="Operand" t="Operand">
@@ -2509,9 +2490,9 @@ END_VAR
                                 <v n="LValue">false</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">861L</v>
+                                <v n="Id">551L</v>
                               </o>
-                              <v n="Id">860L</v>
+                              <v n="Id">550L</v>
                             </o>
                             <o>
                               <o n="Operand" t="Operand">
@@ -2528,9 +2509,9 @@ END_VAR
                                 <v n="LValue">false</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">863L</v>
+                                <v n="Id">553L</v>
                               </o>
-                              <v n="Id">862L</v>
+                              <v n="Id">552L</v>
                             </o>
                             <o>
                               <o n="Operand" t="Operand">
@@ -2547,9 +2528,9 @@ END_VAR
                                 <v n="LValue">false</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">865L</v>
+                                <v n="Id">555L</v>
                               </o>
-                              <v n="Id">864L</v>
+                              <v n="Id">554L</v>
                             </o>
                             <o>
                               <o n="Operand" t="Operand">
@@ -2566,9 +2547,9 @@ END_VAR
                                 <v n="LValue">false</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">867L</v>
+                                <v n="Id">557L</v>
                               </o>
-                              <v n="Id">866L</v>
+                              <v n="Id">556L</v>
                             </o>
                             <o>
                               <o n="Operand" t="Operand">
@@ -2585,9 +2566,9 @@ END_VAR
                                 <v n="LValue">false</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">869L</v>
+                                <v n="Id">559L</v>
                               </o>
-                              <v n="Id">868L</v>
+                              <v n="Id">558L</v>
                             </o>
                             <o>
                               <o n="Operand" t="Operand">
@@ -2604,9 +2585,9 @@ END_VAR
                                 <v n="LValue">false</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">871L</v>
+                                <v n="Id">561L</v>
                               </o>
-                              <v n="Id">870L</v>
+                              <v n="Id">560L</v>
                             </o>
                             <o>
                               <o n="Operand" t="Operand">
@@ -2623,9 +2604,9 @@ END_VAR
                                 <v n="LValue">false</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">873L</v>
+                                <v n="Id">563L</v>
                               </o>
-                              <v n="Id">872L</v>
+                              <v n="Id">562L</v>
                             </o>
                             <o>
                               <o n="Operand" t="Operand">
@@ -2642,9 +2623,9 @@ END_VAR
                                 <v n="LValue">false</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">875L</v>
+                                <v n="Id">565L</v>
                               </o>
-                              <v n="Id">874L</v>
+                              <v n="Id">564L</v>
                             </o>
                             <o>
                               <o n="Operand" t="Operand">
@@ -2661,9 +2642,9 @@ END_VAR
                                 <v n="LValue">false</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">877L</v>
+                                <v n="Id">567L</v>
                               </o>
-                              <v n="Id">876L</v>
+                              <v n="Id">566L</v>
                             </o>
                             <o>
                               <o n="Operand" t="Operand">
@@ -2680,9 +2661,9 @@ END_VAR
                                 <v n="LValue">false</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">879L</v>
+                                <v n="Id">618L</v>
                               </o>
-                              <v n="Id">878L</v>
+                              <v n="Id">617L</v>
                             </o>
                             <o>
                               <o n="Operand" t="Operand">
@@ -2699,9 +2680,9 @@ END_VAR
                                 <v n="LValue">false</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">881L</v>
+                                <v n="Id">620L</v>
                               </o>
-                              <v n="Id">880L</v>
+                              <v n="Id">619L</v>
                             </o>
                             <o>
                               <o n="Operand" t="Operand">
@@ -2718,9 +2699,9 @@ END_VAR
                                 <v n="LValue">false</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">883L</v>
+                                <v n="Id">622L</v>
                               </o>
-                              <v n="Id">882L</v>
+                              <v n="Id">621L</v>
                             </o>
                             <o>
                               <o n="Operand" t="Operand">
@@ -2737,9 +2718,9 @@ END_VAR
                                 <v n="LValue">false</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">885L</v>
+                                <v n="Id">624L</v>
                               </o>
-                              <v n="Id">884L</v>
+                              <v n="Id">623L</v>
                             </o>
                             <o>
                               <o n="Operand" t="Operand">
@@ -2756,9 +2737,9 @@ END_VAR
                                 <v n="LValue">false</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">887L</v>
+                                <v n="Id">626L</v>
                               </o>
-                              <v n="Id">886L</v>
+                              <v n="Id">625L</v>
                             </o>
                             <o>
                               <o n="Operand" t="Operand">
@@ -2775,9 +2756,9 @@ END_VAR
                                 <v n="LValue">false</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">889L</v>
+                                <v n="Id">628L</v>
                               </o>
-                              <v n="Id">888L</v>
+                              <v n="Id">627L</v>
                             </o>
                             <o>
                               <o n="Operand" t="Operand">
@@ -2794,9 +2775,9 @@ END_VAR
                                 <v n="LValue">false</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">891L</v>
+                                <v n="Id">569L</v>
                               </o>
-                              <v n="Id">890L</v>
+                              <v n="Id">568L</v>
                             </o>
                             <o>
                               <o n="Operand" t="Operand">
@@ -2813,9 +2794,9 @@ END_VAR
                                 <v n="LValue">false</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">893L</v>
+                                <v n="Id">571L</v>
                               </o>
-                              <v n="Id">892L</v>
+                              <v n="Id">570L</v>
                             </o>
                             <o>
                               <o n="Operand" t="Operand">
@@ -2832,9 +2813,9 @@ END_VAR
                                 <v n="LValue">false</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">895L</v>
+                                <v n="Id">589L</v>
                               </o>
-                              <v n="Id">894L</v>
+                              <v n="Id">588L</v>
                             </o>
                             <o>
                               <o n="Operand" t="Operand">
@@ -2851,9 +2832,9 @@ END_VAR
                                 <v n="LValue">false</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">897L</v>
+                                <v n="Id">591L</v>
                               </o>
-                              <v n="Id">896L</v>
+                              <v n="Id">590L</v>
                             </o>
                             <o>
                               <o n="Operand" t="Operand">
@@ -2870,9 +2851,9 @@ END_VAR
                                 <v n="LValue">false</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">899L</v>
+                                <v n="Id">593L</v>
                               </o>
-                              <v n="Id">898L</v>
+                              <v n="Id">592L</v>
                             </o>
                           </l2>
                           <o n="InputParam" t="ParamList">
@@ -2975,13 +2956,13 @@ END_VAR
                           <n n="STSnippet" />
                           <v n="ContainsExtensibleInputs">false</v>
                           <v n="ProvidesSTSnippet">false</v>
-                          <v n="Id">836L</v>
+                          <v n="Id">647L</v>
                         </o>
-                        <v n="Id">901L</v>
+                        <v n="Id">645L</v>
                       </o>
                     </l2>
                     <l2 n="Connectors" />
-                    <v n="Id">834L</v>
+                    <v n="Id">536L</v>
                   </o>
                   <o>
                     <v n="ILActive">false</v>
@@ -3010,7 +2991,7 @@ END_VAR
                               <v n="LValue">true</v>
                               <v n="Boolean">false</v>
                               <v n="IsInstance">false</v>
-                              <v n="Id">938L</v>
+                              <v n="Id">699L</v>
                             </o>
                           </l2>
                         </o>
@@ -3035,7 +3016,7 @@ END_VAR
                             <v n="LValue">false</v>
                             <v n="Boolean">false</v>
                             <v n="IsInstance">true</v>
-                            <v n="Id">903L</v>
+                            <v n="Id">664L</v>
                           </o>
                           <o n="OutputItems" t="OutputItemList">
                             <l2 n="OutputItems" cet="Operand">
@@ -3054,7 +3035,7 @@ END_VAR
                                 <v n="LValue">true</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">905L</v>
+                                <v n="Id">666L</v>
                               </o>
                               <o>
                                 <v n="Operand">""</v>
@@ -3070,7 +3051,7 @@ END_VAR
                                 <v n="LValue">true</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">906L</v>
+                                <v n="Id">667L</v>
                               </o>
                               <o>
                                 <v n="Operand">""</v>
@@ -3086,7 +3067,7 @@ END_VAR
                                 <v n="LValue">true</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">907L</v>
+                                <v n="Id">668L</v>
                               </o>
                               <o>
                                 <v n="Operand">""</v>
@@ -3102,7 +3083,7 @@ END_VAR
                                 <v n="LValue">true</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">908L</v>
+                                <v n="Id">669L</v>
                               </o>
                               <o>
                                 <v n="Operand">""</v>
@@ -3118,7 +3099,7 @@ END_VAR
                                 <v n="LValue">true</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">909L</v>
+                                <v n="Id">670L</v>
                               </o>
                             </l2>
                           </o>
@@ -3144,9 +3125,9 @@ END_VAR
                                 <v n="LValue">false</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">911L</v>
+                                <v n="Id">672L</v>
                               </o>
-                              <v n="Id">910L</v>
+                              <v n="Id">671L</v>
                             </o>
                             <o>
                               <o n="Operand" t="Operand">
@@ -3163,9 +3144,9 @@ END_VAR
                                 <v n="LValue">false</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">913L</v>
+                                <v n="Id">674L</v>
                               </o>
-                              <v n="Id">912L</v>
+                              <v n="Id">673L</v>
                             </o>
                             <o>
                               <o n="Operand" t="Operand">
@@ -3182,9 +3163,9 @@ END_VAR
                                 <v n="LValue">false</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">915L</v>
+                                <v n="Id">676L</v>
                               </o>
-                              <v n="Id">914L</v>
+                              <v n="Id">675L</v>
                             </o>
                             <o>
                               <o n="Operand" t="Operand">
@@ -3201,9 +3182,9 @@ END_VAR
                                 <v n="LValue">false</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">917L</v>
+                                <v n="Id">678L</v>
                               </o>
-                              <v n="Id">916L</v>
+                              <v n="Id">677L</v>
                             </o>
                             <o>
                               <o n="Operand" t="Operand">
@@ -3220,9 +3201,9 @@ END_VAR
                                 <v n="LValue">false</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">919L</v>
+                                <v n="Id">680L</v>
                               </o>
-                              <v n="Id">918L</v>
+                              <v n="Id">679L</v>
                             </o>
                             <o>
                               <o n="Operand" t="Operand">
@@ -3239,9 +3220,9 @@ END_VAR
                                 <v n="LValue">false</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">921L</v>
+                                <v n="Id">682L</v>
                               </o>
-                              <v n="Id">920L</v>
+                              <v n="Id">681L</v>
                             </o>
                             <o>
                               <o n="Operand" t="Operand">
@@ -3258,9 +3239,9 @@ END_VAR
                                 <v n="LValue">false</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">923L</v>
+                                <v n="Id">684L</v>
                               </o>
-                              <v n="Id">922L</v>
+                              <v n="Id">683L</v>
                             </o>
                             <o>
                               <o n="Operand" t="Operand">
@@ -3277,9 +3258,9 @@ END_VAR
                                 <v n="LValue">false</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">925L</v>
+                                <v n="Id">686L</v>
                               </o>
-                              <v n="Id">924L</v>
+                              <v n="Id">685L</v>
                             </o>
                             <o>
                               <o n="Operand" t="Operand">
@@ -3296,9 +3277,9 @@ END_VAR
                                 <v n="LValue">false</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">927L</v>
+                                <v n="Id">688L</v>
                               </o>
-                              <v n="Id">926L</v>
+                              <v n="Id">687L</v>
                             </o>
                             <o>
                               <o n="Operand" t="Operand">
@@ -3315,9 +3296,9 @@ END_VAR
                                 <v n="LValue">false</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">929L</v>
+                                <v n="Id">690L</v>
                               </o>
-                              <v n="Id">928L</v>
+                              <v n="Id">689L</v>
                             </o>
                             <o>
                               <o n="Operand" t="Operand">
@@ -3334,9 +3315,9 @@ END_VAR
                                 <v n="LValue">false</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">931L</v>
+                                <v n="Id">692L</v>
                               </o>
-                              <v n="Id">930L</v>
+                              <v n="Id">691L</v>
                             </o>
                             <o>
                               <o n="Operand" t="Operand">
@@ -3353,9 +3334,9 @@ END_VAR
                                 <v n="LValue">false</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">933L</v>
+                                <v n="Id">694L</v>
                               </o>
-                              <v n="Id">932L</v>
+                              <v n="Id">693L</v>
                             </o>
                             <o>
                               <o n="Operand" t="Operand">
@@ -3372,9 +3353,9 @@ END_VAR
                                 <v n="LValue">false</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">935L</v>
+                                <v n="Id">696L</v>
                               </o>
-                              <v n="Id">934L</v>
+                              <v n="Id">695L</v>
                             </o>
                             <o>
                               <o n="Operand" t="Operand">
@@ -3391,9 +3372,9 @@ END_VAR
                                 <v n="LValue">false</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">937L</v>
+                                <v n="Id">698L</v>
                               </o>
-                              <v n="Id">936L</v>
+                              <v n="Id">697L</v>
                             </o>
                           </l2>
                           <o n="InputParam" t="ParamList">
@@ -3454,13 +3435,13 @@ END_VAR
                           <n n="STSnippet" />
                           <v n="ContainsExtensibleInputs">false</v>
                           <v n="ProvidesSTSnippet">false</v>
-                          <v n="Id">904L</v>
+                          <v n="Id">665L</v>
                         </o>
-                        <v n="Id">939L</v>
+                        <v n="Id">700L</v>
                       </o>
                     </l2>
                     <l2 n="Connectors" />
-                    <v n="Id">902L</v>
+                    <v n="Id">663L</v>
                   </o>
                   <o>
                     <v n="ILActive">false</v>
@@ -3489,7 +3470,7 @@ END_VAR
                               <v n="LValue">true</v>
                               <v n="Boolean">false</v>
                               <v n="IsInstance">false</v>
-                              <v n="Id">976L</v>
+                              <v n="Id">530L</v>
                             </o>
                           </l2>
                         </o>
@@ -3514,7 +3495,7 @@ END_VAR
                             <v n="LValue">false</v>
                             <v n="Boolean">false</v>
                             <v n="IsInstance">true</v>
-                            <v n="Id">941L</v>
+                            <v n="Id">596L</v>
                           </o>
                           <o n="OutputItems" t="OutputItemList">
                             <l2 n="OutputItems" cet="Operand">
@@ -3533,7 +3514,7 @@ END_VAR
                                 <v n="LValue">true</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">943L</v>
+                                <v n="Id">251L</v>
                               </o>
                               <o>
                                 <v n="Operand">""</v>
@@ -3549,7 +3530,7 @@ END_VAR
                                 <v n="LValue">true</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">944L</v>
+                                <v n="Id">252L</v>
                               </o>
                               <o>
                                 <v n="Operand">""</v>
@@ -3565,7 +3546,7 @@ END_VAR
                                 <v n="LValue">true</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">945L</v>
+                                <v n="Id">253L</v>
                               </o>
                               <o>
                                 <v n="Operand">""</v>
@@ -3581,7 +3562,7 @@ END_VAR
                                 <v n="LValue">true</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">946L</v>
+                                <v n="Id">254L</v>
                               </o>
                               <o>
                                 <v n="Operand">""</v>
@@ -3597,7 +3578,7 @@ END_VAR
                                 <v n="LValue">true</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">947L</v>
+                                <v n="Id">255L</v>
                               </o>
                             </l2>
                           </o>
@@ -3623,9 +3604,9 @@ END_VAR
                                 <v n="LValue">false</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">949L</v>
+                                <v n="Id">264L</v>
                               </o>
-                              <v n="Id">948L</v>
+                              <v n="Id">263L</v>
                             </o>
                             <o>
                               <o n="Operand" t="Operand">
@@ -3642,9 +3623,9 @@ END_VAR
                                 <v n="LValue">false</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">951L</v>
+                                <v n="Id">266L</v>
                               </o>
-                              <v n="Id">950L</v>
+                              <v n="Id">265L</v>
                             </o>
                             <o>
                               <o n="Operand" t="Operand">
@@ -3661,9 +3642,9 @@ END_VAR
                                 <v n="LValue">false</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">953L</v>
+                                <v n="Id">268L</v>
                               </o>
-                              <v n="Id">952L</v>
+                              <v n="Id">267L</v>
                             </o>
                             <o>
                               <o n="Operand" t="Operand">
@@ -3680,9 +3661,9 @@ END_VAR
                                 <v n="LValue">false</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">955L</v>
+                                <v n="Id">270L</v>
                               </o>
-                              <v n="Id">954L</v>
+                              <v n="Id">269L</v>
                             </o>
                             <o>
                               <o n="Operand" t="Operand">
@@ -3699,9 +3680,9 @@ END_VAR
                                 <v n="LValue">false</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">957L</v>
+                                <v n="Id">272L</v>
                               </o>
-                              <v n="Id">956L</v>
+                              <v n="Id">271L</v>
                             </o>
                             <o>
                               <o n="Operand" t="Operand">
@@ -3718,9 +3699,9 @@ END_VAR
                                 <v n="LValue">false</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">959L</v>
+                                <v n="Id">274L</v>
                               </o>
-                              <v n="Id">958L</v>
+                              <v n="Id">273L</v>
                             </o>
                             <o>
                               <o n="Operand" t="Operand">
@@ -3737,9 +3718,9 @@ END_VAR
                                 <v n="LValue">false</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">961L</v>
+                                <v n="Id">276L</v>
                               </o>
-                              <v n="Id">960L</v>
+                              <v n="Id">275L</v>
                             </o>
                             <o>
                               <o n="Operand" t="Operand">
@@ -3756,9 +3737,9 @@ END_VAR
                                 <v n="LValue">false</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">963L</v>
+                                <v n="Id">278L</v>
                               </o>
-                              <v n="Id">962L</v>
+                              <v n="Id">277L</v>
                             </o>
                             <o>
                               <o n="Operand" t="Operand">
@@ -3775,9 +3756,9 @@ END_VAR
                                 <v n="LValue">false</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">965L</v>
+                                <v n="Id">280L</v>
                               </o>
-                              <v n="Id">964L</v>
+                              <v n="Id">279L</v>
                             </o>
                             <o>
                               <o n="Operand" t="Operand">
@@ -3794,9 +3775,9 @@ END_VAR
                                 <v n="LValue">false</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">967L</v>
+                                <v n="Id">282L</v>
                               </o>
-                              <v n="Id">966L</v>
+                              <v n="Id">281L</v>
                             </o>
                             <o>
                               <o n="Operand" t="Operand">
@@ -3813,9 +3794,9 @@ END_VAR
                                 <v n="LValue">false</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">969L</v>
+                                <v n="Id">284L</v>
                               </o>
-                              <v n="Id">968L</v>
+                              <v n="Id">283L</v>
                             </o>
                             <o>
                               <o n="Operand" t="Operand">
@@ -3832,9 +3813,9 @@ END_VAR
                                 <v n="LValue">false</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">971L</v>
+                                <v n="Id">286L</v>
                               </o>
-                              <v n="Id">970L</v>
+                              <v n="Id">285L</v>
                             </o>
                             <o>
                               <o n="Operand" t="Operand">
@@ -3851,9 +3832,9 @@ END_VAR
                                 <v n="LValue">false</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">973L</v>
+                                <v n="Id">288L</v>
                               </o>
-                              <v n="Id">972L</v>
+                              <v n="Id">287L</v>
                             </o>
                             <o>
                               <o n="Operand" t="Operand">
@@ -3870,9 +3851,9 @@ END_VAR
                                 <v n="LValue">false</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">975L</v>
+                                <v n="Id">290L</v>
                               </o>
-                              <v n="Id">974L</v>
+                              <v n="Id">289L</v>
                             </o>
                           </l2>
                           <o n="InputParam" t="ParamList">
@@ -3933,13 +3914,13 @@ END_VAR
                           <n n="STSnippet" />
                           <v n="ContainsExtensibleInputs">false</v>
                           <v n="ProvidesSTSnippet">false</v>
-                          <v n="Id">942L</v>
+                          <v n="Id">597L</v>
                         </o>
-                        <v n="Id">977L</v>
+                        <v n="Id">531L</v>
                       </o>
                     </l2>
                     <l2 n="Connectors" />
-                    <v n="Id">940L</v>
+                    <v n="Id">248L</v>
                   </o>
                 </l2>
                 <v n="BranchCounter">0</v>
@@ -3966,7 +3947,7 @@ END_VAR
         </NWL>
       </Implementation>
     </Method>
-    <Method Name="_Scale" Id="{2a0b85f8-147f-4ce5-9241-6ece2b8e8bb3}">
+    <Method Name="_Scale" Id="{4f1b9d3a-1608-4b84-b643-27a0c97068aa}">
       <Declaration><![CDATA[METHOD PRIVATE _Scale : REAL
 VAR_INPUT
     X    : REAL;
@@ -3985,7 +3966,7 @@ END_IF;
 ]]></ST>
       </Implementation>
     </Method>
-    <Method Name="_SpeedDifferenceCheck" Id="{1ee785f2-5bef-4beb-ab86-c227342ff87c}">
+    <Method Name="_SpeedDifferenceCheck" Id="{8c1e15bc-a81c-48ce-9ab6-034745ca4061}">
       <Declaration><![CDATA[// ============================== Methods ==============================
 // Intra-section speed supervision for Press Section (firstPress ↔ secondPress)
 METHOD _SpeedDifferenceCheck
@@ -4006,10 +3987,10 @@ END_VAR
       <Implementation>
         <ST><![CDATA[
 
-speedDifCheck := ABS(secondPressSpeedFeedbackMPM - firstPressSpeedFeedbackMPM);
+speedDif := ABS(firstPressSpeedFeedback - secondPressSpeedFeedback);
 
 
-IF speedDifCheck > 10 THEN
+IF speedDif > 10 THEN
 	
 	speedDifError := TRUE;
 	
@@ -4022,7 +4003,7 @@ END_IF
 ]]></ST>
       </Implementation>
     </Method>
-    <Method Name="_StateDisplay" Id="{ecdb8d30-b441-43b4-a047-7df94c96722e}">
+    <Method Name="_StateDisplay" Id="{7600a825-fdf6-4759-954f-a30b8aaeea1a}">
       <Declaration><![CDATA[METHOD _StateDisplay
 VAR_INPUT
 END_VAR
@@ -4086,7 +4067,7 @@ END_IF;
 *)]]></ST>
       </Implementation>
     </Method>
-    <LineIds Name="FB_PressSectionDriveControl_V2">
+    <LineIds Name="FB_PressSectionDriveControl_V2_bak">
       <LineId Id="2920" Count="2" />
       <LineId Id="3011" Count="0" />
       <LineId Id="2923" Count="0" />
@@ -4094,28 +4075,28 @@ END_IF;
       <LineId Id="3010" Count="0" />
       <LineId Id="1138" Count="0" />
     </LineIds>
-    <LineIds Name="FB_PressSectionDriveControl_V2._alarmsDisplay">
+    <LineIds Name="FB_PressSectionDriveControl_V2_bak._alarmsDisplay">
       <LineId Id="133" Count="36" />
       <LineId Id="171" Count="6" />
       <LineId Id="5" Count="0" />
     </LineIds>
-    <LineIds Name="FB_PressSectionDriveControl_V2._auxiliaryControls">
+    <LineIds Name="FB_PressSectionDriveControl_V2_bak._auxiliaryControls">
       <LineId Id="6" Count="60" />
       <LineId Id="71" Count="40" />
       <LineId Id="70" Count="0" />
       <LineId Id="5" Count="0" />
     </LineIds>
-    <LineIds Name="FB_PressSectionDriveControl_V2._Scale">
+    <LineIds Name="FB_PressSectionDriveControl_V2_bak._Scale">
       <LineId Id="1" Count="5" />
     </LineIds>
-    <LineIds Name="FB_PressSectionDriveControl_V2._SpeedDifferenceCheck">
+    <LineIds Name="FB_PressSectionDriveControl_V2_bak._SpeedDifferenceCheck">
       <LineId Id="403" Count="11" />
       <LineId Id="425" Count="0" />
       <LineId Id="415" Count="0" />
       <LineId Id="27" Count="0" />
       <LineId Id="424" Count="0" />
     </LineIds>
-    <LineIds Name="FB_PressSectionDriveControl_V2._StateDisplay">
+    <LineIds Name="FB_PressSectionDriveControl_V2_bak._StateDisplay">
       <LineId Id="227" Count="35" />
       <LineId Id="5" Count="0" />
     </LineIds>

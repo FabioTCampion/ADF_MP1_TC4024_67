@@ -63,6 +63,9 @@ STRUCT
 	dryingSectionGroup1SteamPressureAutoMan : BOOL;  // Recovery speed increment [m/min or %] (Incremento de recuperação Grupo 1)
 	dryingSectionGroup1SteamPressureAutoSetpoint : REAL;  // Recovery speed increment [m/min or %] (Incremento de recuperação Grupo 1)
 	dryingSectionGroup1SteamPressureManualSetpoint : REAL;  // Recovery speed increment [m/min or %] (Incremento de recuperação Grupo 1)
+	dryingSectionGroup1PaperBreakSteamPressure1 : REAL;  // Recovery speed increment [m/min or %] (Incremento de recuperação Grupo 1)
+	dryingSectionGroup1PaperBreakSteamPressure2 : REAL;  // Recovery speed increment [m/min or %] (Incremento de recuperação Grupo 1)
+
 	
 	// ─────────────── DRYING SECTION — GROUP 2 ───────────────
 	// Start/stop and speed control commands for the drying section (Group 2).
@@ -80,6 +83,8 @@ STRUCT
 	dryingSectionGroup2SteamPressureAutoMan : BOOL;  // Recovery speed increment [m/min or %] (Incremento de recuperação Grupo 1)
 	dryingSectionGroup2SteamPressureAutoSetpoint : REAL;  // Recovery speed increment [m/min or %] (Incremento de recuperação Grupo 1)
 	dryingSectionGroup2SteamPressureManualSetpoint : REAL;  // Recovery speed increment [m/min or %] (Incremento de recuperação Grupo 1)
+	dryingSectionGroup2PaperBreakSteamPressure1 : REAL;  // Recovery speed increment [m/min or %] (Incremento de recuperação Grupo 1)
+	dryingSectionGroup2PaperBreakSteamPressure2 : REAL;  // Recovery speed increment [m/min or %] (Incremento de recuperação Grupo 1)
 	
 	// ─────────────── DRYING SECTION — GROUP 3 ───────────────
 	// Start/stop and speed control commands for the drying section (Group 2).
@@ -96,6 +101,8 @@ STRUCT
 	dryingSectionGroup3SteamPressureAutoMan : BOOL;  // Recovery speed increment [m/min or %] (Incremento de recuperação Grupo 1)
 	dryingSectionGroup3SteamPressureAutoSetpoint : REAL;  // Recovery speed increment [m/min or %] (Incremento de recuperação Grupo 1)
 	dryingSectionGroup3SteamPressureManualSetpoint : REAL;  // Recovery speed increment [m/min or %] (Incremento de recuperação Grupo 1)
+	dryingSectionGroup3PaperBreakSteamPressure1 : REAL;  // Recovery speed increment [m/min or %] (Incremento de recuperação Grupo 1)
+	dryingSectionGroup3PaperBreakSteamPressure2 : REAL;  // Recovery speed increment [m/min or %] (Incremento de recuperação Grupo 1)
 	
     // ─────────────── DRYING SECTION - LUBRIFICATION UNIT ───────────────
     dryingSectionLubricationPumpStart      : BOOL;  // EN: Start command for lubrication unit (HMI → FB) / PT: Comando de PARTIDA da unidade de lubrificação (IHM → FB)
