@@ -161,6 +161,7 @@ VAR
     displayFilterTime          : TIME := T#50ms; // Small smoothing (Suavização leve)
 	jetToWireRatioOld: REAL;
 	manualSetpointOld: REAL;
+	instTON_RunningDelay: TON;
 END_VAR
 
 VAR PERSISTENT
@@ -413,7 +414,20 @@ CASE step OF
 				instPID.LH  := manualCmdPct;	
 			
             END_IF
-            vfdSpeedPct := LIMIT(outLowLimitPct, vfdSpeedPct, outHighLimitPct);
+			
+			
+			IF instTON_RunningDelay.Q THEN
+			
+				vfdSpeedPct := LIMIT(outLowLimitPct, vfdSpeedPct, outHighLimitPct);
+
+			ELSE
+				
+				vfdSpeedPct := LIMIT(5, vfdSpeedPct, 10.0);
+
+			END_IF
+			
+			
+			
         END_IF
 
     // =========================== 90) STOPPING ==========================
@@ -440,6 +454,9 @@ END_CASE;
 
 // --------------------- Displays (corrente/torque) ---------------------
 _FeedbackDisplay();
+
+
+instTON_RunningDelay(IN:= running, PT := T#40S);
 ]]></ST>
     </Implementation>
     <Method Name="_FeedbackDisplay" Id="{5dd113b7-bac8-4a7f-94a7-6a96eb3e61b3}">
@@ -716,7 +733,17 @@ instTUNE2ManSetpoint(
       <LineId Id="3246" Count="0" />
       <LineId Id="3245" Count="0" />
       <LineId Id="3247" Count="0" />
-      <LineId Id="3019" Count="27" />
+      <LineId Id="3019" Count="0" />
+      <LineId Id="3424" Count="2" />
+      <LineId Id="3434" Count="0" />
+      <LineId Id="3437" Count="1" />
+      <LineId Id="3436" Count="0" />
+      <LineId Id="3439" Count="2" />
+      <LineId Id="3435" Count="0" />
+      <LineId Id="3427" Count="2" />
+      <LineId Id="3021" Count="25" />
+      <LineId Id="3431" Count="1" />
+      <LineId Id="3430" Count="0" />
       <LineId Id="9" Count="0" />
     </LineIds>
     <LineIds Name="FB_MixPumpControl_V1._FeedbackDisplay">

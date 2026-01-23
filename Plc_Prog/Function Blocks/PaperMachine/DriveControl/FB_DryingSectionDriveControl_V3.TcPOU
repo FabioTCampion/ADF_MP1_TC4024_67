@@ -66,6 +66,10 @@ VAR_INPUT
     lowerMasterCoolingMotorFault : BOOL;  // EN: Lower master cooling motor fault / PT: Falha no motor de ventilação do mestre inferior
     lowerSlave1CoolingMotorFault : BOOL;  // EN: Lower slave 1 cooling motor fault / PT: Falha no motor de ventilação do escravo 1 inferior
 
+	
+    lubrificationUnitFault : BOOL;  // EN: Lower slave 1 cooling motor fault / PT: Falha no motor de ventilação do escravo 1 inferior
+	
+	
     //==============================================================
     // FABRIC / WIRE STRETCHER ACTUATORS
     //==============================================================
@@ -140,6 +144,8 @@ VAR_INPUT
 	lowerMasterDiameter	: REAL := 263.241;
 	lowerSlave1Diameter	: REAL := 263.241;
 
+	upperAndLowerSpeedCalibration   : REAL;  // Bias [%] between upper and lower
+
 	
     //==============================================================
     // MACHINE CONFIGURATION STRUCT
@@ -159,6 +165,8 @@ VAR_OUTPUT
     groupFault                  : BOOL;    // EN: Group fault active / PT: Falha ativa no grupo
     statusCode                  : INT;     // EN: 0=Idle, 1=Starting, 2=Running, 3=Fault / PT: 0=Parado, 1=Partindo, 2=Rodando, 3=Falha
 	speedDif					: REAL;
+	
+	paperPresence				: BOOL;
     //==============================================================
     // DRIVE SPEED REFERENCES (RPM)
     //==============================================================
@@ -268,9 +276,12 @@ VAR
 	
     instTON_OverrunAll : TON;
     overrunAny         : BOOL;
-	instTON_PaperPresenseDelay: TON;
+	instTOF_PaperPresenseDelay: TOF;
 	instTON_PaperPresenceSensor1: TON;
 	instTON_PaperPresenceSensor2: TON;
+	upperAndLowerTorqueManualEnable: BOOL;
+	instFB_DryingSecSpeedControl: FB_DryingSecSpeedControl;
+	instTONlubrificationUnitFaultDelay: TOn;
 END_VAR
 
 
@@ -767,7 +778,13 @@ IF NOT lowerGroupScraperOscFault AND lowerMasterSpeedMPM > 10 THEN
 ELSE
     lowerGroupScraperOscRun := FALSE;
 END_IF;
-]]></ST>
+
+
+
+//-----------------------------
+// PAPER PRESENCE DISPLAY
+//-----------------------------
+paperPresence := paperPresenceSensor;]]></ST>
       </Implementation>
     </Method>
     <Method Name="_GroupControl" Id="{491a6b88-5cf9-4468-8afd-a749a31a70c7}">
@@ -1545,6 +1562,119 @@ END_VAR
                                   </o>
                                   <v n="Id">1436L</v>
                                 </o>
+                                <o t="BoxTreeBox">
+                                  <v n="BoxType">"TOn"</v>
+                                  <o n="Instance" t="Operand">
+                                    <v n="Operand">"instTONlubrificationUnitFaultDelay"</v>
+                                    <v n="Type">"TOn"</v>
+                                    <v n="Comment">""</v>
+                                    <v n="SymbolComment">""</v>
+                                    <v n="Address">""</v>
+                                    <o n="Flags" t="Flags">
+                                      <v n="Flags">0</v>
+                                      <v n="Fixed">false</v>
+                                      <v n="Extensible">false</v>
+                                    </o>
+                                    <v n="LValue">false</v>
+                                    <v n="Boolean">false</v>
+                                    <v n="IsInstance">true</v>
+                                    <v n="Id">2794L</v>
+                                  </o>
+                                  <o n="OutputItems" t="OutputItemList">
+                                    <l2 n="OutputItems" cet="Operand">
+                                      <n />
+                                      <o>
+                                        <v n="Operand">""</v>
+                                        <n n="Type" />
+                                        <v n="Comment">""</v>
+                                        <v n="SymbolComment">""</v>
+                                        <v n="Address">""</v>
+                                        <o n="Flags" t="Flags">
+                                          <v n="Flags">0</v>
+                                          <v n="Fixed">false</v>
+                                          <v n="Extensible">false</v>
+                                        </o>
+                                        <v n="LValue">true</v>
+                                        <v n="Boolean">false</v>
+                                        <v n="IsInstance">false</v>
+                                        <v n="Id">2796L</v>
+                                      </o>
+                                    </l2>
+                                  </o>
+                                  <o n="Flags" t="Flags">
+                                    <v n="Flags">0</v>
+                                    <v n="Fixed">true</v>
+                                    <v n="Extensible">false</v>
+                                  </o>
+                                  <n n="InputFlags" />
+                                  <l2 n="InputItems" cet="BoxTreeOperand">
+                                    <o>
+                                      <o n="Operand" t="Operand">
+                                        <v n="Operand">"lubrificationUnitFault"</v>
+                                        <v n="Type">"BOOL"</v>
+                                        <v n="Comment">""</v>
+                                        <v n="SymbolComment">""</v>
+                                        <v n="Address">""</v>
+                                        <o n="Flags" t="Flags">
+                                          <v n="Flags">0</v>
+                                          <v n="Fixed">false</v>
+                                          <v n="Extensible">false</v>
+                                        </o>
+                                        <v n="LValue">false</v>
+                                        <v n="Boolean">false</v>
+                                        <v n="IsInstance">false</v>
+                                        <v n="Id">2789L</v>
+                                      </o>
+                                      <v n="Id">2788L</v>
+                                    </o>
+                                    <o>
+                                      <o n="Operand" t="Operand">
+                                        <v n="Operand">"T#15M"</v>
+                                        <v n="Type">"TIME"</v>
+                                        <v n="Comment">""</v>
+                                        <v n="SymbolComment">""</v>
+                                        <v n="Address">""</v>
+                                        <o n="Flags" t="Flags">
+                                          <v n="Flags">0</v>
+                                          <v n="Fixed">false</v>
+                                          <v n="Extensible">false</v>
+                                        </o>
+                                        <v n="LValue">false</v>
+                                        <v n="Boolean">false</v>
+                                        <v n="IsInstance">false</v>
+                                        <v n="Id">2793L</v>
+                                      </o>
+                                      <v n="Id">2792L</v>
+                                    </o>
+                                  </l2>
+                                  <o n="InputParam" t="ParamList">
+                                    <l2 n="Names" cet="String">
+                                      <v>IN</v>
+                                      <v>PT</v>
+                                    </l2>
+                                    <l2 n="Types" cet="String">
+                                      <v>BOOL</v>
+                                      <v>TIME</v>
+                                    </l2>
+                                  </o>
+                                  <o n="OutputParam" t="ParamList">
+                                    <l2 n="Names" cet="String">
+                                      <v>Q</v>
+                                      <v>ET</v>
+                                    </l2>
+                                    <l2 n="Types" cet="String">
+                                      <v>BOOL</v>
+                                      <v>TIME</v>
+                                    </l2>
+                                  </o>
+                                  <v n="CallType" t="Operator">FunctionBlock</v>
+                                  <v n="EN">false</v>
+                                  <v n="ENO">false</v>
+                                  <n n="STSnippet" />
+                                  <v n="ContainsExtensibleInputs">false</v>
+                                  <v n="ProvidesSTSnippet">false</v>
+                                  <v n="Id">2795L</v>
+                                </o>
                               </l2>
                               <o n="InputParam" t="ParamList">
                                 <l2 n="Names" />
@@ -2043,7 +2173,7 @@ END_VAR
                               <v n="LValue">true</v>
                               <v n="Boolean">false</v>
                               <v n="IsInstance">false</v>
-                              <v n="Id">528L</v>
+                              <v n="Id">2778L</v>
                             </o>
                           </l2>
                         </o>
@@ -2068,7 +2198,7 @@ END_VAR
                             <v n="LValue">false</v>
                             <v n="Boolean">false</v>
                             <v n="IsInstance">true</v>
-                            <v n="Id">1947L</v>
+                            <v n="Id">2709L</v>
                           </o>
                           <o n="OutputItems" t="OutputItemList">
                             <l2 n="OutputItems" cet="Operand">
@@ -2087,7 +2217,7 @@ END_VAR
                                 <v n="LValue">true</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">192L</v>
+                                <v n="Id">2711L</v>
                               </o>
                               <o>
                                 <v n="Operand">""</v>
@@ -2103,7 +2233,7 @@ END_VAR
                                 <v n="LValue">true</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">193L</v>
+                                <v n="Id">2712L</v>
                               </o>
                               <o>
                                 <v n="Operand">"lowerMasterSpeedSetpointRPM"</v>
@@ -2119,7 +2249,7 @@ END_VAR
                                 <v n="LValue">true</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">194L</v>
+                                <v n="Id">2713L</v>
                               </o>
                               <o>
                                 <v n="Operand">"lowerSlaveSpeedSetpointRPM"</v>
@@ -2135,7 +2265,7 @@ END_VAR
                                 <v n="LValue">true</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">195L</v>
+                                <v n="Id">2714L</v>
                               </o>
                               <o>
                                 <v n="Operand">""</v>
@@ -2151,7 +2281,7 @@ END_VAR
                                 <v n="LValue">true</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">196L</v>
+                                <v n="Id">2715L</v>
                               </o>
                               <o>
                                 <v n="Operand">""</v>
@@ -2167,7 +2297,7 @@ END_VAR
                                 <v n="LValue">true</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">197L</v>
+                                <v n="Id">2716L</v>
                               </o>
                               <o>
                                 <v n="Operand">""</v>
@@ -2183,7 +2313,7 @@ END_VAR
                                 <v n="LValue">true</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">198L</v>
+                                <v n="Id">2717L</v>
                               </o>
                               <o>
                                 <v n="Operand">""</v>
@@ -2199,7 +2329,7 @@ END_VAR
                                 <v n="LValue">true</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">199L</v>
+                                <v n="Id">2718L</v>
                               </o>
                               <o>
                                 <v n="Operand">""</v>
@@ -2215,7 +2345,7 @@ END_VAR
                                 <v n="LValue">true</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">200L</v>
+                                <v n="Id">2719L</v>
                               </o>
                               <o>
                                 <v n="Operand">""</v>
@@ -2231,7 +2361,7 @@ END_VAR
                                 <v n="LValue">true</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">201L</v>
+                                <v n="Id">2720L</v>
                               </o>
                               <o>
                                 <v n="Operand">""</v>
@@ -2247,7 +2377,7 @@ END_VAR
                                 <v n="LValue">true</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">202L</v>
+                                <v n="Id">2721L</v>
                               </o>
                               <o>
                                 <v n="Operand">"nextGroupSpeedRefMPM"</v>
@@ -2263,7 +2393,7 @@ END_VAR
                                 <v n="LValue">true</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">203L</v>
+                                <v n="Id">2722L</v>
                               </o>
                               <o>
                                 <v n="Operand">"speedDif"</v>
@@ -2279,7 +2409,7 @@ END_VAR
                                 <v n="LValue">true</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">1949L</v>
+                                <v n="Id">2723L</v>
                               </o>
                             </l2>
                           </o>
@@ -2305,9 +2435,9 @@ END_VAR
                                 <v n="LValue">false</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">205L</v>
+                                <v n="Id">2725L</v>
                               </o>
-                              <v n="Id">204L</v>
+                              <v n="Id">2724L</v>
                             </o>
                             <o>
                               <o n="Operand" t="Operand">
@@ -2324,9 +2454,9 @@ END_VAR
                                 <v n="LValue">false</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">207L</v>
+                                <v n="Id">2727L</v>
                               </o>
-                              <v n="Id">206L</v>
+                              <v n="Id">2726L</v>
                             </o>
                             <o>
                               <o n="Operand" t="Operand">
@@ -2343,9 +2473,9 @@ END_VAR
                                 <v n="LValue">false</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">209L</v>
+                                <v n="Id">2729L</v>
                               </o>
-                              <v n="Id">208L</v>
+                              <v n="Id">2728L</v>
                             </o>
                             <o>
                               <o n="Operand" t="Operand">
@@ -2362,9 +2492,9 @@ END_VAR
                                 <v n="LValue">false</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">211L</v>
+                                <v n="Id">2731L</v>
                               </o>
-                              <v n="Id">210L</v>
+                              <v n="Id">2730L</v>
                             </o>
                             <o>
                               <o n="Operand" t="Operand">
@@ -2381,9 +2511,9 @@ END_VAR
                                 <v n="LValue">false</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">213L</v>
+                                <v n="Id">2733L</v>
                               </o>
-                              <v n="Id">212L</v>
+                              <v n="Id">2732L</v>
                             </o>
                             <o>
                               <o n="Operand" t="Operand">
@@ -2400,9 +2530,9 @@ END_VAR
                                 <v n="LValue">false</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">215L</v>
+                                <v n="Id">2735L</v>
                               </o>
-                              <v n="Id">214L</v>
+                              <v n="Id">2734L</v>
                             </o>
                             <o>
                               <o n="Operand" t="Operand">
@@ -2419,9 +2549,9 @@ END_VAR
                                 <v n="LValue">false</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">217L</v>
+                                <v n="Id">2737L</v>
                               </o>
-                              <v n="Id">216L</v>
+                              <v n="Id">2736L</v>
                             </o>
                             <o>
                               <o n="Operand" t="Operand">
@@ -2438,9 +2568,9 @@ END_VAR
                                 <v n="LValue">false</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">219L</v>
+                                <v n="Id">2739L</v>
                               </o>
-                              <v n="Id">218L</v>
+                              <v n="Id">2738L</v>
                             </o>
                             <o>
                               <o n="Operand" t="Operand">
@@ -2457,9 +2587,9 @@ END_VAR
                                 <v n="LValue">false</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">221L</v>
+                                <v n="Id">2741L</v>
                               </o>
-                              <v n="Id">220L</v>
+                              <v n="Id">2740L</v>
                             </o>
                             <o>
                               <o n="Operand" t="Operand">
@@ -2476,9 +2606,9 @@ END_VAR
                                 <v n="LValue">false</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">223L</v>
+                                <v n="Id">2743L</v>
                               </o>
-                              <v n="Id">222L</v>
+                              <v n="Id">2742L</v>
                             </o>
                             <o>
                               <o n="Operand" t="Operand">
@@ -2495,9 +2625,9 @@ END_VAR
                                 <v n="LValue">false</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">225L</v>
+                                <v n="Id">2745L</v>
                               </o>
-                              <v n="Id">224L</v>
+                              <v n="Id">2744L</v>
                             </o>
                             <o>
                               <o n="Operand" t="Operand">
@@ -2514,9 +2644,9 @@ END_VAR
                                 <v n="LValue">false</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">227L</v>
+                                <v n="Id">2747L</v>
                               </o>
-                              <v n="Id">226L</v>
+                              <v n="Id">2746L</v>
                             </o>
                             <o>
                               <o n="Operand" t="Operand">
@@ -2533,9 +2663,9 @@ END_VAR
                                 <v n="LValue">false</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">229L</v>
+                                <v n="Id">2749L</v>
                               </o>
-                              <v n="Id">228L</v>
+                              <v n="Id">2748L</v>
                             </o>
                             <o>
                               <o n="Operand" t="Operand">
@@ -2552,9 +2682,9 @@ END_VAR
                                 <v n="LValue">false</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">231L</v>
+                                <v n="Id">2751L</v>
                               </o>
-                              <v n="Id">230L</v>
+                              <v n="Id">2750L</v>
                             </o>
                             <o>
                               <o n="Operand" t="Operand">
@@ -2571,9 +2701,47 @@ END_VAR
                                 <v n="LValue">false</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">233L</v>
+                                <v n="Id">2753L</v>
                               </o>
-                              <v n="Id">232L</v>
+                              <v n="Id">2752L</v>
+                            </o>
+                            <o>
+                              <o n="Operand" t="Operand">
+                                <v n="Operand">"machineConfig.machineRampUPRate2"</v>
+                                <v n="Type">"REAL"</v>
+                                <v n="Comment">""</v>
+                                <v n="SymbolComment">""</v>
+                                <v n="Address">""</v>
+                                <o n="Flags" t="Flags">
+                                  <v n="Flags">0</v>
+                                  <v n="Fixed">false</v>
+                                  <v n="Extensible">false</v>
+                                </o>
+                                <v n="LValue">false</v>
+                                <v n="Boolean">false</v>
+                                <v n="IsInstance">false</v>
+                                <v n="Id">2755L</v>
+                              </o>
+                              <v n="Id">2754L</v>
+                            </o>
+                            <o>
+                              <o n="Operand" t="Operand">
+                                <v n="Operand">"machineConfig.machineRampDownRate2"</v>
+                                <v n="Type">"REAL"</v>
+                                <v n="Comment">""</v>
+                                <v n="SymbolComment">""</v>
+                                <v n="Address">""</v>
+                                <o n="Flags" t="Flags">
+                                  <v n="Flags">0</v>
+                                  <v n="Fixed">false</v>
+                                  <v n="Extensible">false</v>
+                                </o>
+                                <v n="LValue">false</v>
+                                <v n="Boolean">false</v>
+                                <v n="IsInstance">false</v>
+                                <v n="Id">2757L</v>
+                              </o>
+                              <v n="Id">2756L</v>
                             </o>
                             <o>
                               <o n="Operand" t="Operand">
@@ -2590,9 +2758,28 @@ END_VAR
                                 <v n="LValue">false</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">235L</v>
+                                <v n="Id">2759L</v>
                               </o>
-                              <v n="Id">234L</v>
+                              <v n="Id">2758L</v>
+                            </o>
+                            <o>
+                              <o n="Operand" t="Operand">
+                                <v n="Operand">""</v>
+                                <n n="Type" />
+                                <v n="Comment">""</v>
+                                <v n="SymbolComment">""</v>
+                                <v n="Address">""</v>
+                                <o n="Flags" t="Flags">
+                                  <v n="Flags">0</v>
+                                  <v n="Fixed">false</v>
+                                  <v n="Extensible">false</v>
+                                </o>
+                                <v n="LValue">false</v>
+                                <v n="Boolean">false</v>
+                                <v n="IsInstance">false</v>
+                                <v n="Id">2761L</v>
+                              </o>
+                              <v n="Id">2760L</v>
                             </o>
                             <o>
                               <o n="Operand" t="Operand">
@@ -2609,9 +2796,9 @@ END_VAR
                                 <v n="LValue">false</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">237L</v>
+                                <v n="Id">2763L</v>
                               </o>
-                              <v n="Id">236L</v>
+                              <v n="Id">2762L</v>
                             </o>
                             <o>
                               <o n="Operand" t="Operand">
@@ -2628,9 +2815,9 @@ END_VAR
                                 <v n="LValue">false</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">239L</v>
+                                <v n="Id">2765L</v>
                               </o>
-                              <v n="Id">238L</v>
+                              <v n="Id">2764L</v>
                             </o>
                             <o>
                               <o n="Operand" t="Operand">
@@ -2647,9 +2834,9 @@ END_VAR
                                 <v n="LValue">false</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">241L</v>
+                                <v n="Id">2767L</v>
                               </o>
-                              <v n="Id">240L</v>
+                              <v n="Id">2766L</v>
                             </o>
                             <o>
                               <o n="Operand" t="Operand">
@@ -2666,9 +2853,9 @@ END_VAR
                                 <v n="LValue">false</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">243L</v>
+                                <v n="Id">2769L</v>
                               </o>
-                              <v n="Id">242L</v>
+                              <v n="Id">2768L</v>
                             </o>
                             <o>
                               <o n="Operand" t="Operand">
@@ -2685,9 +2872,28 @@ END_VAR
                                 <v n="LValue">false</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">245L</v>
+                                <v n="Id">2771L</v>
                               </o>
-                              <v n="Id">244L</v>
+                              <v n="Id">2770L</v>
+                            </o>
+                            <o>
+                              <o n="Operand" t="Operand">
+                                <v n="Operand">"upperAndLowerSpeedCalibration"</v>
+                                <v n="Type">"REAL"</v>
+                                <v n="Comment">""</v>
+                                <v n="SymbolComment">""</v>
+                                <v n="Address">""</v>
+                                <o n="Flags" t="Flags">
+                                  <v n="Flags">0</v>
+                                  <v n="Fixed">false</v>
+                                  <v n="Extensible">false</v>
+                                </o>
+                                <v n="LValue">false</v>
+                                <v n="Boolean">false</v>
+                                <v n="IsInstance">false</v>
+                                <v n="Id">2773L</v>
+                              </o>
+                              <v n="Id">2772L</v>
                             </o>
                             <o>
                               <o n="Operand" t="Operand">
@@ -2704,9 +2910,28 @@ END_VAR
                                 <v n="LValue">false</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">false</v>
-                                <v n="Id">247L</v>
+                                <v n="Id">2775L</v>
                               </o>
-                              <v n="Id">246L</v>
+                              <v n="Id">2774L</v>
+                            </o>
+                            <o>
+                              <o n="Operand" t="Operand">
+                                <v n="Operand">"paperPresenceSensor"</v>
+                                <v n="Type">"BOOL"</v>
+                                <v n="Comment">""</v>
+                                <v n="SymbolComment">""</v>
+                                <v n="Address">""</v>
+                                <o n="Flags" t="Flags">
+                                  <v n="Flags">0</v>
+                                  <v n="Fixed">false</v>
+                                  <v n="Extensible">false</v>
+                                </o>
+                                <v n="LValue">false</v>
+                                <v n="Boolean">false</v>
+                                <v n="IsInstance">false</v>
+                                <v n="Id">2777L</v>
+                              </o>
+                              <v n="Id">2776L</v>
                             </o>
                           </l2>
                           <o n="InputParam" t="ParamList">
@@ -2726,13 +2951,18 @@ END_VAR
                               <v>groupMasterMaxSpeedRPM</v>
                               <v>rampUpRate</v>
                               <v>rampDownRate</v>
+                              <v>rampUpRate2</v>
+                              <v>rampDownRate2</v>
                               <v>state</v>
+                              <v>speedDifIncPerPulse</v>
                               <v>groupSpeedDifInc</v>
                               <v>groupSpeedDifDec</v>
                               <v>groupSpeedDifLimLow</v>
                               <v>groupSpeedDifLimHigh</v>
                               <v>upperAndLowerSpeedOffset</v>
+                              <v>upperAndLowerSpeedCalibration</v>
                               <v>rampReset</v>
+                              <v>paperPresenceSensor</v>
                             </l2>
                             <l2 n="Types" cet="String">
                               <v>BOOL</v>
@@ -2750,12 +2980,17 @@ END_VAR
                               <v>REAL</v>
                               <v>REAL</v>
                               <v>REAL</v>
+                              <v>REAL</v>
+                              <v>REAL</v>
                               <v>INT</v>
+                              <v>REAL</v>
                               <v>BOOL</v>
                               <v>BOOL</v>
                               <v>REAL</v>
                               <v>REAL</v>
                               <v>REAL</v>
+                              <v>REAL</v>
+                              <v>BOOL</v>
                               <v>BOOL</v>
                             </l2>
                           </o>
@@ -2799,9 +3034,856 @@ END_VAR
                           <n n="STSnippet" />
                           <v n="ContainsExtensibleInputs">false</v>
                           <v n="ProvidesSTSnippet">false</v>
-                          <v n="Id">1948L</v>
+                          <v n="Id">2710L</v>
                         </o>
-                        <v n="Id">529L</v>
+                        <v n="Id">2779L</v>
+                      </o>
+                    </l2>
+                    <l2 n="Connectors" />
+                    <v n="Id">2708L</v>
+                  </o>
+                  <o>
+                    <v n="ILActive">false</v>
+                    <v n="FBDValid">false</v>
+                    <v n="ILValid">false</v>
+                    <l2 n="ILLines" />
+                    <v n="Comment">""</v>
+                    <v n="Title">""</v>
+                    <v n="Label">""</v>
+                    <v n="OutCommented">false</v>
+                    <l2 n="NetworkItems" cet="BoxTreeBox">
+                      <o>
+                        <v n="BoxType">"FB_DryingSecSpeedControl"</v>
+                        <o n="Instance" t="Operand">
+                          <v n="Operand">"instFB_DryingSecSpeedControl"</v>
+                          <v n="Type">"FB_DryingSecSpeedControl"</v>
+                          <v n="Comment">""</v>
+                          <v n="SymbolComment">""</v>
+                          <v n="Address">""</v>
+                          <o n="Flags" t="Flags">
+                            <v n="Flags">0</v>
+                            <v n="Fixed">false</v>
+                            <v n="Extensible">false</v>
+                          </o>
+                          <v n="LValue">false</v>
+                          <v n="Boolean">false</v>
+                          <v n="IsInstance">true</v>
+                          <v n="Id">2786L</v>
+                        </o>
+                        <o n="OutputItems" t="OutputItemList">
+                          <l2 n="OutputItems" cet="Operand">
+                            <n />
+                            <o>
+                              <v n="Operand">""</v>
+                              <n n="Type" />
+                              <v n="Comment">""</v>
+                              <v n="SymbolComment">""</v>
+                              <v n="Address">""</v>
+                              <o n="Flags" t="Flags">
+                                <v n="Flags">0</v>
+                                <v n="Fixed">false</v>
+                                <v n="Extensible">false</v>
+                              </o>
+                              <v n="LValue">true</v>
+                              <v n="Boolean">false</v>
+                              <v n="IsInstance">false</v>
+                              <v n="Id">192L</v>
+                            </o>
+                            <o>
+                              <v n="Operand">""</v>
+                              <n n="Type" />
+                              <v n="Comment">""</v>
+                              <v n="SymbolComment">""</v>
+                              <v n="Address">""</v>
+                              <o n="Flags" t="Flags">
+                                <v n="Flags">0</v>
+                                <v n="Fixed">false</v>
+                                <v n="Extensible">false</v>
+                              </o>
+                              <v n="LValue">true</v>
+                              <v n="Boolean">false</v>
+                              <v n="IsInstance">false</v>
+                              <v n="Id">193L</v>
+                            </o>
+                            <o>
+                              <v n="Operand">""</v>
+                              <n n="Type" />
+                              <v n="Comment">""</v>
+                              <v n="SymbolComment">""</v>
+                              <v n="Address">""</v>
+                              <o n="Flags" t="Flags">
+                                <v n="Flags">0</v>
+                                <v n="Fixed">false</v>
+                                <v n="Extensible">false</v>
+                              </o>
+                              <v n="LValue">true</v>
+                              <v n="Boolean">false</v>
+                              <v n="IsInstance">false</v>
+                              <v n="Id">194L</v>
+                            </o>
+                            <o>
+                              <v n="Operand">""</v>
+                              <n n="Type" />
+                              <v n="Comment">""</v>
+                              <v n="SymbolComment">""</v>
+                              <v n="Address">""</v>
+                              <o n="Flags" t="Flags">
+                                <v n="Flags">0</v>
+                                <v n="Fixed">false</v>
+                                <v n="Extensible">false</v>
+                              </o>
+                              <v n="LValue">true</v>
+                              <v n="Boolean">false</v>
+                              <v n="IsInstance">false</v>
+                              <v n="Id">195L</v>
+                            </o>
+                            <o>
+                              <v n="Operand">""</v>
+                              <n n="Type" />
+                              <v n="Comment">""</v>
+                              <v n="SymbolComment">""</v>
+                              <v n="Address">""</v>
+                              <o n="Flags" t="Flags">
+                                <v n="Flags">0</v>
+                                <v n="Fixed">false</v>
+                                <v n="Extensible">false</v>
+                              </o>
+                              <v n="LValue">true</v>
+                              <v n="Boolean">false</v>
+                              <v n="IsInstance">false</v>
+                              <v n="Id">196L</v>
+                            </o>
+                            <o>
+                              <v n="Operand">""</v>
+                              <n n="Type" />
+                              <v n="Comment">""</v>
+                              <v n="SymbolComment">""</v>
+                              <v n="Address">""</v>
+                              <o n="Flags" t="Flags">
+                                <v n="Flags">0</v>
+                                <v n="Fixed">false</v>
+                                <v n="Extensible">false</v>
+                              </o>
+                              <v n="LValue">true</v>
+                              <v n="Boolean">false</v>
+                              <v n="IsInstance">false</v>
+                              <v n="Id">197L</v>
+                            </o>
+                            <o>
+                              <v n="Operand">""</v>
+                              <n n="Type" />
+                              <v n="Comment">""</v>
+                              <v n="SymbolComment">""</v>
+                              <v n="Address">""</v>
+                              <o n="Flags" t="Flags">
+                                <v n="Flags">0</v>
+                                <v n="Fixed">false</v>
+                                <v n="Extensible">false</v>
+                              </o>
+                              <v n="LValue">true</v>
+                              <v n="Boolean">false</v>
+                              <v n="IsInstance">false</v>
+                              <v n="Id">198L</v>
+                            </o>
+                            <o>
+                              <v n="Operand">""</v>
+                              <n n="Type" />
+                              <v n="Comment">""</v>
+                              <v n="SymbolComment">""</v>
+                              <v n="Address">""</v>
+                              <o n="Flags" t="Flags">
+                                <v n="Flags">0</v>
+                                <v n="Fixed">false</v>
+                                <v n="Extensible">false</v>
+                              </o>
+                              <v n="LValue">true</v>
+                              <v n="Boolean">false</v>
+                              <v n="IsInstance">false</v>
+                              <v n="Id">199L</v>
+                            </o>
+                            <o>
+                              <v n="Operand">""</v>
+                              <n n="Type" />
+                              <v n="Comment">""</v>
+                              <v n="SymbolComment">""</v>
+                              <v n="Address">""</v>
+                              <o n="Flags" t="Flags">
+                                <v n="Flags">0</v>
+                                <v n="Fixed">false</v>
+                                <v n="Extensible">false</v>
+                              </o>
+                              <v n="LValue">true</v>
+                              <v n="Boolean">false</v>
+                              <v n="IsInstance">false</v>
+                              <v n="Id">200L</v>
+                            </o>
+                            <o>
+                              <v n="Operand">""</v>
+                              <n n="Type" />
+                              <v n="Comment">""</v>
+                              <v n="SymbolComment">""</v>
+                              <v n="Address">""</v>
+                              <o n="Flags" t="Flags">
+                                <v n="Flags">0</v>
+                                <v n="Fixed">false</v>
+                                <v n="Extensible">false</v>
+                              </o>
+                              <v n="LValue">true</v>
+                              <v n="Boolean">false</v>
+                              <v n="IsInstance">false</v>
+                              <v n="Id">201L</v>
+                            </o>
+                            <o>
+                              <v n="Operand">""</v>
+                              <n n="Type" />
+                              <v n="Comment">""</v>
+                              <v n="SymbolComment">""</v>
+                              <v n="Address">""</v>
+                              <o n="Flags" t="Flags">
+                                <v n="Flags">0</v>
+                                <v n="Fixed">false</v>
+                                <v n="Extensible">false</v>
+                              </o>
+                              <v n="LValue">true</v>
+                              <v n="Boolean">false</v>
+                              <v n="IsInstance">false</v>
+                              <v n="Id">202L</v>
+                            </o>
+                            <o>
+                              <v n="Operand">""</v>
+                              <n n="Type" />
+                              <v n="Comment">""</v>
+                              <v n="SymbolComment">""</v>
+                              <v n="Address">""</v>
+                              <o n="Flags" t="Flags">
+                                <v n="Flags">0</v>
+                                <v n="Fixed">false</v>
+                                <v n="Extensible">false</v>
+                              </o>
+                              <v n="LValue">true</v>
+                              <v n="Boolean">false</v>
+                              <v n="IsInstance">false</v>
+                              <v n="Id">203L</v>
+                            </o>
+                            <o>
+                              <v n="Operand">""</v>
+                              <n n="Type" />
+                              <v n="Comment">""</v>
+                              <v n="SymbolComment">""</v>
+                              <v n="Address">""</v>
+                              <o n="Flags" t="Flags">
+                                <v n="Flags">0</v>
+                                <v n="Fixed">false</v>
+                                <v n="Extensible">false</v>
+                              </o>
+                              <v n="LValue">true</v>
+                              <v n="Boolean">false</v>
+                              <v n="IsInstance">false</v>
+                              <v n="Id">1949L</v>
+                            </o>
+                          </l2>
+                        </o>
+                        <o n="Flags" t="Flags">
+                          <v n="Flags">0</v>
+                          <v n="Fixed">true</v>
+                          <v n="Extensible">false</v>
+                        </o>
+                        <n n="InputFlags" />
+                        <l2 n="InputItems" cet="BoxTreeOperand">
+                          <o>
+                            <o n="Operand" t="Operand">
+                              <v n="Operand">"groupSpeedAutoMan"</v>
+                              <v n="Type">"BOOL"</v>
+                              <v n="Comment">""</v>
+                              <v n="SymbolComment">""</v>
+                              <v n="Address">""</v>
+                              <o n="Flags" t="Flags">
+                                <v n="Flags">0</v>
+                                <v n="Fixed">false</v>
+                                <v n="Extensible">false</v>
+                              </o>
+                              <v n="LValue">false</v>
+                              <v n="Boolean">false</v>
+                              <v n="IsInstance">false</v>
+                              <v n="Id">205L</v>
+                            </o>
+                            <v n="Id">204L</v>
+                          </o>
+                          <o>
+                            <o n="Operand" t="Operand">
+                              <v n="Operand">"groupAutoSpeedMPM"</v>
+                              <v n="Type">"REAL"</v>
+                              <v n="Comment">""</v>
+                              <v n="SymbolComment">""</v>
+                              <v n="Address">""</v>
+                              <o n="Flags" t="Flags">
+                                <v n="Flags">0</v>
+                                <v n="Fixed">false</v>
+                                <v n="Extensible">false</v>
+                              </o>
+                              <v n="LValue">false</v>
+                              <v n="Boolean">false</v>
+                              <v n="IsInstance">false</v>
+                              <v n="Id">207L</v>
+                            </o>
+                            <v n="Id">206L</v>
+                          </o>
+                          <o>
+                            <o n="Operand" t="Operand">
+                              <v n="Operand">"groupManualSpeedMPM"</v>
+                              <v n="Type">"REAL"</v>
+                              <v n="Comment">""</v>
+                              <v n="SymbolComment">""</v>
+                              <v n="Address">""</v>
+                              <o n="Flags" t="Flags">
+                                <v n="Flags">0</v>
+                                <v n="Fixed">false</v>
+                                <v n="Extensible">false</v>
+                              </o>
+                              <v n="LValue">false</v>
+                              <v n="Boolean">false</v>
+                              <v n="IsInstance">false</v>
+                              <v n="Id">209L</v>
+                            </o>
+                            <v n="Id">208L</v>
+                          </o>
+                          <o>
+                            <o n="Operand" t="Operand">
+                              <v n="Operand">"groupRecoverSpeedCmd"</v>
+                              <v n="Type">"BOOL"</v>
+                              <v n="Comment">""</v>
+                              <v n="SymbolComment">""</v>
+                              <v n="Address">""</v>
+                              <o n="Flags" t="Flags">
+                                <v n="Flags">0</v>
+                                <v n="Fixed">false</v>
+                                <v n="Extensible">false</v>
+                              </o>
+                              <v n="LValue">false</v>
+                              <v n="Boolean">false</v>
+                              <v n="IsInstance">false</v>
+                              <v n="Id">211L</v>
+                            </o>
+                            <v n="Id">210L</v>
+                          </o>
+                          <o>
+                            <o n="Operand" t="Operand">
+                              <v n="Operand">"machineConfig.groupRecoverIncrement"</v>
+                              <v n="Type">"REAL"</v>
+                              <v n="Comment">""</v>
+                              <v n="SymbolComment">""</v>
+                              <v n="Address">""</v>
+                              <o n="Flags" t="Flags">
+                                <v n="Flags">0</v>
+                                <v n="Fixed">false</v>
+                                <v n="Extensible">false</v>
+                              </o>
+                              <v n="LValue">false</v>
+                              <v n="Boolean">false</v>
+                              <v n="IsInstance">false</v>
+                              <v n="Id">213L</v>
+                            </o>
+                            <v n="Id">212L</v>
+                          </o>
+                          <o>
+                            <o n="Operand" t="Operand">
+                              <v n="Operand">""</v>
+                              <n n="Type" />
+                              <v n="Comment">""</v>
+                              <v n="SymbolComment">""</v>
+                              <v n="Address">""</v>
+                              <o n="Flags" t="Flags">
+                                <v n="Flags">0</v>
+                                <v n="Fixed">false</v>
+                                <v n="Extensible">false</v>
+                              </o>
+                              <v n="LValue">false</v>
+                              <v n="Boolean">false</v>
+                              <v n="IsInstance">false</v>
+                              <v n="Id">217L</v>
+                            </o>
+                            <v n="Id">216L</v>
+                          </o>
+                          <o>
+                            <o n="Operand" t="Operand">
+                              <v n="Operand">""</v>
+                              <n n="Type" />
+                              <v n="Comment">""</v>
+                              <v n="SymbolComment">""</v>
+                              <v n="Address">""</v>
+                              <o n="Flags" t="Flags">
+                                <v n="Flags">0</v>
+                                <v n="Fixed">false</v>
+                                <v n="Extensible">false</v>
+                              </o>
+                              <v n="LValue">false</v>
+                              <v n="Boolean">false</v>
+                              <v n="IsInstance">false</v>
+                              <v n="Id">219L</v>
+                            </o>
+                            <v n="Id">218L</v>
+                          </o>
+                          <o>
+                            <o n="Operand" t="Operand">
+                              <v n="Operand">"upperMasterDiameter"</v>
+                              <v n="Type">"REAL"</v>
+                              <v n="Comment">""</v>
+                              <v n="SymbolComment">""</v>
+                              <v n="Address">""</v>
+                              <o n="Flags" t="Flags">
+                                <v n="Flags">0</v>
+                                <v n="Fixed">false</v>
+                                <v n="Extensible">false</v>
+                              </o>
+                              <v n="LValue">false</v>
+                              <v n="Boolean">false</v>
+                              <v n="IsInstance">false</v>
+                              <v n="Id">221L</v>
+                            </o>
+                            <v n="Id">220L</v>
+                          </o>
+                          <o>
+                            <o n="Operand" t="Operand">
+                              <v n="Operand">"upperSlave1Diameter"</v>
+                              <v n="Type">"REAL"</v>
+                              <v n="Comment">""</v>
+                              <v n="SymbolComment">""</v>
+                              <v n="Address">""</v>
+                              <o n="Flags" t="Flags">
+                                <v n="Flags">0</v>
+                                <v n="Fixed">false</v>
+                                <v n="Extensible">false</v>
+                              </o>
+                              <v n="LValue">false</v>
+                              <v n="Boolean">false</v>
+                              <v n="IsInstance">false</v>
+                              <v n="Id">223L</v>
+                            </o>
+                            <v n="Id">222L</v>
+                          </o>
+                          <o>
+                            <o n="Operand" t="Operand">
+                              <v n="Operand">"lowerMasterDiameter"</v>
+                              <v n="Type">"REAL"</v>
+                              <v n="Comment">""</v>
+                              <v n="SymbolComment">""</v>
+                              <v n="Address">""</v>
+                              <o n="Flags" t="Flags">
+                                <v n="Flags">0</v>
+                                <v n="Fixed">false</v>
+                                <v n="Extensible">false</v>
+                              </o>
+                              <v n="LValue">false</v>
+                              <v n="Boolean">false</v>
+                              <v n="IsInstance">false</v>
+                              <v n="Id">225L</v>
+                            </o>
+                            <v n="Id">224L</v>
+                          </o>
+                          <o>
+                            <o n="Operand" t="Operand">
+                              <v n="Operand">"lowerSlave1Diameter"</v>
+                              <v n="Type">"REAL"</v>
+                              <v n="Comment">""</v>
+                              <v n="SymbolComment">""</v>
+                              <v n="Address">""</v>
+                              <o n="Flags" t="Flags">
+                                <v n="Flags">0</v>
+                                <v n="Fixed">false</v>
+                                <v n="Extensible">false</v>
+                              </o>
+                              <v n="LValue">false</v>
+                              <v n="Boolean">false</v>
+                              <v n="IsInstance">false</v>
+                              <v n="Id">227L</v>
+                            </o>
+                            <v n="Id">226L</v>
+                          </o>
+                          <o>
+                            <o n="Operand" t="Operand">
+                              <v n="Operand">"749"</v>
+                              <v n="Type">"INT"</v>
+                              <v n="Comment">""</v>
+                              <v n="SymbolComment">""</v>
+                              <v n="Address">""</v>
+                              <o n="Flags" t="Flags">
+                                <v n="Flags">0</v>
+                                <v n="Fixed">false</v>
+                                <v n="Extensible">false</v>
+                              </o>
+                              <v n="LValue">false</v>
+                              <v n="Boolean">false</v>
+                              <v n="IsInstance">false</v>
+                              <v n="Id">229L</v>
+                            </o>
+                            <v n="Id">228L</v>
+                          </o>
+                          <o>
+                            <o n="Operand" t="Operand">
+                              <v n="Operand">"machineConfig.machineRampUPRate"</v>
+                              <v n="Type">"REAL"</v>
+                              <v n="Comment">""</v>
+                              <v n="SymbolComment">""</v>
+                              <v n="Address">""</v>
+                              <o n="Flags" t="Flags">
+                                <v n="Flags">0</v>
+                                <v n="Fixed">false</v>
+                                <v n="Extensible">false</v>
+                              </o>
+                              <v n="LValue">false</v>
+                              <v n="Boolean">false</v>
+                              <v n="IsInstance">false</v>
+                              <v n="Id">231L</v>
+                            </o>
+                            <v n="Id">230L</v>
+                          </o>
+                          <o>
+                            <o n="Operand" t="Operand">
+                              <v n="Operand">"machineConfig.machineRampDownRate"</v>
+                              <v n="Type">"REAL"</v>
+                              <v n="Comment">""</v>
+                              <v n="SymbolComment">""</v>
+                              <v n="Address">""</v>
+                              <o n="Flags" t="Flags">
+                                <v n="Flags">0</v>
+                                <v n="Fixed">false</v>
+                                <v n="Extensible">false</v>
+                              </o>
+                              <v n="LValue">false</v>
+                              <v n="Boolean">false</v>
+                              <v n="IsInstance">false</v>
+                              <v n="Id">233L</v>
+                            </o>
+                            <v n="Id">232L</v>
+                          </o>
+                          <o>
+                            <o n="Operand" t="Operand">
+                              <v n="Operand">"machineConfig.machineRampUPRate2"</v>
+                              <v n="Type">"REAL"</v>
+                              <v n="Comment">""</v>
+                              <v n="SymbolComment">""</v>
+                              <v n="Address">""</v>
+                              <o n="Flags" t="Flags">
+                                <v n="Flags">0</v>
+                                <v n="Fixed">false</v>
+                                <v n="Extensible">false</v>
+                              </o>
+                              <v n="LValue">false</v>
+                              <v n="Boolean">false</v>
+                              <v n="IsInstance">false</v>
+                              <v n="Id">2703L</v>
+                            </o>
+                            <v n="Id">2702L</v>
+                          </o>
+                          <o>
+                            <o n="Operand" t="Operand">
+                              <v n="Operand">"machineConfig.machineRampDownRate2"</v>
+                              <v n="Type">"REAL"</v>
+                              <v n="Comment">""</v>
+                              <v n="SymbolComment">""</v>
+                              <v n="Address">""</v>
+                              <o n="Flags" t="Flags">
+                                <v n="Flags">0</v>
+                                <v n="Fixed">false</v>
+                                <v n="Extensible">false</v>
+                              </o>
+                              <v n="LValue">false</v>
+                              <v n="Boolean">false</v>
+                              <v n="IsInstance">false</v>
+                              <v n="Id">2705L</v>
+                            </o>
+                            <v n="Id">2704L</v>
+                          </o>
+                          <o>
+                            <o n="Operand" t="Operand">
+                              <v n="Operand">"statusCode"</v>
+                              <v n="Type">"INT"</v>
+                              <v n="Comment">""</v>
+                              <v n="SymbolComment">""</v>
+                              <v n="Address">""</v>
+                              <o n="Flags" t="Flags">
+                                <v n="Flags">0</v>
+                                <v n="Fixed">false</v>
+                                <v n="Extensible">false</v>
+                              </o>
+                              <v n="LValue">false</v>
+                              <v n="Boolean">false</v>
+                              <v n="IsInstance">false</v>
+                              <v n="Id">235L</v>
+                            </o>
+                            <v n="Id">234L</v>
+                          </o>
+                          <o>
+                            <o n="Operand" t="Operand">
+                              <v n="Operand">""</v>
+                              <n n="Type" />
+                              <v n="Comment">""</v>
+                              <v n="SymbolComment">""</v>
+                              <v n="Address">""</v>
+                              <o n="Flags" t="Flags">
+                                <v n="Flags">0</v>
+                                <v n="Fixed">false</v>
+                                <v n="Extensible">false</v>
+                              </o>
+                              <v n="LValue">false</v>
+                              <v n="Boolean">false</v>
+                              <v n="IsInstance">false</v>
+                              <v n="Id">2445L</v>
+                            </o>
+                            <v n="Id">2444L</v>
+                          </o>
+                          <o>
+                            <o n="Operand" t="Operand">
+                              <v n="Operand">"grouSpeedDifIncCmd"</v>
+                              <v n="Type">"BOOL"</v>
+                              <v n="Comment">""</v>
+                              <v n="SymbolComment">""</v>
+                              <v n="Address">""</v>
+                              <o n="Flags" t="Flags">
+                                <v n="Flags">0</v>
+                                <v n="Fixed">false</v>
+                                <v n="Extensible">false</v>
+                              </o>
+                              <v n="LValue">false</v>
+                              <v n="Boolean">false</v>
+                              <v n="IsInstance">false</v>
+                              <v n="Id">237L</v>
+                            </o>
+                            <v n="Id">236L</v>
+                          </o>
+                          <o>
+                            <o n="Operand" t="Operand">
+                              <v n="Operand">"grouSpeedDifDecCmd"</v>
+                              <v n="Type">"BOOL"</v>
+                              <v n="Comment">""</v>
+                              <v n="SymbolComment">""</v>
+                              <v n="Address">""</v>
+                              <o n="Flags" t="Flags">
+                                <v n="Flags">0</v>
+                                <v n="Fixed">false</v>
+                                <v n="Extensible">false</v>
+                              </o>
+                              <v n="LValue">false</v>
+                              <v n="Boolean">false</v>
+                              <v n="IsInstance">false</v>
+                              <v n="Id">239L</v>
+                            </o>
+                            <v n="Id">238L</v>
+                          </o>
+                          <o>
+                            <o n="Operand" t="Operand">
+                              <v n="Operand">"machineConfig.groupSpeedDifLimLow"</v>
+                              <v n="Type">"REAL"</v>
+                              <v n="Comment">""</v>
+                              <v n="SymbolComment">""</v>
+                              <v n="Address">""</v>
+                              <o n="Flags" t="Flags">
+                                <v n="Flags">0</v>
+                                <v n="Fixed">false</v>
+                                <v n="Extensible">false</v>
+                              </o>
+                              <v n="LValue">false</v>
+                              <v n="Boolean">false</v>
+                              <v n="IsInstance">false</v>
+                              <v n="Id">241L</v>
+                            </o>
+                            <v n="Id">240L</v>
+                          </o>
+                          <o>
+                            <o n="Operand" t="Operand">
+                              <v n="Operand">"machineConfig.groupSpeedDifLimHigh"</v>
+                              <v n="Type">"REAL"</v>
+                              <v n="Comment">""</v>
+                              <v n="SymbolComment">""</v>
+                              <v n="Address">""</v>
+                              <o n="Flags" t="Flags">
+                                <v n="Flags">0</v>
+                                <v n="Fixed">false</v>
+                                <v n="Extensible">false</v>
+                              </o>
+                              <v n="LValue">false</v>
+                              <v n="Boolean">false</v>
+                              <v n="IsInstance">false</v>
+                              <v n="Id">243L</v>
+                            </o>
+                            <v n="Id">242L</v>
+                          </o>
+                          <o>
+                            <o n="Operand" t="Operand">
+                              <v n="Operand">"-upperAndLowerSpeedTrim"</v>
+                              <v n="Type">"REAL"</v>
+                              <v n="Comment">""</v>
+                              <v n="SymbolComment">""</v>
+                              <v n="Address">""</v>
+                              <o n="Flags" t="Flags">
+                                <v n="Flags">0</v>
+                                <v n="Fixed">false</v>
+                                <v n="Extensible">false</v>
+                              </o>
+                              <v n="LValue">false</v>
+                              <v n="Boolean">false</v>
+                              <v n="IsInstance">false</v>
+                              <v n="Id">245L</v>
+                            </o>
+                            <v n="Id">244L</v>
+                          </o>
+                          <o>
+                            <o n="Operand" t="Operand">
+                              <v n="Operand">"upperAndLowerSpeedCalibration"</v>
+                              <v n="Type">"REAL"</v>
+                              <v n="Comment">""</v>
+                              <v n="SymbolComment">""</v>
+                              <v n="Address">""</v>
+                              <o n="Flags" t="Flags">
+                                <v n="Flags">0</v>
+                                <v n="Fixed">false</v>
+                                <v n="Extensible">false</v>
+                              </o>
+                              <v n="LValue">false</v>
+                              <v n="Boolean">false</v>
+                              <v n="IsInstance">false</v>
+                              <v n="Id">2439L</v>
+                            </o>
+                            <v n="Id">2438L</v>
+                          </o>
+                          <o>
+                            <o n="Operand" t="Operand">
+                              <v n="Operand">"instFB_GroupDriveControl_V1.rampReset"</v>
+                              <v n="Type">"BOOL"</v>
+                              <v n="Comment">""</v>
+                              <v n="SymbolComment">""</v>
+                              <v n="Address">""</v>
+                              <o n="Flags" t="Flags">
+                                <v n="Flags">0</v>
+                                <v n="Fixed">false</v>
+                                <v n="Extensible">false</v>
+                              </o>
+                              <v n="LValue">false</v>
+                              <v n="Boolean">false</v>
+                              <v n="IsInstance">false</v>
+                              <v n="Id">247L</v>
+                            </o>
+                            <v n="Id">246L</v>
+                          </o>
+                          <o>
+                            <o n="Operand" t="Operand">
+                              <v n="Operand">"paperPresenceSensor"</v>
+                              <v n="Type">"BOOL"</v>
+                              <v n="Comment">""</v>
+                              <v n="SymbolComment">""</v>
+                              <v n="Address">""</v>
+                              <o n="Flags" t="Flags">
+                                <v n="Flags">0</v>
+                                <v n="Fixed">false</v>
+                                <v n="Extensible">false</v>
+                              </o>
+                              <v n="LValue">false</v>
+                              <v n="Boolean">false</v>
+                              <v n="IsInstance">false</v>
+                              <v n="Id">2707L</v>
+                            </o>
+                            <v n="Id">2706L</v>
+                          </o>
+                        </l2>
+                        <o n="InputParam" t="ParamList">
+                          <l2 n="Names" cet="String">
+                            <v>groupSpeedAutoMan</v>
+                            <v>groupAutoSpeedMPM</v>
+                            <v>groupManualSpeedMPM</v>
+                            <v>groupRecoverSpeedCmd</v>
+                            <v>groupRecoverIncrement</v>
+                            <v>upperSlaveRatio</v>
+                            <v>lowerSlaveRatio</v>
+                            <v>upperMasterDiameter</v>
+                            <v>upperSlaveDiameter</v>
+                            <v>lowerMasterDiameter</v>
+                            <v>lowerSlaveDiameter</v>
+                            <v>groupMasterMaxSpeedRPM</v>
+                            <v>rampUpRate</v>
+                            <v>rampDownRate</v>
+                            <v>rampUpRate2</v>
+                            <v>rampDownRate2</v>
+                            <v>state</v>
+                            <v>speedDifIncPerPulse</v>
+                            <v>groupSpeedDifInc</v>
+                            <v>groupSpeedDifDec</v>
+                            <v>groupSpeedDifLimLow</v>
+                            <v>groupSpeedDifLimHigh</v>
+                            <v>upperAndLowerSpeedOffset</v>
+                            <v>upperAndLowerSpeedCalibration</v>
+                            <v>rampReset</v>
+                            <v>paperPresenceSensor</v>
+                          </l2>
+                          <l2 n="Types" cet="String">
+                            <v>BOOL</v>
+                            <v>REAL</v>
+                            <v>REAL</v>
+                            <v>BOOL</v>
+                            <v>REAL</v>
+                            <v>REAL</v>
+                            <v>REAL</v>
+                            <v>REAL</v>
+                            <v>REAL</v>
+                            <v>REAL</v>
+                            <v>REAL</v>
+                            <v>REAL</v>
+                            <v>REAL</v>
+                            <v>REAL</v>
+                            <v>REAL</v>
+                            <v>REAL</v>
+                            <v>INT</v>
+                            <v>REAL</v>
+                            <v>BOOL</v>
+                            <v>BOOL</v>
+                            <v>REAL</v>
+                            <v>REAL</v>
+                            <v>REAL</v>
+                            <v>REAL</v>
+                            <v>BOOL</v>
+                            <v>BOOL</v>
+                          </l2>
+                        </o>
+                        <o n="OutputParam" t="ParamList">
+                          <l2 n="Names" cet="String">
+                            <v>group1MasterSpeedRefRPM</v>
+                            <v>upperSlaveRefRPM</v>
+                            <v>group1Slave2SpeedRefRPM</v>
+                            <v>lowerMasterRefRPM</v>
+                            <v>lowerSlaveRefRPM</v>
+                            <v>group2Slave2SpeedRefRPM</v>
+                            <v>upperMasterRefMPM</v>
+                            <v>upperSlaveRefMPM</v>
+                            <v>group1Slave2SpeedMPM</v>
+                            <v>lowerMasterRefMPM</v>
+                            <v>lowerSlaveRefMPM</v>
+                            <v>group2Slave2SpeedMPM</v>
+                            <v>nextGroupSpeedRefMPM</v>
+                            <v>speedDif</v>
+                          </l2>
+                          <l2 n="Types" cet="String">
+                            <v>REAL</v>
+                            <v>REAL</v>
+                            <v>REAL</v>
+                            <v>REAL</v>
+                            <v>REAL</v>
+                            <v>REAL</v>
+                            <v>REAL</v>
+                            <v>REAL</v>
+                            <v>REAL</v>
+                            <v>REAL</v>
+                            <v>REAL</v>
+                            <v>REAL</v>
+                            <v>REAL</v>
+                            <v>REAL</v>
+                          </l2>
+                        </o>
+                        <v n="CallType" t="Operator">FunctionBlock</v>
+                        <v n="EN">false</v>
+                        <v n="ENO">false</v>
+                        <n n="STSnippet" />
+                        <v n="ContainsExtensibleInputs">false</v>
+                        <v n="ProvidesSTSnippet">false</v>
+                        <v n="Id">2787L</v>
                       </o>
                     </l2>
                     <l2 n="Connectors" />
@@ -4045,7 +5127,7 @@ END_VAR
                             </o>
                             <o t="BoxTreeOperand">
                               <o n="Operand" t="Operand">
-                                <v n="Operand">"-0.55"</v>
+                                <v n="Operand">"-0.15"</v>
                                 <v n="Type">"LREAL"</v>
                                 <v n="Comment">""</v>
                                 <v n="SymbolComment">""</v>
@@ -4064,7 +5146,7 @@ END_VAR
                             </o>
                             <o t="BoxTreeOperand">
                               <o n="Operand" t="Operand">
-                                <v n="Operand">"0.55"</v>
+                                <v n="Operand">"0.15"</v>
                                 <v n="Type">"LREAL"</v>
                                 <v n="Comment">""</v>
                                 <v n="SymbolComment">""</v>
@@ -4102,7 +5184,7 @@ END_VAR
                             </o>
                             <o t="BoxTreeOperand">
                               <o n="Operand" t="Operand">
-                                <v n="Operand">"8"</v>
+                                <v n="Operand">"5"</v>
                                 <v n="Type">"INT"</v>
                                 <v n="Comment">""</v>
                                 <v n="SymbolComment">""</v>
@@ -4121,7 +5203,7 @@ END_VAR
                             </o>
                             <o t="BoxTreeOperand">
                               <o n="Operand" t="Operand">
-                                <v n="Operand">"1"</v>
+                                <v n="Operand">"0"</v>
                                 <v n="Type">"INT"</v>
                                 <v n="Comment">""</v>
                                 <v n="SymbolComment">""</v>
@@ -4140,7 +5222,7 @@ END_VAR
                             </o>
                             <o t="BoxTreeOperand">
                               <o n="Operand" t="Operand">
-                                <v n="Operand">"0.01"</v>
+                                <v n="Operand">"0.001"</v>
                                 <v n="Type">"LREAL"</v>
                                 <v n="Comment">""</v>
                                 <v n="SymbolComment">""</v>
@@ -4159,7 +5241,7 @@ END_VAR
                             </o>
                             <o t="BoxTreeOperand">
                               <o n="Operand" t="Operand">
-                                <v n="Operand">"1"</v>
+                                <v n="Operand">"20"</v>
                                 <v n="Type">"INT"</v>
                                 <v n="Comment">""</v>
                                 <v n="SymbolComment">""</v>
@@ -4178,7 +5260,7 @@ END_VAR
                             </o>
                             <o t="BoxTreeOperand">
                               <o n="Operand" t="Operand">
-                                <v n="Operand">"1"</v>
+                                <v n="Operand">"0"</v>
                                 <v n="Type">"INT"</v>
                                 <v n="Comment">""</v>
                                 <v n="SymbolComment">""</v>
@@ -4224,12 +5306,12 @@ END_VAR
                                 <v n="Extensible">false</v>
                               </o>
                               <n n="InputFlags" />
-                              <l2 n="InputItems" cet="BoxTreeBox">
-                                <o>
-                                  <v n="BoxType">"TON"</v>
+                              <l2 n="InputItems">
+                                <o t="BoxTreeBox">
+                                  <v n="BoxType">"TOF"</v>
                                   <o n="Instance" t="Operand">
-                                    <v n="Operand">"instTON_PaperPresenseDelay"</v>
-                                    <v n="Type">"TON"</v>
+                                    <v n="Operand">"instTOF_PaperPresenseDelay"</v>
+                                    <v n="Type">"TOF"</v>
                                     <v n="Comment">""</v>
                                     <v n="SymbolComment">""</v>
                                     <v n="Address">""</v>
@@ -4241,7 +5323,7 @@ END_VAR
                                     <v n="LValue">false</v>
                                     <v n="Boolean">false</v>
                                     <v n="IsInstance">true</v>
-                                    <v n="Id">1702L</v>
+                                    <v n="Id">2192L</v>
                                   </o>
                                   <o n="OutputItems" t="OutputItemList">
                                     <l2 n="OutputItems" cet="Operand">
@@ -4336,10 +5418,10 @@ END_VAR
                                   <n n="STSnippet" />
                                   <v n="ContainsExtensibleInputs">false</v>
                                   <v n="ProvidesSTSnippet">false</v>
-                                  <v n="Id">1703L</v>
+                                  <v n="Id">2193L</v>
                                 </o>
-                                <o>
-                                  <v n="BoxType">"&lt;"</v>
+                                <o t="BoxTreeBox">
+                                  <v n="BoxType">"AND"</v>
                                   <o n="Instance" t="Operand">
                                     <n n="Operand" />
                                     <v n="Type">""</v>
@@ -4354,7 +5436,7 @@ END_VAR
                                     <v n="LValue">false</v>
                                     <v n="Boolean">false</v>
                                     <v n="IsInstance">true</v>
-                                    <v n="Id">1696L</v>
+                                    <v n="Id">2692L</v>
                                   </o>
                                   <o n="OutputItems" t="OutputItemList">
                                     <l2 n="OutputItems">
@@ -4367,11 +5449,12 @@ END_VAR
                                     <v n="Extensible">false</v>
                                   </o>
                                   <n n="InputFlags" />
-                                  <l2 n="InputItems" cet="BoxTreeOperand">
+                                  <l2 n="InputItems" cet="BoxTreeBox">
                                     <o>
-                                      <o n="Operand" t="Operand">
-                                        <v n="Operand">"upperMasterSpeedMPM"</v>
-                                        <v n="Type">"REAL"</v>
+                                      <v n="BoxType">"&lt;"</v>
+                                      <o n="Instance" t="Operand">
+                                        <n n="Operand" />
+                                        <v n="Type">""</v>
                                         <v n="Comment">""</v>
                                         <v n="SymbolComment">""</v>
                                         <v n="Address">""</v>
@@ -4382,15 +5465,85 @@ END_VAR
                                         </o>
                                         <v n="LValue">false</v>
                                         <v n="Boolean">false</v>
-                                        <v n="IsInstance">false</v>
-                                        <v n="Id">1689L</v>
+                                        <v n="IsInstance">true</v>
+                                        <v n="Id">1696L</v>
                                       </o>
-                                      <v n="Id">1688L</v>
+                                      <o n="OutputItems" t="OutputItemList">
+                                        <l2 n="OutputItems">
+                                          <n />
+                                        </l2>
+                                      </o>
+                                      <o n="Flags" t="Flags">
+                                        <v n="Flags">0</v>
+                                        <v n="Fixed">true</v>
+                                        <v n="Extensible">false</v>
+                                      </o>
+                                      <n n="InputFlags" />
+                                      <l2 n="InputItems" cet="BoxTreeOperand">
+                                        <o>
+                                          <o n="Operand" t="Operand">
+                                            <v n="Operand">"upperMasterSpeedMPM"</v>
+                                            <v n="Type">"REAL"</v>
+                                            <v n="Comment">""</v>
+                                            <v n="SymbolComment">""</v>
+                                            <v n="Address">""</v>
+                                            <o n="Flags" t="Flags">
+                                              <v n="Flags">0</v>
+                                              <v n="Fixed">false</v>
+                                              <v n="Extensible">false</v>
+                                            </o>
+                                            <v n="LValue">false</v>
+                                            <v n="Boolean">false</v>
+                                            <v n="IsInstance">false</v>
+                                            <v n="Id">1689L</v>
+                                          </o>
+                                          <v n="Id">1688L</v>
+                                        </o>
+                                        <o>
+                                          <o n="Operand" t="Operand">
+                                            <v n="Operand">"200"</v>
+                                            <v n="Type">"USINT"</v>
+                                            <v n="Comment">""</v>
+                                            <v n="SymbolComment">""</v>
+                                            <v n="Address">""</v>
+                                            <o n="Flags" t="Flags">
+                                              <v n="Flags">0</v>
+                                              <v n="Fixed">false</v>
+                                              <v n="Extensible">false</v>
+                                            </o>
+                                            <v n="LValue">false</v>
+                                            <v n="Boolean">false</v>
+                                            <v n="IsInstance">false</v>
+                                            <v n="Id">1695L</v>
+                                          </o>
+                                          <v n="Id">1694L</v>
+                                        </o>
+                                      </l2>
+                                      <o n="InputParam" t="ParamList">
+                                        <l2 n="Names" />
+                                        <l2 n="Types" />
+                                      </o>
+                                      <o n="OutputParam" t="ParamList">
+                                        <l2 n="Names" cet="String">
+                                          <v></v>
+                                        </l2>
+                                        <l2 n="Types" cet="String">
+                                          <v>BOOL</v>
+                                        </l2>
+                                      </o>
+                                      <v n="CallType" t="Operator">Less</v>
+                                      <v n="EN">false</v>
+                                      <v n="ENO">false</v>
+                                      <n n="STSnippet" />
+                                      <v n="ContainsExtensibleInputs">false</v>
+                                      <v n="ProvidesSTSnippet">false</v>
+                                      <v n="Id">1697L</v>
                                     </o>
                                     <o>
-                                      <o n="Operand" t="Operand">
-                                        <v n="Operand">"100"</v>
-                                        <v n="Type">"INT"</v>
+                                      <v n="BoxType">"&gt;"</v>
+                                      <o n="Instance" t="Operand">
+                                        <n n="Operand" />
+                                        <v n="Type">""</v>
                                         <v n="Comment">""</v>
                                         <v n="SymbolComment">""</v>
                                         <v n="Address">""</v>
@@ -4401,10 +5554,79 @@ END_VAR
                                         </o>
                                         <v n="LValue">false</v>
                                         <v n="Boolean">false</v>
-                                        <v n="IsInstance">false</v>
-                                        <v n="Id">1695L</v>
+                                        <v n="IsInstance">true</v>
+                                        <v n="Id">2698L</v>
                                       </o>
-                                      <v n="Id">1694L</v>
+                                      <o n="OutputItems" t="OutputItemList">
+                                        <l2 n="OutputItems">
+                                          <n />
+                                        </l2>
+                                      </o>
+                                      <o n="Flags" t="Flags">
+                                        <v n="Flags">0</v>
+                                        <v n="Fixed">true</v>
+                                        <v n="Extensible">false</v>
+                                      </o>
+                                      <n n="InputFlags" />
+                                      <l2 n="InputItems" cet="BoxTreeOperand">
+                                        <o>
+                                          <o n="Operand" t="Operand">
+                                            <v n="Operand">"upperMasterSpeedMPM"</v>
+                                            <v n="Type">"REAL"</v>
+                                            <v n="Comment">""</v>
+                                            <v n="SymbolComment">""</v>
+                                            <v n="Address">""</v>
+                                            <o n="Flags" t="Flags">
+                                              <v n="Flags">0</v>
+                                              <v n="Fixed">false</v>
+                                              <v n="Extensible">false</v>
+                                            </o>
+                                            <v n="LValue">false</v>
+                                            <v n="Boolean">false</v>
+                                            <v n="IsInstance">false</v>
+                                            <v n="Id">2691L</v>
+                                          </o>
+                                          <v n="Id">2690L</v>
+                                        </o>
+                                        <o>
+                                          <o n="Operand" t="Operand">
+                                            <v n="Operand">"10"</v>
+                                            <v n="Type">"INT"</v>
+                                            <v n="Comment">""</v>
+                                            <v n="SymbolComment">""</v>
+                                            <v n="Address">""</v>
+                                            <o n="Flags" t="Flags">
+                                              <v n="Flags">0</v>
+                                              <v n="Fixed">false</v>
+                                              <v n="Extensible">false</v>
+                                            </o>
+                                            <v n="LValue">false</v>
+                                            <v n="Boolean">false</v>
+                                            <v n="IsInstance">false</v>
+                                            <v n="Id">2697L</v>
+                                          </o>
+                                          <v n="Id">2696L</v>
+                                        </o>
+                                      </l2>
+                                      <o n="InputParam" t="ParamList">
+                                        <l2 n="Names" />
+                                        <l2 n="Types" />
+                                      </o>
+                                      <o n="OutputParam" t="ParamList">
+                                        <l2 n="Names" cet="String">
+                                          <v></v>
+                                        </l2>
+                                        <l2 n="Types" cet="String">
+                                          <v>BOOL</v>
+                                        </l2>
+                                      </o>
+                                      <v n="CallType" t="Operator">Greater</v>
+                                      <v n="EN">false</v>
+                                      <v n="ENO">false</v>
+                                      <n n="STSnippet" />
+                                      <v n="ContainsExtensibleInputs">false</v>
+                                      <v n="ProvidesSTSnippet">false</v>
+                                      <v n="Id">2699L</v>
                                     </o>
                                   </l2>
                                   <o n="InputParam" t="ParamList">
@@ -4419,13 +5641,32 @@ END_VAR
                                       <v>BOOL</v>
                                     </l2>
                                   </o>
-                                  <v n="CallType" t="Operator">Less</v>
+                                  <v n="CallType" t="Operator">And</v>
                                   <v n="EN">false</v>
                                   <v n="ENO">false</v>
                                   <n n="STSnippet" />
                                   <v n="ContainsExtensibleInputs">false</v>
                                   <v n="ProvidesSTSnippet">false</v>
-                                  <v n="Id">1697L</v>
+                                  <v n="Id">2693L</v>
+                                </o>
+                                <o t="BoxTreeOperand">
+                                  <o n="Operand" t="Operand">
+                                    <v n="Operand">"upperAndLowerTorqueManualEnable"</v>
+                                    <v n="Type">"BOOL"</v>
+                                    <v n="Comment">""</v>
+                                    <v n="SymbolComment">""</v>
+                                    <v n="Address">""</v>
+                                    <o n="Flags" t="Flags">
+                                      <v n="Flags">0</v>
+                                      <v n="Fixed">false</v>
+                                      <v n="Extensible">false</v>
+                                    </o>
+                                    <v n="LValue">false</v>
+                                    <v n="Boolean">false</v>
+                                    <v n="IsInstance">false</v>
+                                    <v n="Id">2441L</v>
+                                  </o>
+                                  <v n="Id">2440L</v>
                                 </o>
                               </l2>
                               <o n="InputParam" t="ParamList">
@@ -4671,6 +5912,9 @@ instCTRL_PID_TemperatureController(
       <LineId Id="184" Count="0" />
       <LineId Id="335" Count="60" />
       <LineId Id="245" Count="86" />
+      <LineId Id="399" Count="2" />
+      <LineId Id="403" Count="1" />
+      <LineId Id="402" Count="0" />
       <LineId Id="5" Count="0" />
     </LineIds>
     <LineIds Name="FB_DryingSectionDriveControl_V3._SteamPressureControl">

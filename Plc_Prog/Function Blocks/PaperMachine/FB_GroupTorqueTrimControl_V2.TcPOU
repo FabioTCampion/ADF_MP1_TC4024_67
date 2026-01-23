@@ -105,6 +105,7 @@ END_VAR
         TV  := torqueCtrlTv,
         LL  := torqueLimitMinPct,                   // Bipolar output
         LH  := torqueLimitMaxPct,
+		SUP := 1,
         Y   => group1Slave1DriveTorqueRefPct
     );
 
@@ -121,6 +122,7 @@ END_VAR
         TV  := torqueCtrlTv,
         LL  := torqueLimitMinPct,                   // Bipolar output
         LH  := torqueLimitMaxPct,
+		SUP := 1,		
         Y   => group2Slave1DriveTorqueRefPct
     );
 
@@ -148,7 +150,7 @@ END_VAR
         MAN := FALSE,
         M_I := 0.0,
         RST := FALSE,
-		SUP := 0,
+		SUP := 1,
         KP  := upperAndLowerPIDCtrlKp,
         TN  := upperAndLowerPIDCtrlTn,
         TV  := tupperAndLowerPIDCtrlTv,
@@ -159,9 +161,13 @@ END_VAR
 ]]></ST>
     </Implementation>
     <LineIds Name="FB_GroupTorqueTrimControl_V2">
-      <LineId Id="484" Count="15" />
+      <LineId Id="484" Count="11" />
+      <LineId Id="749" Count="0" />
+      <LineId Id="496" Count="3" />
       <LineId Id="9" Count="0" />
-      <LineId Id="502" Count="13" />
+      <LineId Id="502" Count="10" />
+      <LineId Id="841" Count="0" />
+      <LineId Id="513" Count="2" />
       <LineId Id="645" Count="0" />
       <LineId Id="538" Count="0" />
       <LineId Id="647" Count="0" />

@@ -1,6 +1,6 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.15">
-  <POU Name="FB_ProcessControler" Id="{8740e75f-d34c-4ff2-83ed-752cec9cc5d2}" SpecialFunc="None">
+  <POU Name="FB_VfdProcessControler" Id="{8740e75f-d34c-4ff2-83ed-752cec9cc5d2}" SpecialFunc="None">
     <Declaration><![CDATA[(*
     FB_ProcessControler
     Purpose: Generic process controller with start/stop latch, status codes,
@@ -14,7 +14,7 @@
     Notes: Includes optional low/high PV “hold” with hysteresis (normal-stop class).
 *)
 
-FUNCTION_BLOCK FB_ProcessControler
+FUNCTION_BLOCK FB_VfdProcessControler
 VAR_INPUT
     // ===== Sequence commands =====
     startCommand                 : BOOL;            // Start pulse toggles RUN latch
@@ -589,7 +589,7 @@ instTUNE2ManSetpoint(
 // Detect external write (> step): ignore tiny jitter
 IF ABS(processSetpointAuto - processSetpointAutoOld) > instTUNE2AutoSetpoint.SS THEN
     // Clamp to output limits before writing (garante limites)
-    spAutoClamped := LIMIT(outLowLimitPct, processSetpointMan, outHighLimitPct);
+    spAutoClamped := LIMIT(0, processSetpointAuto, 100);
 
     // One-scan SET pulse into TUNE2 (pulso SET de 1 ciclo)
     instTUNE2AutoSetpoint(
@@ -613,8 +613,8 @@ instTUNE2AutoSetpoint(
     RST      := FALSE,
     SS       := 0.1,           // step reference (passo de referência)
     FS       := 0.0,                     // unused
-    LIMIT_L  := outLowLimitPct,
-    LIMIT_H  := outHighLimitPct,
+    LIMIT_L  := 0.0,
+    LIMIT_H  := 100.0,
     Y        => processSetpointAuto
 );
 
@@ -622,7 +622,7 @@ instTUNE2AutoSetpoint(
 ]]></ST>
       </Implementation>
     </Method>
-    <LineIds Name="FB_ProcessControler">
+    <LineIds Name="FB_VfdProcessControler">
       <LineId Id="6767" Count="43" />
       <LineId Id="7075" Count="0" />
       <LineId Id="6811" Count="11" />
@@ -630,15 +630,15 @@ instTUNE2AutoSetpoint(
       <LineId Id="6823" Count="251" />
       <LineId Id="6072" Count="0" />
     </LineIds>
-    <LineIds Name="FB_ProcessControler._FeedbackDisplay">
+    <LineIds Name="FB_VfdProcessControler._FeedbackDisplay">
       <LineId Id="9" Count="2" />
       <LineId Id="5" Count="0" />
     </LineIds>
-    <LineIds Name="FB_ProcessControler._ScaleToPct">
+    <LineIds Name="FB_VfdProcessControler._ScaleToPct">
       <LineId Id="17" Count="6" />
       <LineId Id="5" Count="0" />
     </LineIds>
-    <LineIds Name="FB_ProcessControler._SetpointInputControl">
+    <LineIds Name="FB_VfdProcessControler._SetpointInputControl">
       <LineId Id="343" Count="67" />
       <LineId Id="294" Count="0" />
     </LineIds>

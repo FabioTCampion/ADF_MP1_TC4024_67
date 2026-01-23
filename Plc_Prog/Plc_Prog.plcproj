@@ -222,7 +222,10 @@
     <Compile Include="Function Blocks\PaperMachine\Auxiliary\FB_PressureControl_V1.TcPOU">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="Function Blocks\PaperMachine\Auxiliary\FB_ProcessControler.TcPOU">
+    <Compile Include="Function Blocks\PaperMachine\Auxiliary\FB_VfdProcessControler.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Function Blocks\PaperMachine\Auxiliary\FB_ValveProcessControler.TcPOU">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="Function Blocks\PaperMachine\Auxiliary\FB_SimpleMotorStart.TcPOU">
@@ -247,6 +250,12 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="Function Blocks\PaperMachine\Auxiliary\FB_SpeedDroopControl_1.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Function Blocks\PaperMachine\Auxiliary\FB_WirePitControl.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Function Blocks\PaperMachine\Auxiliary\FB_WirePitControl_1.TcPOU">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="Function Blocks\PaperMachine\DataTypes\PaperMachine_TypeHmiConfig.TcDUT">
@@ -305,6 +314,15 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="Function Blocks\PaperMachine\FB_GroupSpeedControl_V1.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Function Blocks\PaperMachine\FB_FormingBoardSpeedControl.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Function Blocks\PaperMachine\FB_DryingSecSpeedControl.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Function Blocks\PaperMachine\FB_WinderSpeedControl.TcPOU">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="Function Blocks\PaperMachine\FB_GroupTorqueTrimControl_V1.TcPOU">

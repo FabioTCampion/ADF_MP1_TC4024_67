@@ -65,6 +65,9 @@ STRUCT
 	dryingSectionGroup1SteamPressure   : REAL;   // Drying group 1 - Steam pressure display
 	dryingSectionGroup1SpeedDif				: REAL;	
 
+	dryingSectionGroup1PaperPresence				: BOOL;	
+	
+	
 	// ─────────────── DRYING SECTION — GROUP 2 ───────────────
 	// Speed, torque, and state variables for upper and lower groups of Drying Section Group 2.
 	
@@ -98,6 +101,7 @@ STRUCT
 	dryingSectionGroup2SteamPressure   : REAL;   // Drying group 1 - Steam pressure display
 	dryingSectionGroup2SpeedDif				: REAL;	
 		
+	dryingSectionGroup2PaperPresence				: BOOL;	
 	
 	// ─────────────── DRYING SECTION — GROUP 3 ───────────────
 	// Speed, torque, and state variables for upper and lower groups of Drying Section Group 2.
@@ -131,7 +135,11 @@ STRUCT
 
 	dryingSectionGroup3SteamPressure   : REAL;   // Drying group 1 - Steam pressure display
 	dryingSectionGroup3SpeedDif				: REAL;	
+	dryingSectionGroup3PaperPresence				: BOOL;	
 	
+	
+	winderPaperPresence				: BOOL;	
+
 			
     // ─────────────── LUBRIFICATION UNIT ───────────────
     dryingSectionLubricationPump1State             : INT;   // EN: Pump 1 state (0=Stopped,1=Running,3=Fault) / PT: Estado da bomba 1 (0=Parada,1=Rodando,3=Falha)
@@ -158,6 +166,12 @@ STRUCT
     wirePitPumpTorque               : REAL;  // Wire pit pump torque (Torque da bomba do poço da mesa plana)
    	wirePitLevel             		: REAL;  // Couch pit pump torque (Torque da bomba do poço da mesa couch)
 
+	
+	// --- Manual setpoint (e.g., level %, flow m3/h, or pressure) ---
+	whiteWaterSiloLevel       : REAL;  // Manual setpoint (Setpoint manual)
+	whiteWaterSiloCtrlOutput       : REAL;  // Manual setpoint (Setpoint manual)
+
+	
 
     // ─────────────── STOCK PUMP ───────────────
     stockPumpState                  : INT;   // Stock pump state (Estado da bomba de massa)
@@ -205,6 +219,8 @@ STRUCT
 	winderSpeedDif				: REAL;	
 		
 
+	
+	
 END_STRUCT
 END_TYPE
 ]]></Declaration>

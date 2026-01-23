@@ -1,0 +1,431 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.15">
+  <POU Name="FB_ValveProcessControler" Id="{524d01fd-b0d2-4557-81f8-12e9480f084b}" SpecialFunc="None">
+    <Declaration><![CDATA[(*
+    FB_ValveProcessControler (Simplified for Proportional Solenoid)
+    Purpose: Generic process controller without VFD sequencing.
+             Always evaluates the control loop (equivalent to STEP=20).
+             PID (OSCAT CTRL_PID), optional reverse action, PV PT1 filter,
+             engineering↔% scaling, low/high PV hold, and HMI displays.
+
+    Status codes: statusCode INT → 0=Inhibited/Idle, 1=Running
+*)
+
+FUNCTION_BLOCK FB_ValveProcessControler
+VAR_INPUT
+    // ===== Manual output & Auto SP nudge =====
+    processSetpointManInc        : BOOL;            // Manual output ↑ (0..100%)
+    processSetpointManDec        : BOOL;            // Manual output ↓ (0..100%)
+    processSetpointManSteps      : REAL := 0.1;
+
+    processSetpointAutoInc       : BOOL;            // Auto SP ↑ (engineering units or %)
+    processSetpointAutoDec       : BOOL;            // Auto SP ↓ (engineering units or %)
+    processSetpointAutoSteps     : REAL := 1.0;
+
+    // ===== Mode =====
+    autoMode                     : BOOL;            // TRUE=Automatic / FALSE=Manual
+    reverseActing                : BOOL := FALSE;   // TRUE: higher output decreases PV; FALSE: direct
+
+    // ===== Process signals (PV in engineering units) =====
+    processFeedbackEng           : REAL;            // PV (engineering units), e.g., bar/kPa/°C/…
+
+    // ===== PID parameters (OSCAT CTRL_PID) =====
+    kp                           : REAL := 1.0;     // Proportional gain (sign handled via reverseActing)
+    tn                           : REAL := 8.0;     // Integral time [s]
+    tv                           : REAL := 0.0;     // Derivative time [s]
+
+    // ===== Output limits & offset =====
+    outLowLimitPct               : REAL := 0.0;     // Min output %
+    outHighLimitPct              : REAL := 100.0;   // Max output %
+    outputOffsetPct              : REAL := 0.0;     // Offset added to final output
+
+    // ===== PID housekeeping =====
+    resetPID                     : BOOL;            // Reset integrator
+
+    // ===== Input filter (OSCAT FT_PT1) =====
+	deadBand					: REAL := 1.0;
+    enableInputFilter            : BOOL := TRUE;    // Enable PV PT1 filter
+    inputFilterTime              : TIME := T#300ms; // PT1 time constant
+    inputFilterGainK             : REAL := 1.0;     // PT1 gain
+    displayFilterTime            : TIME := T#20ms;  // Small PT1 for HMI displays
+
+    // ===== Optional scaling (engineering ↔ %) =====
+    enableScaling                : BOOL := TRUE;    // Enable engineering↔% scaling
+    pLoEng                       : REAL := 0.0;     // Engineering low bound
+    pHiEng                       : REAL := 10.0;    // Engineering high bound
+
+    // ===== Safety (true safety inputs only) =====
+    safetyOk                     : BOOL := TRUE;    // Safety chain OK
+    estopOk                      : BOOL := TRUE;    // E-Stop loop OK
+    guardClosedOk                : BOOL := TRUE;    // Guards/doors closed
+
+    // ===== Interlocks (process permissives) — inhibit output =====
+    interlock1                   : BOOL := TRUE;
+    interlock2                   : BOOL := TRUE;
+    interlock3                   : BOOL := TRUE;
+    interlock4                   : BOOL := TRUE;
+    interlock5                   : BOOL := TRUE;
+    interlock6                   : BOOL := TRUE;
+
+    // ===== Optional low-PV hold =====
+    minPVEnable                  : BOOL := FALSE;   // Enable low-PV hold
+    minPVTripEng                 : REAL := 0.5;     // Trip threshold (engineering units)
+    minPVReleaseEng              : REAL := 0.7;     // Release threshold (engineering units)
+    minPVTripTime                : TIME := T#1s;    // PV < trip for this long to trip
+    minPVReleaseTime             : TIME := T#1s;    // PV > release for this long to release
+
+    // ===== Optional high-PV hold =====
+    maxPVEnable                  : BOOL := FALSE;   // Enable high-PV hold
+    maxPVTripEng                 : REAL := 9.5;     // Trip threshold (engineering units)
+    maxPVReleaseEng              : REAL := 9.2;     // Release threshold (engineering units)
+    maxPVTripTime                : TIME := T#1s;    // PV > trip for this long to trip
+    maxPVReleaseTime             : TIME := T#1s;    // PV < release for this long to release
+END_VAR
+
+VAR_IN_OUT
+    // ===== Exposed setpoints =====
+    processSetpointMan           : REAL;            // Manual output 0..100%
+    processSetpointAuto          : REAL;            // Auto SP (engineering units or % per configuration)
+END_VAR
+
+VAR_OUTPUT
+    running                      : BOOL;            // TRUE when permissives OK and no holds
+    controlOutputPct             : REAL;            // Final control output 0..100%
+    controlOutputPctDisplay             : REAL;            // Final control output 0..100%
+	
+    pidDiff                      : REAL;            // SET − ACT (post-scaling)
+    pidLimited                   : BOOL;            // TRUE if saturated
+    deviceState                  : STRING(80);      // Human-readable state
+
+    // ===== Holds =====
+    minPVHoldActive              : BOOL;            // Low-PV hold active
+    maxPVHoldActive              : BOOL;            // High-PV hold active
+
+    // ===== Status & HMI displays =====
+    statusCode                   : INT;             // 0=Inhibited/Idle, 1=Running
+    processFeedbackEngDisplay    : REAL;            // PV (engineering units) for HMI
+END_VAR
+
+VAR
+    // ===== First scan =====
+    firstScan                    : BOOL := TRUE;    // TRUE only on first PLC cycle
+
+    // ===== Internals =====
+    manualCmd                    : REAL;            // Manual command %
+    yPID                         : REAL;            // PID output %
+    kpUse                        : REAL;            // Kp adjusted by reverseActing
+
+    // ===== Filtered PV (engineering units) =====
+    pvEngFiltered                : REAL;
+
+    // ===== PV & SP in % (post-scaling) =====
+    pvPct                        : REAL;
+    spPct                        : REAL;
+
+    // ===== Low/High PV timers =====
+    tonMinPTrip                  : TON;
+    tonMinPRelease               : TON;
+    tonMaxPTrip                  : TON;
+    tonMaxPRelease               : TON;
+
+    // ===== Instances =====
+    instPID                      : CTRL_PID;        // OSCAT PID
+    instPT1                      : FT_PT1;          // PV PT1 filter
+
+    // ===== Aggregations =====
+    allSafetyOK                  : BOOL;            // safetyOk & estopOk & guardClosedOk
+    anyInterlockOpen             : BOOL;            // any interlock is FALSE
+
+    // ===== HMI display filters =====
+    instPT1_ProcessFeedbackEngDisplay : FT_PT1;     // PT1 for PV display
+
+    // ===== TUNE2 housekeeping =====
+    processSetpointManOld        : REAL;            // last observed manual SP
+    processSetpointAutoOld       : REAL;            // last observed auto SP
+END_VAR
+
+VAR PERSISTENT
+    instTUNE2AutoSetpoint        : TUNE2;           // OSCAT TUNE2 for auto SP nudge
+    instTUNE2ManSetpoint         : TUNE2;           // OSCAT TUNE2 for manual output
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[// ============================ INITIALIZATION ============================
+// Run this block only once on first cycle
+IF firstScan THEN
+    firstScan := FALSE;
+
+    processSetpointMan      := instTUNE2ManSetpoint.Y;
+    processSetpointManOld   := processSetpointMan;
+
+    processSetpointAuto     := instTUNE2AutoSetpoint.Y;
+    processSetpointAutoOld  := processSetpointAuto;
+END_IF;
+
+
+
+// ============================ Aggregations =====================
+allSafetyOK := safetyOk AND estopOk AND guardClosedOk;
+anyInterlockOpen := NOT (interlock1 AND interlock2 AND interlock3 AND interlock4 AND interlock5 AND interlock6);
+
+
+// ============================ Low/High PV HOLD supervision ============================
+// LOW-PV
+IF minPVEnable THEN
+    tonMinPTrip   (IN := (processFeedbackEng <  minPVTripEng),     PT := minPVTripTime);
+    tonMinPRelease(IN := (processFeedbackEng >  minPVReleaseEng),  PT := minPVReleaseTime);
+    IF tonMinPTrip.Q    THEN minPVHoldActive := TRUE;  END_IF;
+    IF tonMinPRelease.Q THEN minPVHoldActive := FALSE; END_IF;
+
+ELSE
+    tonMinPTrip(IN := FALSE);
+    tonMinPRelease(IN := FALSE);
+    minPVHoldActive := FALSE;
+END_IF;
+
+// HIGH-PV
+IF maxPVEnable THEN
+    tonMaxPTrip   (IN := (processFeedbackEng > maxPVTripEng),       PT := maxPVTripTime);
+    tonMaxPRelease(IN := (processFeedbackEng < maxPVReleaseEng),    PT := maxPVReleaseTime);
+    IF tonMaxPTrip.Q    THEN maxPVHoldActive := TRUE;  END_IF;
+    IF tonMaxPRelease.Q THEN maxPVHoldActive := FALSE; END_IF;
+
+ELSE
+    tonMaxPTrip(IN := FALSE);
+    tonMaxPRelease(IN := FALSE);
+    maxPVHoldActive := FALSE;
+END_IF;
+
+// ============================ Control (STEP 20 equivalent) =====================
+// Default safe values
+running := FALSE;
+controlOutputPct := 0.0;
+
+// Inhibit conditions (no start/stop logic — controller is "enabled" only if allowed)
+IF NOT allSafetyOK THEN
+    deviceState := 'Inhibited: safety chain open';
+
+ELSIF anyInterlockOpen THEN
+    deviceState := 'Inhibited: interlock open';
+
+ELSIF (minPVEnable AND minPVHoldActive) OR (maxPVEnable AND maxPVHoldActive) THEN
+    deviceState := 'Inhibited: PV hold active';
+
+ELSE
+    // Allowed to control
+    running := TRUE;
+    deviceState := 'Running';
+
+    // ---- Input filtering (PT1) ----
+    IF enableInputFilter THEN
+        instPT1(in := processFeedbackEng, T := inputFilterTime, K := inputFilterGainK, out => pvEngFiltered);
+    ELSE
+        pvEngFiltered := processFeedbackEng;
+    END_IF
+
+    // ---- Engineering → % scaling ----
+    IF enableScaling THEN
+        pvPct := _ScaleToPct(pvEngFiltered,       pLoEng, pHiEng);
+        spPct := _ScaleToPct(processSetpointAuto, pLoEng, pHiEng);
+    ELSE
+        pvPct := pvEngFiltered;        // already %
+        spPct := processSetpointAuto;  // already %
+    END_IF
+
+    // ---- Manual path and PID with bumpless transfer ----
+    manualCmd := LIMIT(0.0, processSetpointMan, 100.0);
+
+    // Reverse/direct action by Kp sign
+    IF reverseActing THEN
+        kpUse := -ABS(kp);
+    ELSE
+        kpUse :=  ABS(kp);
+    END_IF
+
+    instPID(
+        ACT := pvPct,
+        SET := spPct,
+        M_I := manualCmd,
+        MAN := NOT autoMode,
+        RST := resetPID,
+        KP  := kpUse,
+        TN  := tn,
+        TV  := tv,
+		SUP := deadBand,
+        LL  := 0,
+        LH  := 35,
+        Y   => yPID,
+        DIFF=> pidDiff,
+        LIM => pidLimited
+    );
+
+    // Mode select, offset, clamp
+    IF autoMode THEN
+        controlOutputPct := yPID;
+    ELSE
+        controlOutputPct := manualCmd;
+    END_IF
+    controlOutputPct := LIMIT(outLowLimitPct, controlOutputPct + outputOffsetPct, outHighLimitPct);
+	controlOutputPctDisplay := controlOutputPct;
+END_IF;
+
+
+// =============================== Status code ===============================
+IF running THEN
+    statusCode := 1;             // Running
+ELSE
+    statusCode := 0;             // Idle/Inhibited
+END_IF
+
+// HMI feedbacks & status (encapsulates PT1 displays and status code if desired)
+_FeedbackDisplay();
+
+// Setpoint input handling (encapsulates TUNE2-based HMI writes & nudges)
+_SetpointInputControl();
+]]></ST>
+    </Implementation>
+    <Method Name="_FeedbackDisplay" Id="{2a97a8be-e7f9-46ec-9b3c-1019c69499a6}">
+      <Declaration><![CDATA[METHOD _FeedbackDisplay
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[
+instPT1_ProcessFeedbackEngDisplay(in := processFeedbackEng , T := displayFilterTime, K := 1.0, out => processFeedbackEngDisplay);]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_ScaleToPct" Id="{2ae1b94d-c0f6-40c9-8e0d-c9485e21cd7b}">
+      <Declaration><![CDATA[// ============================ Helper ============================
+METHOD PRIVATE _ScaleToPct : REAL
+VAR_INPUT
+    xEng  : REAL;  // value in engineering units
+    loEng : REAL;  // min eng
+    hiEng : REAL;  // max eng
+END_VAR
+VAR
+    span : REAL;
+    pct  : REAL;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[
+span := hiEng - loEng;
+IF span = 0.0 THEN
+    _ScaleToPct := 0.0; // avoid div by zero
+ELSE
+    pct := (xEng - loEng) / span * 100.0;
+    _ScaleToPct := LIMIT(0.0, pct, 100.0);
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_SetpointInputControl" Id="{d6a672e2-5652-4c9e-934d-7a12dd80f27d}">
+      <Declaration><![CDATA[// ============================================================================
+// METHOD: _SetpointInputControl
+// Purpose: Handle HMI writes for manual output using OSCAT TUNE2. Any external
+//          write to manualOutputPct bigger than the configured step will pulse
+//          SET for one scan. No SU/SD buttons here (PressureCtrl doesn’t use them).
+// Objetivo: Tratar escrita da HMI no manualOutputPct via TUNE2. Mudança externa
+//           > passo gera pulso SET de 1 varredura. Sem botões ↑/↓ neste FB.
+// ============================================================================
+METHOD PRIVATE _SetpointInputControl
+VAR
+    spManClamped : REAL;
+    spAutoClamped : REAL;
+	
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// Detect external write (> step): ignore tiny jitter
+IF ABS(processSetpointMan - processSetpointManOld) > instTUNE2ManSetpoint.SS THEN
+    // Clamp to output limits before writing (garante limites)
+    spManClamped := LIMIT(outLowLimitPct, processSetpointMan, outHighLimitPct);
+
+    // One-scan SET pulse into TUNE2 (pulso SET de 1 ciclo)
+    instTUNE2ManSetpoint(
+        SET_val := spManClamped,
+        SET     := TRUE
+    );
+    instTUNE2ManSetpoint(SET := FALSE);
+
+    // Remember applied value (memoriza)
+    processSetpointManOld := processSetpointMan;
+ELSE
+    // Track last seen to avoid drift (rastreia último observado)
+    processSetpointManOld := processSetpointMan;
+END_IF;
+
+// Keep TUNE2 active (no SU/SD in this FB)
+instTUNE2ManSetpoint(
+    SET      := FALSE,
+    SU       := processSetpointManInc,
+    SD       := processSetpointManDec,
+    RST      := FALSE,
+    SS       := 0.1,           // step reference (passo de referência)
+    FS       := 0.0,                     // unused
+    LIMIT_L  := outLowLimitPct,
+    LIMIT_H  := outHighLimitPct,
+    Y        => processSetpointMan
+);
+
+
+
+
+// Detect external write (> step): ignore tiny jitter
+IF ABS(processSetpointAuto - processSetpointAutoOld) > instTUNE2AutoSetpoint.SS THEN
+    // Clamp to output limits before writing (garante limites)
+    spAutoClamped := LIMIT(0, processSetpointAuto, 100);
+
+    // One-scan SET pulse into TUNE2 (pulso SET de 1 ciclo)
+    instTUNE2AutoSetpoint(
+        SET_val := spAutoClamped,
+        SET     := TRUE
+    );
+    instTUNE2AutoSetpoint(SET := FALSE);
+
+    // Remember applied value (memoriza)
+    processSetpointAutoOld := processSetpointAuto;
+ELSE
+    // Track last seen to avoid drift (rastreia último observado)
+    processSetpointAutoOld := processSetpointAuto;
+END_IF;
+
+// Keep TUNE2 active (no SU/SD in this FB)
+instTUNE2AutoSetpoint(
+    SET      := FALSE,
+    SU       := processSetpointAutoInc,
+    SD       := processSetpointAutoDec,
+    RST      := FALSE,
+    SS       := 0.1,           // step reference (passo de referência)
+    FS       := 0.0,                     // unused
+    LIMIT_L  := 0,
+    LIMIT_H  := 100,
+    Y        => processSetpointAuto
+);
+
+
+]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_ValveProcessControler">
+      <LineId Id="7731" Count="11" />
+      <LineId Id="7751" Count="32" />
+      <LineId Id="7790" Count="55" />
+      <LineId Id="8022" Count="0" />
+      <LineId Id="7846" Count="13" />
+      <LineId Id="8170" Count="0" />
+      <LineId Id="7860" Count="14" />
+      <LineId Id="6072" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ValveProcessControler._FeedbackDisplay">
+      <LineId Id="11" Count="0" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ValveProcessControler._ScaleToPct">
+      <LineId Id="17" Count="6" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ValveProcessControler._SetpointInputControl">
+      <LineId Id="343" Count="67" />
+      <LineId Id="294" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

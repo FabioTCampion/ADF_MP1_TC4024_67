@@ -1,7 +1,7 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.15">
-  <POU Name="FB_GroupSpeedControl_V1" Id="{0cd21008-77ab-40b2-b3c5-775ee9b86582}" SpecialFunc="None">
-    <Declaration><![CDATA[FUNCTION_BLOCK FB_GroupSpeedControl_V1
+  <POU Name="FB_FormingBoardSpeedControl" Id="{fbd9ef71-4cca-4373-b3e2-d5424b16f9a6}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_FormingBoardSpeedControl
 VAR_INPUT
     //==============================================================
     // ─────────────── MODE SELECTION / REFERENCES ───────────────
@@ -12,29 +12,26 @@ VAR_INPUT
     groupRecoverSpeedCmd       : BOOL;  // Recover (temporary speed bump)
     groupRecoverIncrement      : REAL;  // Recover increment [m/min]
 //    interGroupGearRatio        : REAL;  // Inter-group ratio (next section sync)
+	paperPresenceSensor				: BOOL;
 
-	slaveRPMIncrement			: REAL; //Diference in MPM to saturate the speed and enable the torque control
+    tractionRollToSuctionRollGearRatio  : REAL := 0.915;
 
     //==============================================================
     // ─────────────── DIAMETERS (mm) ───────────────
     //==============================================================
-    group1MasterDiameter       : REAL;  // Diameter of group 1 master
-    group1Slave1Diameter       : REAL;  // Diameter of group 1 slave 1
-    group1Slave2Diameter       : REAL;  // Diameter of group 1 slave 2
+    tractionRollDiameter       : REAL;  // Diameter of group 1 master
+    suctionRollDiameter       : REAL;  // Diameter of group 1 slave 1
 
-    group2MasterDiameter       : REAL;  // Diameter of group 2 master
-    group2Slave1Diameter       : REAL;  // Diameter of group 2 slave 1
-    group2Slave2Diameter       : REAL;  // Diameter of group 2 slave 2
 
     //==============================================================
     // ─────────────── CONFIGURATION / LIMITS ───────────────
     //==============================================================
     groupMasterMaxSpeedRPM     : REAL;  // Max allowed master RPM
-    rampUpRate					: REAL := 0.1;  // Ramp acceleration [RPM/s]
-    rampDownRate				: REAL := 0.1;  // Ramp acceleration [RPM/s]
-    rampUpRate2					: REAL := 0.1;  // Ramp acceleration [RPM/s]
-    rampDownRate2				: REAL := 0.1;  // Ramp acceleration [RPM/s]
-
+    rampUpRate					: REAL := 0.1;  // Ramp slow acceleration [RPM/s]
+    rampDownRate				: REAL := 0.1;  // Ramp slow acceleration [RPM/s]
+	
+    rampUpRate2					: REAL := 0.1;  // Ramp fast acceleration [RPM/s]
+    rampDownRate2				: REAL := 0.1;  // Ramp fast acceleration [RPM/s]	
 	
     state                      : INT;   // Machine state (5 = STOPPING)
 
@@ -45,12 +42,8 @@ VAR_INPUT
     groupSpeedDifLimLow        : REAL;  // Min offset [%]
     groupSpeedDifLimHigh       : REAL;  // Max offset [%]
 
-    upperAndLowerSpeedOffset   : REAL;  // Bias [%] between group1 and group2
-	upperAndLowerSpeedCalibration   : REAL;  // Bias [%] between upper and lower
 
     rampReset                  : BOOL;  // Reset ramp command
-	
-	paperPresenceSensor 		: BOOL;
 	
 END_VAR
 
@@ -59,22 +52,15 @@ VAR_OUTPUT
     //==============================================================
     // ─────────────── FINAL DRIVE SPEEDS (RPM) ───────────────
     //==============================================================
-    group1MasterSpeedRefRPM    : REAL;
-    group1Slave1SpeedRefRPM    : REAL;
-    group1Slave2SpeedRefRPM    : REAL;
-    group2MasterSpeedRefRPM    : REAL;
-    group2Slave1SpeedRefRPM    : REAL;
-    group2Slave2SpeedRefRPM    : REAL;
+    tractionRollSpeedRefRPM    : REAL; //Master speed
+    suctionRollSpeedRefRPM    : REAL; // Slave speed
 
     //==============================================================
     // ─────────────── SURFACE SPEEDS (MPM) ───────────────
     //==============================================================
-    group1MasterSpeedMPM       : REAL;
-    group1Slave1SpeedMPM       : REAL;
-    group1Slave2SpeedMPM       : REAL;
-    group2MasterSpeedMPM       : REAL;
-    group2Slave1SpeedMPM       : REAL;
-    group2Slave2SpeedMPM       : REAL;
+    tractionRollSpeedRefMPM       : REAL;
+    suctionRollSpeedRefMPM       : REAL;
+
 
     //==============================================================
     // ─────────────── HANDOFF TO NEXT GROUP ───────────────
@@ -104,11 +90,7 @@ VAR
     epsDiameter                : REAL := 0.001;
 
     // Gear ratios (set externally or calculated elsewhere)
-    group1ToGroup1Slave1Ratio  : REAL := 1.0;
-    group1ToGroup1Slave2Ratio  : REAL := 1.0;
-    group1ToGroup2MasterRatio  : REAL := 1.0;
-    group2ToGroup2Slave1Ratio  : REAL := 1.0;
-    group2ToGroup2Slave2Ratio  : REAL := 1.0;
+
 
     // Function blocks
     instFB_Gen_SRamp           : FB_Gen_SRamp;
@@ -123,35 +105,6 @@ VAR PERSISTENT
     instTUNE2_GroupSpeedDiff   : TUNE2;
 
 END_VAR
-
-
-(*
-
-IF 	paperPresenceSensor THEN
-	//slow	
-	instFB_Gen_SRamp.A_UP := MAX(0.0, rampUpRate);
-	instFB_Gen_SRamp.A_DN := -MAX(0.0, rampDownRate);
-
-ELSE
-	//fast
-	instFB_Gen_SRamp.A_UP := MAX(0.0, rampUpRate2);
-	instFB_Gen_SRamp.A_DN := -MAX(0.0, rampDownRate2);
-
-END_IF
-
-
-// Ramp function block execution
-instFB_Gen_SRamp(
-    X          := rampTargetRPM,
-//    A_UP       := MAX(0.0, rampUpRate),
-//    A_DN       := -MAX(0.0, rampDownRate),
-    VU_MAX     := 1000.0,
-    VD_MAX     := -1000.0,
-    LIMIT_HIGH := groupMasterMaxSpeedRPM,
-    RST        := rampReset);
-
-
-*)
 ]]></Declaration>
     <Implementation>
       <ST><![CDATA[//==============================================================
@@ -166,7 +119,7 @@ _CalculateGearRatios();
 //--------------------------------------------------------------
 // Calculate master max surface speed [m/min]
 //--------------------------------------------------------------
-masterMaxSpeedMPM := groupMasterMaxSpeedRPM * (PI * group1MasterDiameter) / 1000.0;
+masterMaxSpeedMPM := groupMasterMaxSpeedRPM * (PI * tractionRollDiameter) / 1000.0;
 
 
 //--------------------------------------------------------------
@@ -215,10 +168,11 @@ ELSE
 END_IF;
 
 // Detect when a new target speed change requires ramping
-IF NOT (rampActive AND ABS(rampTargetRPM - baseMasterRefRPM) >= 0.05) OR NOT paperPresenceSensor THEN
+IF NOT rampActive AND ABS(rampTargetRPM - baseMasterRefRPM) >= 0.05 THEN
    rampActive := TRUE; // Rising edge — ramp request detected
  
 END_IF;
+
 
 
 IF 	paperPresenceSensor THEN
@@ -243,7 +197,6 @@ instFB_Gen_SRamp(
     VD_MAX     := -1000.0,
     LIMIT_HIGH := groupMasterMaxSpeedRPM,
     RST        := rampReset);
-
 
 // If ramping, update the baseMasterRefRPM from ramp output
 IF rampActive THEN
@@ -271,12 +224,12 @@ instTUNE2_GroupSpeedDiff(
     SS      := speedDifIncPerPulse,
     FS      := speedDifIncPerPulse,
     LIMIT_L := groupSpeedDifLimLow,
-    LIMIT_H := groupSpeedDifLimHigh,
-    Y       => groupSpeedOffset);
+    LIMIT_H := groupSpeedDifLimHigh);
+//    Y       => groupSpeedOffset);
 
 
 // Ramp function block execution
-(*instFB_SpeedDif_SRamp(
+instFB_SpeedDif_SRamp(
     X          := instTUNE2_GroupSpeedDiff.Y,
     A_UP       := MAX(0.0, 0.01),
     A_DN       := -MAX(0.0, 0.01),
@@ -286,45 +239,35 @@ instTUNE2_GroupSpeedDiff(
 	LIMIT_LOW := groupSpeedDifLimLow,
     RST        := FALSE,
 	Y => groupSpeedOffset);
-*)
+
 	
 speedDif := groupSpeedOffset;
 	
 groupDeltaRatioAll  := 1.0 + (groupSpeedOffset * 0.01);
-upperLowerBiasRatio := 1.0 + ((upperAndLowerSpeedOffset + upperAndLowerSpeedCalibration) * 0.01);
 
 
 //--------------------------------------------------------------
 // Apply offsets + calculate all drive RPM references
 //--------------------------------------------------------------
-group1MasterSpeedRefRPM := baseMasterRefRPM * groupDeltaRatioAll;
-group1Slave1SpeedRefRPM := group1MasterSpeedRefRPM * group1ToGroup1Slave1Ratio  + slaveRPMIncrement;
-group1Slave2SpeedRefRPM := group1MasterSpeedRefRPM * group1ToGroup1Slave2Ratio  + slaveRPMIncrement;
-
-group2MasterSpeedRefRPM := group1MasterSpeedRefRPM * group1ToGroup2MasterRatio * upperLowerBiasRatio;
-group2Slave1SpeedRefRPM := group2MasterSpeedRefRPM * group2ToGroup2Slave1Ratio  + slaveRPMIncrement;
-group2Slave2SpeedRefRPM := group2MasterSpeedRefRPM * group2ToGroup2Slave2Ratio  + slaveRPMIncrement;
+tractionRollSpeedRefRPM := baseMasterRefRPM * groupDeltaRatioAll;
+suctionRollSpeedRefRPM := tractionRollSpeedRefRPM * tractionRollToSuctionRollGearRatio;
 
 
 //--------------------------------------------------------------
 // Convert RPM → MPM (surface speeds)
 //--------------------------------------------------------------
-group1MasterSpeedMPM := group1MasterSpeedRefRPM * group1MasterDiameter * PI / 1000.0;
-group1Slave1SpeedMPM := (group1Slave1SpeedRefRPM * group1Slave1Diameter * PI / 1000.0);
-group1Slave2SpeedMPM := (group1Slave2SpeedRefRPM * group1Slave2Diameter * PI / 1000.0);
+tractionRollSpeedRefMPM := tractionRollSpeedRefRPM * tractionRollDiameter * PI / 1000.0;
+suctionRollSpeedRefMPM := (suctionRollSpeedRefRPM * suctionRollDiameter * PI / 1000.0);
 
-group2MasterSpeedMPM := group2MasterSpeedRefRPM * group2MasterDiameter * PI / 1000.0;
-group2Slave1SpeedMPM := (group2Slave1SpeedRefRPM * group2Slave1Diameter * PI / 1000.0);
-group2Slave2SpeedMPM := (group2Slave2SpeedRefRPM * group2Slave2Diameter * PI / 1000.0);
 
 
 //--------------------------------------------------------------
 // Suggest downstream handoff (group2 master surface speed)
 //--------------------------------------------------------------
-nextGroupSpeedRefMPM := group1MasterSpeedMPM;
+nextGroupSpeedRefMPM := tractionRollSpeedRefMPM;
 ]]></ST>
     </Implementation>
-    <Method Name="_CalculateGearRatios" Id="{e14c22cc-0fed-485b-84e8-b7ccfb8a5ea4}">
+    <Method Name="_CalculateGearRatios" Id="{20e3f292-80ac-4748-88f6-514f8f46bf49}">
       <Declaration><![CDATA[
 //====================================================================
 // ═══ PRIVATE METHOD — CALCULATE DIAMETER RATIOS ════════════════════
@@ -334,33 +277,10 @@ VAR_INPUT
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[
-//──────────────────────────────────────────────────────────────
-// Gear Ratios — Group 1 (Reference: Group1 Master)
-//──────────────────────────────────────────────────────────────
-IF group1MasterDiameter > 0.0 THEN
-    group1ToGroup2MasterRatio := group1MasterDiameter / group2MasterDiameter;
-    group1ToGroup1Slave1Ratio := group1MasterDiameter / group1Slave1Diameter;
-    group1ToGroup1Slave2Ratio := group1MasterDiameter / group1Slave2Diameter;
-ELSE
-    group1ToGroup2MasterRatio := 0.0;
-    group1ToGroup1Slave1Ratio := 0.0;
-    group1ToGroup1Slave2Ratio := 0.0;
-END_IF;
-
-//──────────────────────────────────────────────────────────────
-// Gear Ratios — Group 2 (Reference: Group2 Master)
-//──────────────────────────────────────────────────────────────
-IF group2MasterDiameter > 0.0 THEN
-    group2ToGroup2Slave1Ratio := group2MasterDiameter / group2Slave1Diameter;
-    group2ToGroup2Slave2Ratio := group2MasterDiameter / group2Slave2Diameter;
-ELSE
-    group2ToGroup2Slave1Ratio := 0.0;
-    group2ToGroup2Slave2Ratio := 0.0;
-END_IF;]]></ST>
+        <ST><![CDATA[]]></ST>
       </Implementation>
     </Method>
-    <Method Name="_Scale" Id="{28686c74-02f8-4033-83d4-df519462d17e}">
+    <Method Name="_Scale" Id="{2bc9a955-bf28-4083-be2e-7ad292b8142e}">
       <Declaration><![CDATA[METHOD PRIVATE _Scale : REAL
 VAR_INPUT
     X    : REAL;
@@ -379,37 +299,28 @@ END_IF;
 ]]></ST>
       </Implementation>
     </Method>
-    <LineIds Name="FB_GroupSpeedControl_V1">
-      <LineId Id="619" Count="44" />
-      <LineId Id="773" Count="1" />
-      <LineId Id="776" Count="3" />
-      <LineId Id="781" Count="4" />
-      <LineId Id="787" Count="1" />
-      <LineId Id="668" Count="1" />
-      <LineId Id="736" Count="2" />
-      <LineId Id="901" Count="0" />
-      <LineId Id="739" Count="1" />
-      <LineId Id="1311" Count="22" />
-      <LineId Id="749" Count="13" />
-      <LineId Id="685" Count="0" />
-      <LineId Id="1132" Count="0" />
-      <LineId Id="687" Count="13" />
-      <LineId Id="1014" Count="0" />
-      <LineId Id="1152" Count="8" />
-      <LineId Id="1163" Count="0" />
-      <LineId Id="1161" Count="0" />
-      <LineId Id="1164" Count="0" />
-      <LineId Id="1162" Count="0" />
-      <LineId Id="701" Count="0" />
-      <LineId Id="1015" Count="1" />
-      <LineId Id="702" Count="31" />
+    <LineIds Name="FB_FormingBoardSpeedControl">
+      <LineId Id="1772" Count="64" />
+      <LineId Id="2017" Count="3" />
+      <LineId Id="2023" Count="0" />
+      <LineId Id="2026" Count="0" />
+      <LineId Id="2029" Count="0" />
+      <LineId Id="2028" Count="0" />
+      <LineId Id="2025" Count="0" />
+      <LineId Id="2027" Count="0" />
+      <LineId Id="2032" Count="0" />
+      <LineId Id="2031" Count="0" />
+      <LineId Id="2030" Count="0" />
+      <LineId Id="2024" Count="0" />
+      <LineId Id="2021" Count="0" />
+      <LineId Id="1837" Count="56" />
+      <LineId Id="1895" Count="20" />
       <LineId Id="9" Count="0" />
     </LineIds>
-    <LineIds Name="FB_GroupSpeedControl_V1._CalculateGearRatios">
-      <LineId Id="13" Count="22" />
+    <LineIds Name="FB_FormingBoardSpeedControl._CalculateGearRatios">
       <LineId Id="5" Count="0" />
     </LineIds>
-    <LineIds Name="FB_GroupSpeedControl_V1._Scale">
+    <LineIds Name="FB_FormingBoardSpeedControl._Scale">
       <LineId Id="1" Count="5" />
     </LineIds>
   </POU>

@@ -11,6 +11,8 @@ STRUCT
     // ─────────────── FORMING BOARD ───────────────
     formingBoardStart          : BOOL;  // Start forming board (Ligar mesa formadora)
     formingBoardStop           : BOOL;  // Stop forming board (Parar mesa formadora)
+    formingBoardFastStop           : BOOL;  // Stop forming board (Parar mesa formadora)
+
     formingBoardAutoMan           : BOOL;  // Auto mode select (Modo automático)
     formingBoardSetpointMan    : REAL;  // Manual speed/flow setpoint (Setpoint manual)
     formingBoardProductionSpeed: REAL;  // Select production (fast) speed (Selecionar velocidade de produção - rápida)
@@ -40,6 +42,8 @@ STRUCT
 	// Start/stop and speed control commands for the press section.
 	pressSectionStart            : BOOL;  // Start Press Section (Ligar Prensa)
 	pressSectionStop             : BOOL;  // Stop Press Section (Parar Prensa)
+	pressSectionFastStop             : BOOL;  // Stop Press Section (Parar Prensa)
+
 	pressSectionAutoMan          : BOOL;  // 1 = Auto / 0 = Manual mode (Modo automático/manual)
 	pressSectionManualSetpoint   : REAL;  // Manual speed setpoint [m/min] (Setpoint manual)
 	pressSectionSpeedInc         : BOOL;  // Increase speed manually (Aumentar velocidade)
@@ -134,8 +138,9 @@ STRUCT
 
 	winderRiderRollWorkPositionCmd	: BOOL;
 	winderRiderRollReleasePositionCmd	: BOOL;
-	
+	winderEnableTorqueControlCmd			: BOOL;
 
+	winderTorqueSetpoint			: REAL;
 	
     //==============================================================
     // CORE LOCK (CHUCK LOCKING SYSTEM)
@@ -184,9 +189,24 @@ STRUCT
     wirePitSetpointMan  : REAL;  // Manual setpoint (Setpoint manual)
     wirePitSetpointManInc  : BOOL;  // Manual setpoint (Setpoint manual)
     wirePitSetpointManDec  : BOOL;  // Manual setpoint (Setpoint manual)	
-    wirePitSetpointAuto : REAL;  // Auto setpoint (Setpoint automático)
+    wirePitSetpointAuto 	: REAL;  // Auto setpoint (Setpoint automático)
     wirePitSetpointAutoInc  : BOOL;  // Manual setpoint (Setpoint manual)
     wirePitSetpointAutoDec  : BOOL;  // Manual setpoint (Setpoint manual)	
+
+	
+	whiteWaterSiloAutoMan           : BOOL;  // Auto/manual mode select (Seleção automático/manual)
+	
+	// --- Manual setpoint (e.g., level %, flow m3/h, or pressure) ---
+	whiteWaterSiloSetpointMan       : REAL;  // Manual setpoint (Setpoint manual)
+	whiteWaterSiloSetpointManInc    : BOOL;  // Manual setpoint increase command (Incrementar setpoint manual)
+	whiteWaterSiloSetpointManDec    : BOOL;  // Manual setpoint decrease command (Decrementar setpoint manual)
+	
+	// --- Auto setpoint (from recipe / process / cascade control) ---
+	whiteWaterSiloSetpointAuto      : REAL;  // Auto setpoint (Setpoint automático)
+	whiteWaterSiloSetpointAutoInc   : BOOL;  // Auto setpoint increase command (Incrementar setpoint automático)
+	whiteWaterSiloSetpointAutoDec   : BOOL;  // Auto setpoint decrease command (Decrementar setpoint automático)	
+	
+	
     // ─────────────── STOCK PUMP ───────────────
     stockPumpStart        : BOOL;  // Start stock pump (Ligar bomba de massa)
     stockPumpStop         : BOOL;  // Stop stock pump (Parar bomba de massa)

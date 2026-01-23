@@ -40,6 +40,10 @@ VAR_OUTPUT
     outputCurrent           : REAL;                   // Output current read from drive
     outputTorque            : REAL;                   // Output torque read from drive
 	
+	
+	pdoSpeedSet			: INT;
+	
+	
 END_VAR
 
 //======================================================================
@@ -480,7 +484,9 @@ PDOS.PlcToDrv.vlTargetVelocity := REAL_TO_INT(_Scale(
     O_LO := deviceConfig.speedSetpointOutputLow, 
     O_HI := deviceConfig.speedSetpointOutputHigh));
 
-	PDOS.PlcToDrv.maxMotorSpeed := PDOS.PlcToDrv.vlTargetVelocity;]]></ST>
+	PDOS.PlcToDrv.maxMotorSpeed := PDOS.PlcToDrv.vlTargetVelocity;
+	
+	pdoSpeedSet := PDOS.PlcToDrv.vlTargetVelocity;]]></ST>
       </Implementation>
     </Method>
     <Method Name="_StatusWord" Id="{6527e086-361c-017b-3cb1-a9e561509a4c}">
@@ -591,6 +597,7 @@ END_IF
       <LineId Id="13" Count="6" />
       <LineId Id="23" Count="0" />
       <LineId Id="8" Count="0" />
+      <LineId Id="27" Count="1" />
     </LineIds>
     <LineIds Name="FB_DELTA_C2000_ETC._StatusWord">
       <LineId Id="31" Count="11" />

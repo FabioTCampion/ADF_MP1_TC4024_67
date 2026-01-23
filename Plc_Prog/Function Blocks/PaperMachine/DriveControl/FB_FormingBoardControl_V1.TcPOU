@@ -7,6 +7,7 @@ VAR_INPUT
     startGroup                   : BOOL;   // Start command (pulse / rising edge)
     stopGroup                    : BOOL;   // Stop command  (pressed / level)
     groupReset                   : BOOL;   // Group fault Reset (Comando reset falhas do grupo)
+    groupFastStop           : BOOL;  // EN: Reset group faults / PT: Reset de falhas do grupo
 
     // ── VFD per-drive status inputs ─────────────────────────────────────────────
     formingBoardTractionRollFault               : BOOL;   // VFD ready/healthy (master)
@@ -20,6 +21,9 @@ VAR_INPUT
     formingBoardSuctionVfdRunFeedback          : BOOL;   // VFD RUN feedback  (slave)
     formingBoardSuctionVfdFaultFeedback        : BOOL;   // VFD fault         (slave)
 
+	
+	paperPresenceSensor				: BOOL;
+	
     // ── Speed Setpoints ─────────────────────────────────────────────────────────
     groupAutoSpeedMPM            : REAL;   // Auto speed setpoint [m/min]
     groupMaxSpeed                : REAL := 600.0; // Max allowed line speed [m/min]

@@ -8,6 +8,10 @@
 	machineRampUPRate	: REAL := 0.01;			//Forming board manual speed (Slow speed)
 	machineRampDownRate	: REAL := 0.01;			//Forming board manual speed (Slow speed)
 	
+	machineRampUPRate2	: REAL := 0.01;			//Forming board manual speed (Slow speed)
+	machineRampDownRate2	: REAL := 0.01;			//Forming board manual speed (Slow speed)
+		
+	
     groupSpeedDifLimLow        : REAL := -15.0;  // Min offset [%]
     groupSpeedDifLimHigh       : REAL := 15.0;  // Max offset [%]
 
@@ -51,9 +55,11 @@
 
 	formingBoardSuctionRollDiameter		: REAL := 530.0;
 	formingBoardTractionRollDiameter	: REAL := 580.0;
+    tractionRollToSuctionRollGearRatio  : REAL := 0.915;
 
 	formingBoardSuctionRollMotorRPM		: REAL := 329.3;
 	formingBoardTractionRollMotorRPM	: REAL := 360.4;
+	formingBoardTorqueDif				: REAL := 1.0;
 
 	
 	    //----------------------------------------------------------------------
@@ -86,7 +92,9 @@
     dryingSectionGroup3TorquePIDCtrlTv	: REAL := 0.0;
     dryingSectionGroup3TorqueLimit	: REAL := 100.0;
 		
-		
+	
+	
+
 	
 	dryingSectionGroup1UpperMasterDiameter	: REAL := 263.878;
 	dryingSectionGroup1UpperSlave1Diameter	: REAL := 1200.980;
@@ -102,7 +110,18 @@
 	dryingSectionGroup3LowerSlave1Diameter	: REAL := 263.241;
 
 	
+	dryingSectionGroup1UpperAndLowerSpeedCalibration   : REAL := -0.06 ;  // Bias [%] between upper and lower
+	dryingSectionGroup2UpperAndLowerSpeedCalibration   : REAL := -0.06 ;  // Bias [%] between upper and lower
+	dryingSectionGroup3UpperAndLowerSpeedCalibration   : REAL := -0.06 ;  // Bias [%] between upper and lower
 	
+	
+	dryingSectionGroup1SlaveToMasterRatio	: REAL := 1;
+	dryingSectionGroup2SlaveToMasterRatio	: REAL := 1;
+	dryingSectionGroup3SlaveToMasterRatio	: REAL := 1;
+
+	dryingSectionGroup1SlaveTorqueDif	: REAL := 1;
+	dryingSectionGroup2SlaveTorqueDif	: REAL := 1;
+	dryingSectionGroup3SlaveTorqueDif	: REAL := 1;
 	
 
 	
