@@ -26,6 +26,7 @@ VAR_INPUT
     formingBoardWireOverrunOperatorSideAlarm  : BOOL;  // Wire overrun detected on operator side (sensor active)
     formingBoardWireOverrunDriveSideAlarm     : BOOL;  // Wire overrun detected on drive side (sensor active)
 
+	formingBoardSpeedDifAlarm				 : BOOL;
     // ─────────────── PRESS SECTION DRIVES ───────────────
     pressSectionFirstPressFaultAlarm          : BOOL;  // First press (master) fault / trip
     pressSectionFirstPressCoolingFaultAlarm   : BOOL;  // First press forced cooling fault
@@ -260,6 +261,12 @@ END_IF
 
 IF formingBoardWireOverrunDriveSideAlarm THEN
     alarmsDisplay.formingBoardWireOverrunDriveSideAlarm := TRUE;
+END_IF
+
+IF formingBoardSpeedDifAlarm THEN
+	
+    alarmsDisplay.formingBoardSpeedDifAlarm := TRUE;
+
 END_IF]]></ST>
       </Implementation>
     </Method>
@@ -903,6 +910,12 @@ END_IF
       <LineId Id="7" Count="0" />
       <LineId Id="11" Count="37" />
       <LineId Id="10" Count="0" />
+      <LineId Id="53" Count="0" />
+      <LineId Id="52" Count="0" />
+      <LineId Id="54" Count="0" />
+      <LineId Id="58" Count="0" />
+      <LineId Id="56" Count="0" />
+      <LineId Id="55" Count="0" />
     </LineIds>
     <LineIds Name="FB_AlarmControl._02_PressSectionAlarms">
       <LineId Id="6" Count="73" />

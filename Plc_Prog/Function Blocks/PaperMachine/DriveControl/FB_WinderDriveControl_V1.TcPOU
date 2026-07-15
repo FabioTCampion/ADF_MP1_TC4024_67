@@ -2612,8 +2612,8 @@ END_VAR
                             </o>
                             <o>
                               <o n="Operand" t="Operand">
-                                <v n="Operand">""</v>
-                                <n n="Type" />
+                                <v n="Operand">"-15"</v>
+                                <v n="Type">"INT"</v>
                                 <v n="Comment">""</v>
                                 <v n="SymbolComment">""</v>
                                 <v n="Address">""</v>
@@ -2631,8 +2631,8 @@ END_VAR
                             </o>
                             <o>
                               <o n="Operand" t="Operand">
-                                <v n="Operand">""</v>
-                                <n n="Type" />
+                                <v n="Operand">"15"</v>
+                                <v n="Type">"INT"</v>
                                 <v n="Comment">""</v>
                                 <v n="SymbolComment">""</v>
                                 <v n="Address">""</v>
@@ -2690,7 +2690,7 @@ END_VAR
                               <v>torqueCtrlKp</v>
                               <v>torqueCtrlTn</v>
                               <v>torqueCtrlTv</v>
-                              <v>torqueDifLimitLim</v>
+                              <v>torqueDifLimitMin</v>
                               <v>torqueDifLimitMax</v>
                               <v>torqueSetpoint</v>
                             </l2>
@@ -3773,11 +3773,11 @@ CASE riderRollState OF
 //------------------------------------------------------------------
 3:
 
-	instTUNE2_PressureOperatorSide.SET_val := 0.8;
+	instTUNE2_PressureOperatorSide.SET_val := 0.5;
 	instTUNE2_PressureOperatorSide.SET := TRUE;
 	instTUNE2_PressureOperatorSide();
 		
-	instTUNE2_PressureDriveSide.SET_val := 0.8;
+	instTUNE2_PressureDriveSide.SET_val := 0.5;
 	instTUNE2_PressureDriveSide.SET := TRUE;
 	instTUNE2_PressureDriveSide();
 

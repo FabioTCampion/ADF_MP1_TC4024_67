@@ -383,6 +383,9 @@
     <Compile Include="POUs\MAIN.TcPOU">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="RecipeManager.TcRMO">
+      <SubType>Code</SubType>
+    </Compile>
   </ItemGroup>
   <ItemGroup>
     <Folder Include="DUTs" />
@@ -422,8 +425,13 @@
       <DefaultResolution>CPNTeck - OSCAT BASIC, * (CPNTeck - Automação Industrial)</DefaultResolution>
       <Namespace>CPNTeck_OSCAT_BASIC</Namespace>
     </PlaceholderReference>
+    <PlaceholderReference Include="RecipeManagement">
+      <DefaultResolution>Recipe Management, 3.3.1.0 (System)</DefaultResolution>
+      <SystemLibrary>true</SystemLibrary>
+    </PlaceholderReference>
     <PlaceholderReference Include="Tc2_EtherCAT">
       <DefaultResolution>Tc2_EtherCAT, * (Beckhoff Automation GmbH)</DefaultResolution>
+      <Namespace>Tc2_EtherCAT</Namespace>
     </PlaceholderReference>
     <PlaceholderReference Include="Tc2_Standard">
       <DefaultResolution>Tc2_Standard, * (Beckhoff Automation GmbH)</DefaultResolution>
@@ -450,6 +458,11 @@
     <None Include="Plc_Prog.tmc">
       <SubType>Content</SubType>
     </None>
+  </ItemGroup>
+  <ItemGroup>
+    <PlaceholderResolution Include="RecipeManagement">
+      <Resolution>Recipe Management, * (System)</Resolution>
+    </PlaceholderResolution>
   </ItemGroup>
   <ProjectExtensions>
     <PlcProjectOptions>

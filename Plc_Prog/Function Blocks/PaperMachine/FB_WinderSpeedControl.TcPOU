@@ -41,7 +41,7 @@ VAR_INPUT
     torqueCtrlKp                   : REAL := 0.50;
     torqueCtrlTn                   : REAL := 5.0;
     torqueCtrlTv                   : REAL := 0.0;
-	torqueDifLimitLim				: REAL := -3.0;
+	torqueDifLimitMin				: REAL := -3.0;
 	torqueDifLimitMax				: REAL := 3.0;	
 	
 	
@@ -223,7 +223,7 @@ IF NOT enableTorqueControl THEN
 	
 ELSE
 	
-	instCTRL_PID_Group1TorqueTrim.LL := torqueDifLimitLim;
+	instCTRL_PID_Group1TorqueTrim.LL := torqueDifLimitMin;
 	instCTRL_PID_Group1TorqueTrim.LH := torqueDifLimitMax;
 	
 END_IF

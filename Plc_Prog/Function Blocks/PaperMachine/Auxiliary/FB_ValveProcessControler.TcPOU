@@ -22,6 +22,8 @@ VAR_INPUT
     processSetpointAutoDec       : BOOL;            // Auto SP ↓ (engineering units or %)
     processSetpointAutoSteps     : REAL := 1.0;
 
+	holdClosed					: BOOL;				// This should hold the output closed (0.0) while enabled
+	
     // ===== Mode =====
     autoMode                     : BOOL;            // TRUE=Automatic / FALSE=Manual
     reverseActing                : BOOL := FALSE;   // TRUE: higher output decreases PV; FALSE: direct
@@ -133,7 +135,7 @@ VAR
     instPT1                      : FT_PT1;          // PV PT1 filter
 
     // ===== Aggregations =====
-    allSafetyOK                  : BOOL;            // safetyOk & estopOk & guardClosedOk
+    allSafetyOK                  : BOOL := TRUE;            // safetyOk & estopOk & guardClosedOk
     anyInterlockOpen             : BOOL;            // any interlock is FALSE
 
     // ===== HMI display filters =====
@@ -150,56 +152,11 @@ VAR PERSISTENT
 END_VAR
 ]]></Declaration>
     <Implementation>
-      <ST><![CDATA[// ============================ INITIALIZATION ============================
-// Run this block only once on first cycle
-IF firstScan THEN
-    firstScan := FALSE;
-
-    processSetpointMan      := instTUNE2ManSetpoint.Y;
-    processSetpointManOld   := processSetpointMan;
-
-    processSetpointAuto     := instTUNE2AutoSetpoint.Y;
-    processSetpointAutoOld  := processSetpointAuto;
-END_IF;
-
-
-
-// ============================ Aggregations =====================
-allSafetyOK := safetyOk AND estopOk AND guardClosedOk;
-anyInterlockOpen := NOT (interlock1 AND interlock2 AND interlock3 AND interlock4 AND interlock5 AND interlock6);
-
-
-// ============================ Low/High PV HOLD supervision ============================
-// LOW-PV
-IF minPVEnable THEN
-    tonMinPTrip   (IN := (processFeedbackEng <  minPVTripEng),     PT := minPVTripTime);
-    tonMinPRelease(IN := (processFeedbackEng >  minPVReleaseEng),  PT := minPVReleaseTime);
-    IF tonMinPTrip.Q    THEN minPVHoldActive := TRUE;  END_IF;
-    IF tonMinPRelease.Q THEN minPVHoldActive := FALSE; END_IF;
-
-ELSE
-    tonMinPTrip(IN := FALSE);
-    tonMinPRelease(IN := FALSE);
-    minPVHoldActive := FALSE;
-END_IF;
-
-// HIGH-PV
-IF maxPVEnable THEN
-    tonMaxPTrip   (IN := (processFeedbackEng > maxPVTripEng),       PT := maxPVTripTime);
-    tonMaxPRelease(IN := (processFeedbackEng < maxPVReleaseEng),    PT := maxPVReleaseTime);
-    IF tonMaxPTrip.Q    THEN maxPVHoldActive := TRUE;  END_IF;
-    IF tonMaxPRelease.Q THEN maxPVHoldActive := FALSE; END_IF;
-
-ELSE
-    tonMaxPTrip(IN := FALSE);
-    tonMaxPRelease(IN := FALSE);
-    maxPVHoldActive := FALSE;
-END_IF;
-
-// ============================ Control (STEP 20 equivalent) =====================
+      <ST><![CDATA[// ============================ Control (STEP 20 equivalent) =====================
 // Default safe values
 running := FALSE;
 controlOutputPct := 0.0;
+_SetpointInputControl();
 
 // Inhibit conditions (no start/stop logic — controller is "enabled" only if allowed)
 IF NOT allSafetyOK THEN
@@ -207,6 +164,46 @@ IF NOT allSafetyOK THEN
 
 ELSIF anyInterlockOpen THEN
     deviceState := 'Inhibited: interlock open';
+
+ELSIF holdClosed AND autoMode THEN
+    // NEW: force output closed while enabled
+    deviceState := 'Held closed';
+    running := FALSE;
+    controlOutputPct := 0.0;
+    controlOutputPctDisplay := 0.0;
+
+    // Optional (recommended): prevent PID windup by forcing MAN=TRUE at 0%
+    // Keep scaling/filtering consistent if you need PV/SP for displays; otherwise can omit.
+    IF enableInputFilter THEN
+        instPT1(in := processFeedbackEng, T := inputFilterTime, K := inputFilterGainK, out => pvEngFiltered);
+    ELSE
+        pvEngFiltered := processFeedbackEng;
+    END_IF
+
+    IF enableScaling THEN
+        pvPct := _ScaleToPct(pvEngFiltered,       pLoEng, pHiEng);
+        spPct := _ScaleToPct(processSetpointAuto, pLoEng, pHiEng);
+    ELSE
+        pvPct := pvEngFiltered;
+        spPct := processSetpointAuto;
+    END_IF
+
+    instPID(
+        ACT := pvPct,
+        SET := spPct,
+        M_I := 0.0,
+        MAN := TRUE,
+        RST := resetPID, // or TRUE if you prefer to reset integrator while held
+        KP  := kpUse,
+        TN  := tn,
+        TV  := tv,
+        SUP := deadBand,
+        LL  := 0,
+        LH  := 60,
+        Y   => yPID,
+        DIFF=> pidDiff,
+        LIM => pidLimited
+    );
 
 ELSIF (minPVEnable AND minPVHoldActive) OR (maxPVEnable AND maxPVHoldActive) THEN
     deviceState := 'Inhibited: PV hold active';
@@ -251,9 +248,9 @@ ELSE
         KP  := kpUse,
         TN  := tn,
         TV  := tv,
-		SUP := deadBand,
+        SUP := deadBand,
         LL  := 0,
-        LH  := 35,
+        LH  := 60,
         Y   => yPID,
         DIFF=> pidDiff,
         LIM => pidLimited
@@ -266,22 +263,8 @@ ELSE
         controlOutputPct := manualCmd;
     END_IF
     controlOutputPct := LIMIT(outLowLimitPct, controlOutputPct + outputOffsetPct, outHighLimitPct);
-	controlOutputPctDisplay := controlOutputPct;
+    controlOutputPctDisplay := controlOutputPct;
 END_IF;
-
-
-// =============================== Status code ===============================
-IF running THEN
-    statusCode := 1;             // Running
-ELSE
-    statusCode := 0;             // Idle/Inhibited
-END_IF
-
-// HMI feedbacks & status (encapsulates PT1 displays and status code if desired)
-_FeedbackDisplay();
-
-// Setpoint input handling (encapsulates TUNE2-based HMI writes & nudges)
-_SetpointInputControl();
 ]]></ST>
     </Implementation>
     <Method Name="_FeedbackDisplay" Id="{2a97a8be-e7f9-46ec-9b3c-1019c69499a6}">
@@ -359,8 +342,8 @@ instTUNE2ManSetpoint(
     SU       := processSetpointManInc,
     SD       := processSetpointManDec,
     RST      := FALSE,
-    SS       := 0.1,           // step reference (passo de referência)
-    FS       := 0.0,                     // unused
+    SS       := 1.0,           // step reference (passo de referência)
+    FS       := 1.0,                     // unused
     LIMIT_L  := outLowLimitPct,
     LIMIT_H  := outHighLimitPct,
     Y        => processSetpointMan
@@ -406,13 +389,9 @@ instTUNE2AutoSetpoint(
       </Implementation>
     </Method>
     <LineIds Name="FB_ValveProcessControler">
-      <LineId Id="7731" Count="11" />
-      <LineId Id="7751" Count="32" />
-      <LineId Id="7790" Count="55" />
-      <LineId Id="8022" Count="0" />
-      <LineId Id="7846" Count="13" />
-      <LineId Id="8170" Count="0" />
-      <LineId Id="7860" Count="14" />
+      <LineId Id="8320" Count="4" />
+      <LineId Id="8581" Count="0" />
+      <LineId Id="8325" Count="106" />
       <LineId Id="6072" Count="0" />
     </LineIds>
     <LineIds Name="FB_ValveProcessControler._FeedbackDisplay">

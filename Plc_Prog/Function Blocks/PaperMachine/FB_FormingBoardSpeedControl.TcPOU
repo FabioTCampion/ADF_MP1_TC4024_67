@@ -168,9 +168,14 @@ ELSE
 END_IF;
 
 // Detect when a new target speed change requires ramping
-IF NOT rampActive AND ABS(rampTargetRPM - baseMasterRefRPM) >= 0.05 THEN
-   rampActive := TRUE; // Rising edge — ramp request detected
+IF paperPresenceSensor THEN
  
+  rampActive := TRUE; // Rising edge — ramp request detected
+
+ELSE
+	
+  rampActive := FALSE; // Rising edge — ramp request detected
+  
 END_IF;
 
 
@@ -204,7 +209,8 @@ IF rampActive THEN
 
     // Automatically reset ramp flag when the ramp output reaches the target
     IF ABS(instFB_Gen_SRamp.Y - rampTargetRPM) <= 0.05 THEN
-        rampActive := FALSE; // Ramp complete
+//        rampActive := FALSE; // Ramp complete
+;
     END_IF;
 
 ELSE
@@ -300,7 +306,12 @@ END_IF;
       </Implementation>
     </Method>
     <LineIds Name="FB_FormingBoardSpeedControl">
-      <LineId Id="1772" Count="64" />
+      <LineId Id="1772" Count="62" />
+      <LineId Id="2137" Count="0" />
+      <LineId Id="2141" Count="2" />
+      <LineId Id="2140" Count="0" />
+      <LineId Id="2139" Count="0" />
+      <LineId Id="1836" Count="0" />
       <LineId Id="2017" Count="3" />
       <LineId Id="2023" Count="0" />
       <LineId Id="2026" Count="0" />
@@ -313,7 +324,9 @@ END_IF;
       <LineId Id="2030" Count="0" />
       <LineId Id="2024" Count="0" />
       <LineId Id="2021" Count="0" />
-      <LineId Id="1837" Count="56" />
+      <LineId Id="1837" Count="17" />
+      <LineId Id="2138" Count="0" />
+      <LineId Id="1855" Count="38" />
       <LineId Id="1895" Count="20" />
       <LineId Id="9" Count="0" />
     </LineIds>

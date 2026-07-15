@@ -20,6 +20,7 @@ STRUCT
 
     formingBoardRollDriveFaultAlarm           : BOOL;  // Roll up/down motor fault
     formingBoardStretchDriveFaultAlarm        : BOOL;  // Stretch motor fault
+	formingBoardSpeedDifAlarm	: BOOL;
 
     // ── WIRE EDGE / RUNNING SAFETY SENSORS ─────────────────────────────────────
     formingBoardWireOverrunOperatorSideAlarm  : BOOL;  // Wire overrun detected on operator side (sensor active)

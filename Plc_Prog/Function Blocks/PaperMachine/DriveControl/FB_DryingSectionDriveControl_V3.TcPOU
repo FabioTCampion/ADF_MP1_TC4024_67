@@ -3289,8 +3289,8 @@ END_VAR
                           <v n="Extensible">false</v>
                         </o>
                         <n n="InputFlags" />
-                        <l2 n="InputItems" cet="BoxTreeOperand">
-                          <o>
+                        <l2 n="InputItems">
+                          <o t="BoxTreeOperand">
                             <o n="Operand" t="Operand">
                               <v n="Operand">"groupSpeedAutoMan"</v>
                               <v n="Type">"BOOL"</v>
@@ -3309,7 +3309,7 @@ END_VAR
                             </o>
                             <v n="Id">204L</v>
                           </o>
-                          <o>
+                          <o t="BoxTreeOperand">
                             <o n="Operand" t="Operand">
                               <v n="Operand">"groupAutoSpeedMPM"</v>
                               <v n="Type">"REAL"</v>
@@ -3328,7 +3328,7 @@ END_VAR
                             </o>
                             <v n="Id">206L</v>
                           </o>
-                          <o>
+                          <o t="BoxTreeOperand">
                             <o n="Operand" t="Operand">
                               <v n="Operand">"groupManualSpeedMPM"</v>
                               <v n="Type">"REAL"</v>
@@ -3347,7 +3347,7 @@ END_VAR
                             </o>
                             <v n="Id">208L</v>
                           </o>
-                          <o>
+                          <o t="BoxTreeOperand">
                             <o n="Operand" t="Operand">
                               <v n="Operand">"groupRecoverSpeedCmd"</v>
                               <v n="Type">"BOOL"</v>
@@ -3366,7 +3366,7 @@ END_VAR
                             </o>
                             <v n="Id">210L</v>
                           </o>
-                          <o>
+                          <o t="BoxTreeOperand">
                             <o n="Operand" t="Operand">
                               <v n="Operand">"machineConfig.groupRecoverIncrement"</v>
                               <v n="Type">"REAL"</v>
@@ -3385,7 +3385,7 @@ END_VAR
                             </o>
                             <v n="Id">212L</v>
                           </o>
-                          <o>
+                          <o t="BoxTreeOperand">
                             <o n="Operand" t="Operand">
                               <v n="Operand">""</v>
                               <n n="Type" />
@@ -3404,7 +3404,7 @@ END_VAR
                             </o>
                             <v n="Id">216L</v>
                           </o>
-                          <o>
+                          <o t="BoxTreeOperand">
                             <o n="Operand" t="Operand">
                               <v n="Operand">""</v>
                               <n n="Type" />
@@ -3423,7 +3423,7 @@ END_VAR
                             </o>
                             <v n="Id">218L</v>
                           </o>
-                          <o>
+                          <o t="BoxTreeOperand">
                             <o n="Operand" t="Operand">
                               <v n="Operand">"upperMasterDiameter"</v>
                               <v n="Type">"REAL"</v>
@@ -3442,7 +3442,7 @@ END_VAR
                             </o>
                             <v n="Id">220L</v>
                           </o>
-                          <o>
+                          <o t="BoxTreeOperand">
                             <o n="Operand" t="Operand">
                               <v n="Operand">"upperSlave1Diameter"</v>
                               <v n="Type">"REAL"</v>
@@ -3461,7 +3461,7 @@ END_VAR
                             </o>
                             <v n="Id">222L</v>
                           </o>
-                          <o>
+                          <o t="BoxTreeOperand">
                             <o n="Operand" t="Operand">
                               <v n="Operand">"lowerMasterDiameter"</v>
                               <v n="Type">"REAL"</v>
@@ -3480,7 +3480,7 @@ END_VAR
                             </o>
                             <v n="Id">224L</v>
                           </o>
-                          <o>
+                          <o t="BoxTreeOperand">
                             <o n="Operand" t="Operand">
                               <v n="Operand">"lowerSlave1Diameter"</v>
                               <v n="Type">"REAL"</v>
@@ -3499,7 +3499,7 @@ END_VAR
                             </o>
                             <v n="Id">226L</v>
                           </o>
-                          <o>
+                          <o t="BoxTreeOperand">
                             <o n="Operand" t="Operand">
                               <v n="Operand">"749"</v>
                               <v n="Type">"INT"</v>
@@ -3518,7 +3518,7 @@ END_VAR
                             </o>
                             <v n="Id">228L</v>
                           </o>
-                          <o>
+                          <o t="BoxTreeOperand">
                             <o n="Operand" t="Operand">
                               <v n="Operand">"machineConfig.machineRampUPRate"</v>
                               <v n="Type">"REAL"</v>
@@ -3537,7 +3537,7 @@ END_VAR
                             </o>
                             <v n="Id">230L</v>
                           </o>
-                          <o>
+                          <o t="BoxTreeOperand">
                             <o n="Operand" t="Operand">
                               <v n="Operand">"machineConfig.machineRampDownRate"</v>
                               <v n="Type">"REAL"</v>
@@ -3556,7 +3556,7 @@ END_VAR
                             </o>
                             <v n="Id">232L</v>
                           </o>
-                          <o>
+                          <o t="BoxTreeOperand">
                             <o n="Operand" t="Operand">
                               <v n="Operand">"machineConfig.machineRampUPRate2"</v>
                               <v n="Type">"REAL"</v>
@@ -3575,7 +3575,7 @@ END_VAR
                             </o>
                             <v n="Id">2702L</v>
                           </o>
-                          <o>
+                          <o t="BoxTreeOperand">
                             <o n="Operand" t="Operand">
                               <v n="Operand">"machineConfig.machineRampDownRate2"</v>
                               <v n="Type">"REAL"</v>
@@ -3594,7 +3594,7 @@ END_VAR
                             </o>
                             <v n="Id">2704L</v>
                           </o>
-                          <o>
+                          <o t="BoxTreeOperand">
                             <o n="Operand" t="Operand">
                               <v n="Operand">"statusCode"</v>
                               <v n="Type">"INT"</v>
@@ -3613,7 +3613,7 @@ END_VAR
                             </o>
                             <v n="Id">234L</v>
                           </o>
-                          <o>
+                          <o t="BoxTreeOperand">
                             <o n="Operand" t="Operand">
                               <v n="Operand">""</v>
                               <n n="Type" />
@@ -3632,7 +3632,7 @@ END_VAR
                             </o>
                             <v n="Id">2444L</v>
                           </o>
-                          <o>
+                          <o t="BoxTreeOperand">
                             <o n="Operand" t="Operand">
                               <v n="Operand">"grouSpeedDifIncCmd"</v>
                               <v n="Type">"BOOL"</v>
@@ -3651,7 +3651,7 @@ END_VAR
                             </o>
                             <v n="Id">236L</v>
                           </o>
-                          <o>
+                          <o t="BoxTreeOperand">
                             <o n="Operand" t="Operand">
                               <v n="Operand">"grouSpeedDifDecCmd"</v>
                               <v n="Type">"BOOL"</v>
@@ -3670,7 +3670,7 @@ END_VAR
                             </o>
                             <v n="Id">238L</v>
                           </o>
-                          <o>
+                          <o t="BoxTreeOperand">
                             <o n="Operand" t="Operand">
                               <v n="Operand">"machineConfig.groupSpeedDifLimLow"</v>
                               <v n="Type">"REAL"</v>
@@ -3689,7 +3689,7 @@ END_VAR
                             </o>
                             <v n="Id">240L</v>
                           </o>
-                          <o>
+                          <o t="BoxTreeOperand">
                             <o n="Operand" t="Operand">
                               <v n="Operand">"machineConfig.groupSpeedDifLimHigh"</v>
                               <v n="Type">"REAL"</v>
@@ -3708,7 +3708,7 @@ END_VAR
                             </o>
                             <v n="Id">242L</v>
                           </o>
-                          <o>
+                          <o t="BoxTreeOperand">
                             <o n="Operand" t="Operand">
                               <v n="Operand">"-upperAndLowerSpeedTrim"</v>
                               <v n="Type">"REAL"</v>
@@ -3727,7 +3727,7 @@ END_VAR
                             </o>
                             <v n="Id">244L</v>
                           </o>
-                          <o>
+                          <o t="BoxTreeOperand">
                             <o n="Operand" t="Operand">
                               <v n="Operand">"upperAndLowerSpeedCalibration"</v>
                               <v n="Type">"REAL"</v>
@@ -3746,7 +3746,7 @@ END_VAR
                             </o>
                             <v n="Id">2438L</v>
                           </o>
-                          <o>
+                          <o t="BoxTreeOperand">
                             <o n="Operand" t="Operand">
                               <v n="Operand">"instFB_GroupDriveControl_V1.rampReset"</v>
                               <v n="Type">"BOOL"</v>
@@ -3765,10 +3765,11 @@ END_VAR
                             </o>
                             <v n="Id">246L</v>
                           </o>
-                          <o>
-                            <o n="Operand" t="Operand">
-                              <v n="Operand">"paperPresenceSensor"</v>
-                              <v n="Type">"BOOL"</v>
+                          <o t="BoxTreeBox">
+                            <v n="BoxType">"OR"</v>
+                            <o n="Instance" t="Operand">
+                              <n n="Operand" />
+                              <v n="Type">""</v>
                               <v n="Comment">""</v>
                               <v n="SymbolComment">""</v>
                               <v n="Address">""</v>
@@ -3779,10 +3780,79 @@ END_VAR
                               </o>
                               <v n="LValue">false</v>
                               <v n="Boolean">false</v>
-                              <v n="IsInstance">false</v>
-                              <v n="Id">2707L</v>
+                              <v n="IsInstance">true</v>
+                              <v n="Id">3043L</v>
                             </o>
-                            <v n="Id">2706L</v>
+                            <o n="OutputItems" t="OutputItemList">
+                              <l2 n="OutputItems">
+                                <n />
+                              </l2>
+                            </o>
+                            <o n="Flags" t="Flags">
+                              <v n="Flags">0</v>
+                              <v n="Fixed">true</v>
+                              <v n="Extensible">false</v>
+                            </o>
+                            <n n="InputFlags" />
+                            <l2 n="InputItems" cet="BoxTreeOperand">
+                              <o>
+                                <o n="Operand" t="Operand">
+                                  <v n="Operand">"paperPresenceSensor"</v>
+                                  <v n="Type">"BOOL"</v>
+                                  <v n="Comment">""</v>
+                                  <v n="SymbolComment">""</v>
+                                  <v n="Address">""</v>
+                                  <o n="Flags" t="Flags">
+                                    <v n="Flags">0</v>
+                                    <v n="Fixed">false</v>
+                                    <v n="Extensible">false</v>
+                                  </o>
+                                  <v n="LValue">false</v>
+                                  <v n="Boolean">false</v>
+                                  <v n="IsInstance">false</v>
+                                  <v n="Id">2707L</v>
+                                </o>
+                                <v n="Id">2706L</v>
+                              </o>
+                              <o>
+                                <o n="Operand" t="Operand">
+                                  <v n="Operand">"instTOF_PaperPresenseDelay.Q"</v>
+                                  <v n="Type">"BOOL"</v>
+                                  <v n="Comment">""</v>
+                                  <v n="SymbolComment">""</v>
+                                  <v n="Address">""</v>
+                                  <o n="Flags" t="Flags">
+                                    <v n="Flags">0</v>
+                                    <v n="Fixed">false</v>
+                                    <v n="Extensible">false</v>
+                                  </o>
+                                  <v n="LValue">false</v>
+                                  <v n="Boolean">false</v>
+                                  <v n="IsInstance">false</v>
+                                  <v n="Id">3042L</v>
+                                </o>
+                                <v n="Id">3041L</v>
+                              </o>
+                            </l2>
+                            <o n="InputParam" t="ParamList">
+                              <l2 n="Names" />
+                              <l2 n="Types" />
+                            </o>
+                            <o n="OutputParam" t="ParamList">
+                              <l2 n="Names" cet="String">
+                                <v></v>
+                              </l2>
+                              <l2 n="Types" cet="String">
+                                <v>BOOL</v>
+                              </l2>
+                            </o>
+                            <v n="CallType" t="Operator">Or</v>
+                            <v n="EN">false</v>
+                            <v n="ENO">false</v>
+                            <n n="STSnippet" />
+                            <v n="ContainsExtensibleInputs">false</v>
+                            <v n="ProvidesSTSnippet">false</v>
+                            <v n="Id">3044L</v>
                           </o>
                         </l2>
                         <o n="InputParam" t="ParamList">
@@ -5127,7 +5197,7 @@ END_VAR
                             </o>
                             <o t="BoxTreeOperand">
                               <o n="Operand" t="Operand">
-                                <v n="Operand">"-0.15"</v>
+                                <v n="Operand">"-0.25"</v>
                                 <v n="Type">"LREAL"</v>
                                 <v n="Comment">""</v>
                                 <v n="SymbolComment">""</v>
@@ -5146,7 +5216,7 @@ END_VAR
                             </o>
                             <o t="BoxTreeOperand">
                               <o n="Operand" t="Operand">
-                                <v n="Operand">"0.15"</v>
+                                <v n="Operand">"0.25"</v>
                                 <v n="Type">"LREAL"</v>
                                 <v n="Comment">""</v>
                                 <v n="SymbolComment">""</v>

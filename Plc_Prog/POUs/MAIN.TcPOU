@@ -136,6 +136,8 @@ rewinder_speedSetpoint	 : UINT;
 	
 	adsWriteState: INT;
 	instFB_ProcessControlerWirePitPumpTest: FB_WirePitControl_1;
+	instTONWirePitLevel2_Delay: TON;
+	formingBoardSpeedDifAlarm: BOOL;
 END_VAR
 ]]></Declaration>
     <Implementation>
@@ -1712,7 +1714,7 @@ END_VAR
                           </o>
                           <o t="BoxTreeOperand">
                             <o n="Operand" t="Operand">
-                              <v n="Operand">"P10_050_DI5.digitalInput_03"</v>
+                              <v n="Operand">"P10_050_DI5.digitalInput_04"</v>
                               <v n="Type">"BOOL"</v>
                               <v n="Comment">""</v>
                               <v n="SymbolComment">""</v>
@@ -2819,7 +2821,7 @@ END_VAR
                           <v n="LValue">false</v>
                           <v n="Boolean">false</v>
                           <v n="IsInstance">true</v>
-                          <v n="Id">357L</v>
+                          <v n="Id">368L</v>
                         </o>
                         <o n="OutputItems" t="OutputItemList">
                           <l2 n="OutputItems" cet="Operand">
@@ -2855,6 +2857,22 @@ END_VAR
                               <v n="Boolean">false</v>
                               <v n="IsInstance">false</v>
                               <v n="Id">282L</v>
+                            </o>
+                            <o>
+                              <v n="Operand">"formingBoardSpeedDifAlarm"</v>
+                              <v n="Type">"BOOL"</v>
+                              <v n="Comment">""</v>
+                              <v n="SymbolComment">""</v>
+                              <v n="Address">""</v>
+                              <o n="Flags" t="Flags">
+                                <v n="Flags">0</v>
+                                <v n="Fixed">false</v>
+                                <v n="Extensible">false</v>
+                              </o>
+                              <v n="LValue">true</v>
+                              <v n="Boolean">false</v>
+                              <v n="IsInstance">false</v>
+                              <v n="Id">370L</v>
                             </o>
                             <o>
                               <v n="Operand">"P1_300_UG06_TractionRoll.speedSetpoint"</v>
@@ -3379,7 +3397,7 @@ END_VAR
                           </o>
                           <o>
                             <o n="Operand" t="Operand">
-                              <v n="Operand">"P10_050_DI5.digitalInput_03"</v>
+                              <v n="Operand">"P10_050_DI5.digitalInput_04"</v>
                               <v n="Type">"BOOL"</v>
                               <v n="Comment">""</v>
                               <v n="SymbolComment">""</v>
@@ -3638,6 +3656,7 @@ END_VAR
                             <v>deviceState</v>
                             <v>statusCode</v>
                             <v>groupFault</v>
+                            <v>speedDifError</v>
                             <v>tractionRollSpeedSetpointRPM</v>
                             <v>suctionRollSpeedSetpointRPM</v>
                             <v>tractionRollSpeedFeedbackRPM</v>
@@ -3657,6 +3676,7 @@ END_VAR
                           <l2 n="Types" cet="String">
                             <v>STRING</v>
                             <v>INT</v>
+                            <v>BOOL</v>
                             <v>BOOL</v>
                             <v>REAL</v>
                             <v>REAL</v>
@@ -3681,7 +3701,7 @@ END_VAR
                         <n n="STSnippet" />
                         <v n="ContainsExtensibleInputs">false</v>
                         <v n="ProvidesSTSnippet">false</v>
-                        <v n="Id">358L</v>
+                        <v n="Id">369L</v>
                       </o>
                     </l2>
                     <l2 n="Connectors" />
@@ -4691,7 +4711,7 @@ P1_400_UG03();	//Second drying group slave 2
                           <v n="LValue">false</v>
                           <v n="Boolean">false</v>
                           <v n="IsInstance">true</v>
-                          <v n="Id">580L</v>
+                          <v n="Id">602L</v>
                         </o>
                         <o n="OutputItems" t="OutputItemList">
                           <l2 n="OutputItems" cet="Operand">
@@ -5390,6 +5410,11 @@ P1_400_UG03();	//Second drying group slave 2
                             <v n="Extensible">false</v>
                           </o>
                           <o>
+                            <v n="Flags">0</v>
+                            <v n="Fixed">false</v>
+                            <v n="Extensible">false</v>
+                          </o>
+                          <o>
                             <v n="Flags">1</v>
                             <v n="Fixed">true</v>
                             <v n="Extensible">false</v>
@@ -5596,6 +5621,25 @@ P1_400_UG03();	//Second drying group slave 2
                               <v n="Id">313L</v>
                             </o>
                             <v n="Id">312L</v>
+                          </o>
+                          <o>
+                            <o n="Operand" t="Operand">
+                              <v n="Operand">"P10_050_DI5.digitalInput_04"</v>
+                              <v n="Type">"BOOL"</v>
+                              <v n="Comment">""</v>
+                              <v n="SymbolComment">""</v>
+                              <v n="Address">""</v>
+                              <o n="Flags" t="Flags">
+                                <v n="Flags">0</v>
+                                <v n="Fixed">false</v>
+                                <v n="Extensible">false</v>
+                              </o>
+                              <v n="LValue">false</v>
+                              <v n="Boolean">false</v>
+                              <v n="IsInstance">false</v>
+                              <v n="Id">605L</v>
+                            </o>
+                            <v n="Id">604L</v>
                           </o>
                           <o>
                             <o n="Operand" t="Operand">
@@ -6350,6 +6394,7 @@ P1_400_UG03();	//Second drying group slave 2
                             <v>groupRecoverSpeedCmd</v>
                             <v>firstPressReady</v>
                             <v>secondPressReady</v>
+                            <v>paperPresenceSensor</v>
                             <v>groupAutoSpeedMPM</v>
                             <v>groupManualSpeedMPM</v>
                             <v>groupSpeedAutoMan</v>
@@ -6391,6 +6436,7 @@ P1_400_UG03();	//Second drying group slave 2
                             <v>machineConfig</v>
                           </l2>
                           <l2 n="Types" cet="String">
+                            <v>BOOL</v>
                             <v>BOOL</v>
                             <v>BOOL</v>
                             <v>BOOL</v>
@@ -6515,7 +6561,7 @@ P1_400_UG03();	//Second drying group slave 2
                         <n n="STSnippet" />
                         <v n="ContainsExtensibleInputs">false</v>
                         <v n="ProvidesSTSnippet">false</v>
-                        <v n="Id">581L</v>
+                        <v n="Id">603L</v>
                       </o>
                     </l2>
                     <l2 n="Connectors" />
@@ -9054,7 +9100,7 @@ END_VAR
                           </o>
                           <o t="BoxTreeOperand">
                             <o n="Operand" t="Operand">
-                              <v n="Operand">"P10_050_DI5.digitalInput_03"</v>
+                              <v n="Operand">"P10_050_DI5.digitalInput_04"</v>
                               <v n="Type">"BOOL"</v>
                               <v n="Comment">""</v>
                               <v n="SymbolComment">""</v>
@@ -12184,7 +12230,7 @@ END_VAR
                           </o>
                           <o t="BoxTreeOperand">
                             <o n="Operand" t="Operand">
-                              <v n="Operand">"P10_050_DI5.digitalInput_03"</v>
+                              <v n="Operand">"P10_050_DI5.digitalInput_04"</v>
                               <v n="Type">"BOOL"</v>
                               <v n="Comment">""</v>
                               <v n="SymbolComment">""</v>
@@ -15314,7 +15360,7 @@ END_VAR
                           </o>
                           <o t="BoxTreeOperand">
                             <o n="Operand" t="Operand">
-                              <v n="Operand">"P10_050_DI5.digitalInput_03"</v>
+                              <v n="Operand">"P10_050_DI5.digitalInput_04"</v>
                               <v n="Type">"BOOL"</v>
                               <v n="Comment">""</v>
                               <v n="SymbolComment">""</v>
@@ -18517,7 +18563,7 @@ FB_AlarmControl
                             <v n="LValue">false</v>
                             <v n="Boolean">false</v>
                             <v n="IsInstance">true</v>
-                            <v n="Id">232L</v>
+                            <v n="Id">280L</v>
                           </o>
                           <o n="OutputItems" t="OutputItemList">
                             <l2 n="OutputItems" cet="Operand">
@@ -18578,7 +18624,7 @@ FB_AlarmControl
                             </o>
                             <o>
                               <v n="Flags">0</v>
-                              <v n="Fixed">false</v>
+                              <v n="Fixed">true</v>
                               <v n="Extensible">false</v>
                             </o>
                             <o>
@@ -18588,26 +18634,16 @@ FB_AlarmControl
                             </o>
                             <o>
                               <v n="Flags">0</v>
-                              <v n="Fixed">false</v>
-                              <v n="Extensible">false</v>
-                            </o>
-                            <o>
-                              <v n="Flags">0</v>
-                              <v n="Fixed">false</v>
-                              <v n="Extensible">false</v>
-                            </o>
-                            <o>
-                              <v n="Flags">0</v>
-                              <v n="Fixed">false</v>
-                              <v n="Extensible">false</v>
-                            </o>
-                            <o>
-                              <v n="Flags">1</v>
                               <v n="Fixed">true</v>
                               <v n="Extensible">false</v>
                             </o>
                             <o>
-                              <v n="Flags">1</v>
+                              <v n="Flags">0</v>
+                              <v n="Fixed">true</v>
+                              <v n="Extensible">false</v>
+                            </o>
+                            <o>
+                              <v n="Flags">0</v>
                               <v n="Fixed">true</v>
                               <v n="Extensible">false</v>
                             </o>
@@ -18623,36 +18659,46 @@ FB_AlarmControl
                             </o>
                             <o>
                               <v n="Flags">0</v>
-                              <v n="Fixed">false</v>
-                              <v n="Extensible">false</v>
-                            </o>
-                            <o>
-                              <v n="Flags">0</v>
-                              <v n="Fixed">false</v>
-                              <v n="Extensible">false</v>
-                            </o>
-                            <o>
-                              <v n="Flags">0</v>
-                              <v n="Fixed">false</v>
-                              <v n="Extensible">false</v>
-                            </o>
-                            <o>
-                              <v n="Flags">0</v>
-                              <v n="Fixed">false</v>
-                              <v n="Extensible">false</v>
-                            </o>
-                            <o>
-                              <v n="Flags">0</v>
-                              <v n="Fixed">false</v>
-                              <v n="Extensible">false</v>
-                            </o>
-                            <o>
-                              <v n="Flags">0</v>
-                              <v n="Fixed">false</v>
+                              <v n="Fixed">true</v>
                               <v n="Extensible">false</v>
                             </o>
                             <o>
                               <v n="Flags">1</v>
+                              <v n="Fixed">true</v>
+                              <v n="Extensible">false</v>
+                            </o>
+                            <o>
+                              <v n="Flags">1</v>
+                              <v n="Fixed">true</v>
+                              <v n="Extensible">false</v>
+                            </o>
+                            <o>
+                              <v n="Flags">0</v>
+                              <v n="Fixed">true</v>
+                              <v n="Extensible">false</v>
+                            </o>
+                            <o>
+                              <v n="Flags">0</v>
+                              <v n="Fixed">true</v>
+                              <v n="Extensible">false</v>
+                            </o>
+                            <o>
+                              <v n="Flags">0</v>
+                              <v n="Fixed">true</v>
+                              <v n="Extensible">false</v>
+                            </o>
+                            <o>
+                              <v n="Flags">0</v>
+                              <v n="Fixed">true</v>
+                              <v n="Extensible">false</v>
+                            </o>
+                            <o>
+                              <v n="Flags">0</v>
+                              <v n="Fixed">true</v>
+                              <v n="Extensible">false</v>
+                            </o>
+                            <o>
+                              <v n="Flags">0</v>
                               <v n="Fixed">true</v>
                               <v n="Extensible">false</v>
                             </o>
@@ -18682,8 +18728,13 @@ FB_AlarmControl
                               <v n="Extensible">false</v>
                             </o>
                             <o>
+                              <v n="Flags">1</v>
+                              <v n="Fixed">true</v>
+                              <v n="Extensible">false</v>
+                            </o>
+                            <o>
                               <v n="Flags">0</v>
-                              <v n="Fixed">false</v>
+                              <v n="Fixed">true</v>
                               <v n="Extensible">false</v>
                             </o>
                             <o>
@@ -19349,6 +19400,25 @@ FB_AlarmControl
                                 <v n="Id">30L</v>
                               </o>
                               <v n="Id">29L</v>
+                            </o>
+                            <o t="BoxTreeOperand">
+                              <o n="Operand" t="Operand">
+                                <v n="Operand">"formingBoardSpeedDifAlarm"</v>
+                                <v n="Type">"BOOL"</v>
+                                <v n="Comment">""</v>
+                                <v n="SymbolComment">""</v>
+                                <v n="Address">""</v>
+                                <o n="Flags" t="Flags">
+                                  <v n="Flags">0</v>
+                                  <v n="Fixed">false</v>
+                                  <v n="Extensible">false</v>
+                                </o>
+                                <v n="LValue">false</v>
+                                <v n="Boolean">false</v>
+                                <v n="IsInstance">false</v>
+                                <v n="Id">279L</v>
+                              </o>
+                              <v n="Id">278L</v>
                             </o>
                             <o t="BoxTreeOperand">
                               <o n="Operand" t="Operand">
@@ -21530,6 +21600,7 @@ FB_AlarmControl
                               <v>formingBoardStretchDriveFaultAlarm</v>
                               <v>formingBoardWireOverrunOperatorSideAlarm</v>
                               <v>formingBoardWireOverrunDriveSideAlarm</v>
+                              <v>formingBoardSpeedDifAlarm</v>
                               <v>pressSectionFirstPressFaultAlarm</v>
                               <v>pressSectionFirstPressCoolingFaultAlarm</v>
                               <v>pressSectionSecondPressFaultAlarm</v>
@@ -21741,6 +21812,7 @@ FB_AlarmControl
                               <v>BOOL</v>
                               <v>BOOL</v>
                               <v>BOOL</v>
+                              <v>BOOL</v>
                             </l2>
                           </o>
                           <o n="OutputParam" t="ParamList">
@@ -21759,7 +21831,7 @@ FB_AlarmControl
                           <n n="STSnippet" />
                           <v n="ContainsExtensibleInputs">false</v>
                           <v n="ProvidesSTSnippet">false</v>
-                          <v n="Id">233L</v>
+                          <v n="Id">281L</v>
                         </o>
                         <v n="Id">228L</v>
                       </o>
@@ -23209,7 +23281,7 @@ END_VAR
                           <v n="LValue">false</v>
                           <v n="Boolean">false</v>
                           <v n="IsInstance">true</v>
-                          <v n="Id">126L</v>
+                          <v n="Id">132L</v>
                         </o>
                         <o n="OutputItems" t="OutputItemList">
                           <l2 n="OutputItems" cet="Operand">
@@ -23591,7 +23663,7 @@ END_VAR
                           </o>
                           <o>
                             <o n="Operand" t="Operand">
-                              <v n="Operand">"30"</v>
+                              <v n="Operand">"50"</v>
                               <v n="Type">"INT"</v>
                               <v n="Comment">""</v>
                               <v n="SymbolComment">""</v>
@@ -24104,8 +24176,8 @@ END_VAR
                           </o>
                           <o>
                             <o n="Operand" t="Operand">
-                              <v n="Operand">""</v>
-                              <n n="Type" />
+                              <v n="Operand">"FALSE"</v>
+                              <v n="Type">"BOOL"</v>
                               <v n="Comment">""</v>
                               <v n="SymbolComment">""</v>
                               <v n="Address">""</v>
@@ -24324,7 +24396,7 @@ END_VAR
                         <n n="STSnippet" />
                         <v n="ContainsExtensibleInputs">false</v>
                         <v n="ProvidesSTSnippet">false</v>
-                        <v n="Id">127L</v>
+                        <v n="Id">133L</v>
                       </o>
                     </l2>
                     <l2 n="Connectors" />
@@ -26964,8 +27036,8 @@ END_VAR
                           </o>
                           <o>
                             <o n="Operand" t="Operand">
-                              <v n="Operand">""</v>
-                              <n n="Type" />
+                              <v n="Operand">"T#1s"</v>
+                              <v n="Type">"TIME"</v>
                               <v n="Comment">""</v>
                               <v n="SymbolComment">""</v>
                               <v n="Address">""</v>
@@ -35060,7 +35132,7 @@ END_VAR
                             </o>
                             <o>
                               <o n="Operand" t="Operand">
-                                <v n="Operand">"startSoftstartContactorFromPressFelt1"</v>
+                                <v n="Operand">"instFB_SoftstarterWithBypass_FormingBoard.softstarterStart"</v>
                                 <v n="Type">"BOOL"</v>
                                 <v n="Comment">""</v>
                                 <v n="SymbolComment">""</v>
@@ -35831,7 +35903,7 @@ paperMachineHmiCommands.wirePitSetpointAuto
                           <v n="LValue">false</v>
                           <v n="Boolean">false</v>
                           <v n="IsInstance">true</v>
-                          <v n="Id">616L</v>
+                          <v n="Id">975L</v>
                         </o>
                         <o n="OutputItems" t="OutputItemList">
                           <l2 n="OutputItems" cet="Operand">
@@ -35988,8 +36060,8 @@ paperMachineHmiCommands.wirePitSetpointAuto
                           <v n="Extensible">false</v>
                         </o>
                         <n n="InputFlags" />
-                        <l2 n="InputItems" cet="BoxTreeOperand">
-                          <o>
+                        <l2 n="InputItems">
+                          <o t="BoxTreeOperand">
                             <o n="Operand" t="Operand">
                               <v n="Operand">"paperMachineHmiCommands.whiteWaterSiloSetpointManInc"</v>
                               <v n="Type">"BOOL"</v>
@@ -36008,7 +36080,7 @@ paperMachineHmiCommands.wirePitSetpointAuto
                             </o>
                             <v n="Id">627L</v>
                           </o>
-                          <o>
+                          <o t="BoxTreeOperand">
                             <o n="Operand" t="Operand">
                               <v n="Operand">"paperMachineHmiCommands.whiteWaterSiloSetpointManDec"</v>
                               <v n="Type">"BOOL"</v>
@@ -36027,7 +36099,7 @@ paperMachineHmiCommands.wirePitSetpointAuto
                             </o>
                             <v n="Id">629L</v>
                           </o>
-                          <o>
+                          <o t="BoxTreeOperand">
                             <o n="Operand" t="Operand">
                               <v n="Operand">"1.0"</v>
                               <v n="Type">"LREAL"</v>
@@ -36046,7 +36118,7 @@ paperMachineHmiCommands.wirePitSetpointAuto
                             </o>
                             <v n="Id">631L</v>
                           </o>
-                          <o>
+                          <o t="BoxTreeOperand">
                             <o n="Operand" t="Operand">
                               <v n="Operand">"paperMachineHmiCommands.whiteWaterSiloSetpointAutoInc"</v>
                               <v n="Type">"BOOL"</v>
@@ -36065,7 +36137,7 @@ paperMachineHmiCommands.wirePitSetpointAuto
                             </o>
                             <v n="Id">633L</v>
                           </o>
-                          <o>
+                          <o t="BoxTreeOperand">
                             <o n="Operand" t="Operand">
                               <v n="Operand">"paperMachineHmiCommands.whiteWaterSiloSetpointAutoDec"</v>
                               <v n="Type">"BOOL"</v>
@@ -36084,7 +36156,7 @@ paperMachineHmiCommands.wirePitSetpointAuto
                             </o>
                             <v n="Id">635L</v>
                           </o>
-                          <o>
+                          <o t="BoxTreeOperand">
                             <o n="Operand" t="Operand">
                               <v n="Operand">"1.0"</v>
                               <v n="Type">"LREAL"</v>
@@ -36103,7 +36175,365 @@ paperMachineHmiCommands.wirePitSetpointAuto
                             </o>
                             <v n="Id">637L</v>
                           </o>
-                          <o>
+                          <o t="BoxTreeBox">
+                            <v n="BoxType">"TON"</v>
+                            <o n="Instance" t="Operand">
+                              <v n="Operand">"instTONWirePitLevel2_Delay"</v>
+                              <v n="Type">"TON"</v>
+                              <v n="Comment">""</v>
+                              <v n="SymbolComment">""</v>
+                              <v n="Address">""</v>
+                              <o n="Flags" t="Flags">
+                                <v n="Flags">0</v>
+                                <v n="Fixed">false</v>
+                                <v n="Extensible">false</v>
+                              </o>
+                              <v n="LValue">false</v>
+                              <v n="Boolean">false</v>
+                              <v n="IsInstance">true</v>
+                              <v n="Id">1015L</v>
+                            </o>
+                            <o n="OutputItems" t="OutputItemList">
+                              <l2 n="OutputItems" cet="Operand">
+                                <n />
+                                <o>
+                                  <v n="Operand">""</v>
+                                  <n n="Type" />
+                                  <v n="Comment">""</v>
+                                  <v n="SymbolComment">""</v>
+                                  <v n="Address">""</v>
+                                  <o n="Flags" t="Flags">
+                                    <v n="Flags">0</v>
+                                    <v n="Fixed">false</v>
+                                    <v n="Extensible">false</v>
+                                  </o>
+                                  <v n="LValue">true</v>
+                                  <v n="Boolean">false</v>
+                                  <v n="IsInstance">false</v>
+                                  <v n="Id">1017L</v>
+                                </o>
+                              </l2>
+                            </o>
+                            <o n="Flags" t="Flags">
+                              <v n="Flags">0</v>
+                              <v n="Fixed">true</v>
+                              <v n="Extensible">false</v>
+                            </o>
+                            <n n="InputFlags" />
+                            <l2 n="InputItems">
+                              <o t="BoxTreeBox">
+                                <v n="BoxType">"OR"</v>
+                                <o n="Instance" t="Operand">
+                                  <n n="Operand" />
+                                  <v n="Type">""</v>
+                                  <v n="Comment">""</v>
+                                  <v n="SymbolComment">""</v>
+                                  <v n="Address">""</v>
+                                  <o n="Flags" t="Flags">
+                                    <v n="Flags">0</v>
+                                    <v n="Fixed">false</v>
+                                    <v n="Extensible">false</v>
+                                  </o>
+                                  <v n="LValue">false</v>
+                                  <v n="Boolean">false</v>
+                                  <v n="IsInstance">true</v>
+                                  <v n="Id">983L</v>
+                                </o>
+                                <o n="OutputItems" t="OutputItemList">
+                                  <l2 n="OutputItems">
+                                    <n />
+                                  </l2>
+                                </o>
+                                <o n="Flags" t="Flags">
+                                  <v n="Flags">0</v>
+                                  <v n="Fixed">true</v>
+                                  <v n="Extensible">false</v>
+                                </o>
+                                <l2 n="InputFlags" cet="Flags">
+                                  <o>
+                                    <v n="Flags">1</v>
+                                    <v n="Fixed">true</v>
+                                    <v n="Extensible">false</v>
+                                  </o>
+                                  <o>
+                                    <v n="Flags">0</v>
+                                    <v n="Fixed">false</v>
+                                    <v n="Extensible">false</v>
+                                  </o>
+                                  <o>
+                                    <v n="Flags">0</v>
+                                    <v n="Fixed">false</v>
+                                    <v n="Extensible">false</v>
+                                  </o>
+                                </l2>
+                                <l2 n="InputItems">
+                                  <o t="BoxTreeOperand">
+                                    <o n="Operand" t="Operand">
+                                      <v n="Operand">"P1_100_UG02.commandWord.enableDrive"</v>
+                                      <v n="Type">"BOOL"</v>
+                                      <v n="Comment">""</v>
+                                      <v n="SymbolComment">""</v>
+                                      <v n="Address">""</v>
+                                      <o n="Flags" t="Flags">
+                                        <v n="Flags">0</v>
+                                        <v n="Fixed">false</v>
+                                        <v n="Extensible">false</v>
+                                      </o>
+                                      <v n="LValue">false</v>
+                                      <v n="Boolean">false</v>
+                                      <v n="IsInstance">false</v>
+                                      <v n="Id">978L</v>
+                                    </o>
+                                    <v n="Id">977L</v>
+                                  </o>
+                                  <o t="BoxTreeBox">
+                                    <v n="BoxType">"LT"</v>
+                                    <o n="Instance" t="Operand">
+                                      <n n="Operand" />
+                                      <v n="Type">""</v>
+                                      <v n="Comment">""</v>
+                                      <v n="SymbolComment">""</v>
+                                      <v n="Address">""</v>
+                                      <o n="Flags" t="Flags">
+                                        <v n="Flags">0</v>
+                                        <v n="Fixed">false</v>
+                                        <v n="Extensible">false</v>
+                                      </o>
+                                      <v n="LValue">false</v>
+                                      <v n="Boolean">false</v>
+                                      <v n="IsInstance">true</v>
+                                      <v n="Id">991L</v>
+                                    </o>
+                                    <o n="OutputItems" t="OutputItemList">
+                                      <l2 n="OutputItems">
+                                        <n />
+                                      </l2>
+                                    </o>
+                                    <o n="Flags" t="Flags">
+                                      <v n="Flags">0</v>
+                                      <v n="Fixed">true</v>
+                                      <v n="Extensible">false</v>
+                                    </o>
+                                    <n n="InputFlags" />
+                                    <l2 n="InputItems" cet="BoxTreeOperand">
+                                      <o>
+                                        <o n="Operand" t="Operand">
+                                          <v n="Operand">"paperMachineHmiStatus.whiteWaterSiloLevel"</v>
+                                          <v n="Type">"REAL"</v>
+                                          <v n="Comment">""</v>
+                                          <v n="SymbolComment">""</v>
+                                          <v n="Address">""</v>
+                                          <o n="Flags" t="Flags">
+                                            <v n="Flags">0</v>
+                                            <v n="Fixed">false</v>
+                                            <v n="Extensible">false</v>
+                                          </o>
+                                          <v n="LValue">false</v>
+                                          <v n="Boolean">false</v>
+                                          <v n="IsInstance">false</v>
+                                          <v n="Id">982L</v>
+                                        </o>
+                                        <v n="Id">981L</v>
+                                      </o>
+                                      <o>
+                                        <o n="Operand" t="Operand">
+                                          <v n="Operand">"85"</v>
+                                          <v n="Type">"INT"</v>
+                                          <v n="Comment">""</v>
+                                          <v n="SymbolComment">""</v>
+                                          <v n="Address">""</v>
+                                          <o n="Flags" t="Flags">
+                                            <v n="Flags">0</v>
+                                            <v n="Fixed">false</v>
+                                            <v n="Extensible">false</v>
+                                          </o>
+                                          <v n="LValue">false</v>
+                                          <v n="Boolean">false</v>
+                                          <v n="IsInstance">false</v>
+                                          <v n="Id">988L</v>
+                                        </o>
+                                        <v n="Id">987L</v>
+                                      </o>
+                                    </l2>
+                                    <o n="InputParam" t="ParamList">
+                                      <l2 n="Names" />
+                                      <l2 n="Types" />
+                                    </o>
+                                    <o n="OutputParam" t="ParamList">
+                                      <l2 n="Names" cet="String">
+                                        <v></v>
+                                      </l2>
+                                      <l2 n="Types" cet="String">
+                                        <v>BOOL</v>
+                                      </l2>
+                                    </o>
+                                    <v n="CallType" t="Operator">Lt</v>
+                                    <v n="EN">false</v>
+                                    <v n="ENO">false</v>
+                                    <n n="STSnippet" />
+                                    <v n="ContainsExtensibleInputs">false</v>
+                                    <v n="ProvidesSTSnippet">false</v>
+                                    <v n="Id">992L</v>
+                                  </o>
+                                  <o t="BoxTreeBox">
+                                    <v n="BoxType">"LT"</v>
+                                    <o n="Instance" t="Operand">
+                                      <n n="Operand" />
+                                      <v n="Type">""</v>
+                                      <v n="Comment">""</v>
+                                      <v n="SymbolComment">""</v>
+                                      <v n="Address">""</v>
+                                      <o n="Flags" t="Flags">
+                                        <v n="Flags">0</v>
+                                        <v n="Fixed">false</v>
+                                        <v n="Extensible">false</v>
+                                      </o>
+                                      <v n="LValue">false</v>
+                                      <v n="Boolean">false</v>
+                                      <v n="IsInstance">true</v>
+                                      <v n="Id">995L</v>
+                                    </o>
+                                    <o n="OutputItems" t="OutputItemList">
+                                      <l2 n="OutputItems">
+                                        <n />
+                                      </l2>
+                                    </o>
+                                    <o n="Flags" t="Flags">
+                                      <v n="Flags">0</v>
+                                      <v n="Fixed">true</v>
+                                      <v n="Extensible">false</v>
+                                    </o>
+                                    <n n="InputFlags" />
+                                    <l2 n="InputItems" cet="BoxTreeOperand">
+                                      <o>
+                                        <o n="Operand" t="Operand">
+                                          <v n="Operand">"paperMachineHmiStatus.wirePitLevel"</v>
+                                          <v n="Type">"REAL"</v>
+                                          <v n="Comment">""</v>
+                                          <v n="SymbolComment">""</v>
+                                          <v n="Address">""</v>
+                                          <o n="Flags" t="Flags">
+                                            <v n="Flags">0</v>
+                                            <v n="Fixed">false</v>
+                                            <v n="Extensible">false</v>
+                                          </o>
+                                          <v n="LValue">false</v>
+                                          <v n="Boolean">false</v>
+                                          <v n="IsInstance">false</v>
+                                          <v n="Id">998L</v>
+                                        </o>
+                                        <v n="Id">997L</v>
+                                      </o>
+                                      <o>
+                                        <o n="Operand" t="Operand">
+                                          <v n="Operand">"50"</v>
+                                          <v n="Type">"INT"</v>
+                                          <v n="Comment">""</v>
+                                          <v n="SymbolComment">""</v>
+                                          <v n="Address">""</v>
+                                          <o n="Flags" t="Flags">
+                                            <v n="Flags">0</v>
+                                            <v n="Fixed">false</v>
+                                            <v n="Extensible">false</v>
+                                          </o>
+                                          <v n="LValue">false</v>
+                                          <v n="Boolean">false</v>
+                                          <v n="IsInstance">false</v>
+                                          <v n="Id">1000L</v>
+                                        </o>
+                                        <v n="Id">999L</v>
+                                      </o>
+                                    </l2>
+                                    <o n="InputParam" t="ParamList">
+                                      <l2 n="Names" />
+                                      <l2 n="Types" />
+                                    </o>
+                                    <o n="OutputParam" t="ParamList">
+                                      <l2 n="Names" cet="String">
+                                        <v></v>
+                                      </l2>
+                                      <l2 n="Types" cet="String">
+                                        <v>BOOL</v>
+                                      </l2>
+                                    </o>
+                                    <v n="CallType" t="Operator">Lt</v>
+                                    <v n="EN">false</v>
+                                    <v n="ENO">false</v>
+                                    <n n="STSnippet" />
+                                    <v n="ContainsExtensibleInputs">false</v>
+                                    <v n="ProvidesSTSnippet">false</v>
+                                    <v n="Id">996L</v>
+                                  </o>
+                                </l2>
+                                <o n="InputParam" t="ParamList">
+                                  <l2 n="Names" />
+                                  <l2 n="Types" />
+                                </o>
+                                <o n="OutputParam" t="ParamList">
+                                  <l2 n="Names" cet="String">
+                                    <v></v>
+                                  </l2>
+                                  <l2 n="Types" cet="String">
+                                    <v>BOOL</v>
+                                  </l2>
+                                </o>
+                                <v n="CallType" t="Operator">Or</v>
+                                <v n="EN">false</v>
+                                <v n="ENO">false</v>
+                                <n n="STSnippet" />
+                                <v n="ContainsExtensibleInputs">false</v>
+                                <v n="ProvidesSTSnippet">false</v>
+                                <v n="Id">984L</v>
+                              </o>
+                              <o t="BoxTreeOperand">
+                                <o n="Operand" t="Operand">
+                                  <v n="Operand">"T#30s"</v>
+                                  <v n="Type">"TIME"</v>
+                                  <v n="Comment">""</v>
+                                  <v n="SymbolComment">""</v>
+                                  <v n="Address">""</v>
+                                  <o n="Flags" t="Flags">
+                                    <v n="Flags">0</v>
+                                    <v n="Fixed">false</v>
+                                    <v n="Extensible">false</v>
+                                  </o>
+                                  <v n="LValue">false</v>
+                                  <v n="Boolean">false</v>
+                                  <v n="IsInstance">false</v>
+                                  <v n="Id">1014L</v>
+                                </o>
+                                <v n="Id">1013L</v>
+                              </o>
+                            </l2>
+                            <o n="InputParam" t="ParamList">
+                              <l2 n="Names" cet="String">
+                                <v>IN</v>
+                                <v>PT</v>
+                              </l2>
+                              <l2 n="Types" cet="String">
+                                <v>BOOL</v>
+                                <v>TIME</v>
+                              </l2>
+                            </o>
+                            <o n="OutputParam" t="ParamList">
+                              <l2 n="Names" cet="String">
+                                <v>Q</v>
+                                <v>ET</v>
+                              </l2>
+                              <l2 n="Types" cet="String">
+                                <v>BOOL</v>
+                                <v>TIME</v>
+                              </l2>
+                            </o>
+                            <v n="CallType" t="Operator">FunctionBlock</v>
+                            <v n="EN">false</v>
+                            <v n="ENO">false</v>
+                            <n n="STSnippet" />
+                            <v n="ContainsExtensibleInputs">false</v>
+                            <v n="ProvidesSTSnippet">false</v>
+                            <v n="Id">1016L</v>
+                          </o>
+                          <o t="BoxTreeOperand">
                             <o n="Operand" t="Operand">
                               <v n="Operand">"paperMachineHmiCommands.whiteWaterSiloAutoMan"</v>
                               <v n="Type">"BOOL"</v>
@@ -36122,7 +36552,7 @@ paperMachineHmiCommands.wirePitSetpointAuto
                             </o>
                             <v n="Id">639L</v>
                           </o>
-                          <o>
+                          <o t="BoxTreeOperand">
                             <o n="Operand" t="Operand">
                               <v n="Operand">"TRUE"</v>
                               <v n="Type">"BOOL"</v>
@@ -36141,7 +36571,7 @@ paperMachineHmiCommands.wirePitSetpointAuto
                             </o>
                             <v n="Id">641L</v>
                           </o>
-                          <o>
+                          <o t="BoxTreeOperand">
                             <o n="Operand" t="Operand">
                               <v n="Operand">"P1_050_AI4.Channel1"</v>
                               <v n="Type">"REAL"</v>
@@ -36160,7 +36590,7 @@ paperMachineHmiCommands.wirePitSetpointAuto
                             </o>
                             <v n="Id">643L</v>
                           </o>
-                          <o>
+                          <o t="BoxTreeOperand">
                             <o n="Operand" t="Operand">
                               <v n="Operand">"1"</v>
                               <v n="Type">"INT"</v>
@@ -36179,9 +36609,9 @@ paperMachineHmiCommands.wirePitSetpointAuto
                             </o>
                             <v n="Id">645L</v>
                           </o>
-                          <o>
+                          <o t="BoxTreeOperand">
                             <o n="Operand" t="Operand">
-                              <v n="Operand">"1200"</v>
+                              <v n="Operand">"500"</v>
                               <v n="Type">"INT"</v>
                               <v n="Comment">""</v>
                               <v n="SymbolComment">""</v>
@@ -36198,10 +36628,10 @@ paperMachineHmiCommands.wirePitSetpointAuto
                             </o>
                             <v n="Id">647L</v>
                           </o>
-                          <o>
+                          <o t="BoxTreeOperand">
                             <o n="Operand" t="Operand">
-                              <v n="Operand">"0"</v>
-                              <v n="Type">"INT"</v>
+                              <v n="Operand">""</v>
+                              <n n="Type" />
                               <v n="Comment">""</v>
                               <v n="SymbolComment">""</v>
                               <v n="Address">""</v>
@@ -36217,7 +36647,7 @@ paperMachineHmiCommands.wirePitSetpointAuto
                             </o>
                             <v n="Id">649L</v>
                           </o>
-                          <o>
+                          <o t="BoxTreeOperand">
                             <o n="Operand" t="Operand">
                               <v n="Operand">""</v>
                               <n n="Type" />
@@ -36236,7 +36666,7 @@ paperMachineHmiCommands.wirePitSetpointAuto
                             </o>
                             <v n="Id">651L</v>
                           </o>
-                          <o>
+                          <o t="BoxTreeOperand">
                             <o n="Operand" t="Operand">
                               <v n="Operand">""</v>
                               <n n="Type" />
@@ -36255,7 +36685,7 @@ paperMachineHmiCommands.wirePitSetpointAuto
                             </o>
                             <v n="Id">653L</v>
                           </o>
-                          <o>
+                          <o t="BoxTreeOperand">
                             <o n="Operand" t="Operand">
                               <v n="Operand">""</v>
                               <n n="Type" />
@@ -36274,7 +36704,7 @@ paperMachineHmiCommands.wirePitSetpointAuto
                             </o>
                             <v n="Id">655L</v>
                           </o>
-                          <o>
+                          <o t="BoxTreeOperand">
                             <o n="Operand" t="Operand">
                               <v n="Operand">""</v>
                               <n n="Type" />
@@ -36293,7 +36723,7 @@ paperMachineHmiCommands.wirePitSetpointAuto
                             </o>
                             <v n="Id">657L</v>
                           </o>
-                          <o>
+                          <o t="BoxTreeOperand">
                             <o n="Operand" t="Operand">
                               <v n="Operand">"1"</v>
                               <v n="Type">"INT"</v>
@@ -36312,7 +36742,7 @@ paperMachineHmiCommands.wirePitSetpointAuto
                             </o>
                             <v n="Id">659L</v>
                           </o>
-                          <o>
+                          <o t="BoxTreeOperand">
                             <o n="Operand" t="Operand">
                               <v n="Operand">""</v>
                               <n n="Type" />
@@ -36331,7 +36761,7 @@ paperMachineHmiCommands.wirePitSetpointAuto
                             </o>
                             <v n="Id">661L</v>
                           </o>
-                          <o>
+                          <o t="BoxTreeOperand">
                             <o n="Operand" t="Operand">
                               <v n="Operand">"T#1s"</v>
                               <v n="Type">"TIME"</v>
@@ -36350,7 +36780,7 @@ paperMachineHmiCommands.wirePitSetpointAuto
                             </o>
                             <v n="Id">663L</v>
                           </o>
-                          <o>
+                          <o t="BoxTreeOperand">
                             <o n="Operand" t="Operand">
                               <v n="Operand">""</v>
                               <n n="Type" />
@@ -36369,7 +36799,7 @@ paperMachineHmiCommands.wirePitSetpointAuto
                             </o>
                             <v n="Id">665L</v>
                           </o>
-                          <o>
+                          <o t="BoxTreeOperand">
                             <o n="Operand" t="Operand">
                               <v n="Operand">"T#2s"</v>
                               <v n="Type">"TIME"</v>
@@ -36388,7 +36818,7 @@ paperMachineHmiCommands.wirePitSetpointAuto
                             </o>
                             <v n="Id">667L</v>
                           </o>
-                          <o>
+                          <o t="BoxTreeOperand">
                             <o n="Operand" t="Operand">
                               <v n="Operand">"FALSE"</v>
                               <v n="Type">"BOOL"</v>
@@ -36407,7 +36837,7 @@ paperMachineHmiCommands.wirePitSetpointAuto
                             </o>
                             <v n="Id">669L</v>
                           </o>
-                          <o>
+                          <o t="BoxTreeOperand">
                             <o n="Operand" t="Operand">
                               <v n="Operand">""</v>
                               <n n="Type" />
@@ -36426,7 +36856,7 @@ paperMachineHmiCommands.wirePitSetpointAuto
                             </o>
                             <v n="Id">671L</v>
                           </o>
-                          <o>
+                          <o t="BoxTreeOperand">
                             <o n="Operand" t="Operand">
                               <v n="Operand">""</v>
                               <n n="Type" />
@@ -36445,7 +36875,7 @@ paperMachineHmiCommands.wirePitSetpointAuto
                             </o>
                             <v n="Id">673L</v>
                           </o>
-                          <o>
+                          <o t="BoxTreeOperand">
                             <o n="Operand" t="Operand">
                               <v n="Operand">""</v>
                               <n n="Type" />
@@ -36464,7 +36894,7 @@ paperMachineHmiCommands.wirePitSetpointAuto
                             </o>
                             <v n="Id">675L</v>
                           </o>
-                          <o>
+                          <o t="BoxTreeOperand">
                             <o n="Operand" t="Operand">
                               <v n="Operand">""</v>
                               <n n="Type" />
@@ -36483,7 +36913,7 @@ paperMachineHmiCommands.wirePitSetpointAuto
                             </o>
                             <v n="Id">677L</v>
                           </o>
-                          <o>
+                          <o t="BoxTreeOperand">
                             <o n="Operand" t="Operand">
                               <v n="Operand">""</v>
                               <n n="Type" />
@@ -36502,7 +36932,7 @@ paperMachineHmiCommands.wirePitSetpointAuto
                             </o>
                             <v n="Id">679L</v>
                           </o>
-                          <o>
+                          <o t="BoxTreeOperand">
                             <o n="Operand" t="Operand">
                               <v n="Operand">""</v>
                               <n n="Type" />
@@ -36521,7 +36951,7 @@ paperMachineHmiCommands.wirePitSetpointAuto
                             </o>
                             <v n="Id">681L</v>
                           </o>
-                          <o>
+                          <o t="BoxTreeOperand">
                             <o n="Operand" t="Operand">
                               <v n="Operand">""</v>
                               <n n="Type" />
@@ -36540,7 +36970,7 @@ paperMachineHmiCommands.wirePitSetpointAuto
                             </o>
                             <v n="Id">683L</v>
                           </o>
-                          <o>
+                          <o t="BoxTreeOperand">
                             <o n="Operand" t="Operand">
                               <v n="Operand">""</v>
                               <n n="Type" />
@@ -36559,7 +36989,7 @@ paperMachineHmiCommands.wirePitSetpointAuto
                             </o>
                             <v n="Id">685L</v>
                           </o>
-                          <o>
+                          <o t="BoxTreeOperand">
                             <o n="Operand" t="Operand">
                               <v n="Operand">""</v>
                               <n n="Type" />
@@ -36578,7 +37008,7 @@ paperMachineHmiCommands.wirePitSetpointAuto
                             </o>
                             <v n="Id">687L</v>
                           </o>
-                          <o>
+                          <o t="BoxTreeOperand">
                             <o n="Operand" t="Operand">
                               <v n="Operand">""</v>
                               <n n="Type" />
@@ -36597,7 +37027,7 @@ paperMachineHmiCommands.wirePitSetpointAuto
                             </o>
                             <v n="Id">689L</v>
                           </o>
-                          <o>
+                          <o t="BoxTreeOperand">
                             <o n="Operand" t="Operand">
                               <v n="Operand">""</v>
                               <n n="Type" />
@@ -36616,7 +37046,7 @@ paperMachineHmiCommands.wirePitSetpointAuto
                             </o>
                             <v n="Id">691L</v>
                           </o>
-                          <o>
+                          <o t="BoxTreeOperand">
                             <o n="Operand" t="Operand">
                               <v n="Operand">""</v>
                               <n n="Type" />
@@ -36635,7 +37065,7 @@ paperMachineHmiCommands.wirePitSetpointAuto
                             </o>
                             <v n="Id">693L</v>
                           </o>
-                          <o>
+                          <o t="BoxTreeOperand">
                             <o n="Operand" t="Operand">
                               <v n="Operand">""</v>
                               <n n="Type" />
@@ -36654,7 +37084,7 @@ paperMachineHmiCommands.wirePitSetpointAuto
                             </o>
                             <v n="Id">695L</v>
                           </o>
-                          <o>
+                          <o t="BoxTreeOperand">
                             <o n="Operand" t="Operand">
                               <v n="Operand">""</v>
                               <n n="Type" />
@@ -36673,7 +37103,7 @@ paperMachineHmiCommands.wirePitSetpointAuto
                             </o>
                             <v n="Id">697L</v>
                           </o>
-                          <o>
+                          <o t="BoxTreeOperand">
                             <o n="Operand" t="Operand">
                               <v n="Operand">""</v>
                               <n n="Type" />
@@ -36692,7 +37122,7 @@ paperMachineHmiCommands.wirePitSetpointAuto
                             </o>
                             <v n="Id">699L</v>
                           </o>
-                          <o>
+                          <o t="BoxTreeOperand">
                             <o n="Operand" t="Operand">
                               <v n="Operand">""</v>
                               <n n="Type" />
@@ -36711,7 +37141,7 @@ paperMachineHmiCommands.wirePitSetpointAuto
                             </o>
                             <v n="Id">701L</v>
                           </o>
-                          <o>
+                          <o t="BoxTreeOperand">
                             <o n="Operand" t="Operand">
                               <v n="Operand">""</v>
                               <n n="Type" />
@@ -36730,7 +37160,7 @@ paperMachineHmiCommands.wirePitSetpointAuto
                             </o>
                             <v n="Id">703L</v>
                           </o>
-                          <o>
+                          <o t="BoxTreeOperand">
                             <o n="Operand" t="Operand">
                               <v n="Operand">""</v>
                               <n n="Type" />
@@ -36749,7 +37179,7 @@ paperMachineHmiCommands.wirePitSetpointAuto
                             </o>
                             <v n="Id">705L</v>
                           </o>
-                          <o>
+                          <o t="BoxTreeOperand">
                             <o n="Operand" t="Operand">
                               <v n="Operand">""</v>
                               <n n="Type" />
@@ -36768,7 +37198,7 @@ paperMachineHmiCommands.wirePitSetpointAuto
                             </o>
                             <v n="Id">707L</v>
                           </o>
-                          <o>
+                          <o t="BoxTreeOperand">
                             <o n="Operand" t="Operand">
                               <v n="Operand">""</v>
                               <n n="Type" />
@@ -36787,7 +37217,7 @@ paperMachineHmiCommands.wirePitSetpointAuto
                             </o>
                             <v n="Id">709L</v>
                           </o>
-                          <o>
+                          <o t="BoxTreeOperand">
                             <o n="Operand" t="Operand">
                               <v n="Operand">""</v>
                               <n n="Type" />
@@ -36806,7 +37236,7 @@ paperMachineHmiCommands.wirePitSetpointAuto
                             </o>
                             <v n="Id">711L</v>
                           </o>
-                          <o>
+                          <o t="BoxTreeOperand">
                             <o n="Operand" t="Operand">
                               <v n="Operand">"paperMachineHmiCommands.whiteWaterSiloSetpointMan"</v>
                               <v n="Type">"REAL"</v>
@@ -36825,7 +37255,7 @@ paperMachineHmiCommands.wirePitSetpointAuto
                             </o>
                             <v n="Id">713L</v>
                           </o>
-                          <o>
+                          <o t="BoxTreeOperand">
                             <o n="Operand" t="Operand">
                               <v n="Operand">"paperMachineHmiCommands.wirePitSetpointAuto"</v>
                               <v n="Type">"REAL"</v>
@@ -36853,6 +37283,7 @@ paperMachineHmiCommands.wirePitSetpointAuto
                             <v>processSetpointAutoInc</v>
                             <v>processSetpointAutoDec</v>
                             <v>processSetpointAutoSteps</v>
+                            <v>holdClosed</v>
                             <v>autoMode</v>
                             <v>reverseActing</v>
                             <v>processFeedbackEng</v>
@@ -36900,6 +37331,7 @@ paperMachineHmiCommands.wirePitSetpointAuto
                             <v>BOOL</v>
                             <v>BOOL</v>
                             <v>REAL</v>
+                            <v>BOOL</v>
                             <v>BOOL</v>
                             <v>BOOL</v>
                             <v>REAL</v>
@@ -36973,7 +37405,7 @@ paperMachineHmiCommands.wirePitSetpointAuto
                         <n n="STSnippet" />
                         <v n="ContainsExtensibleInputs">false</v>
                         <v n="ProvidesSTSnippet">false</v>
-                        <v n="Id">617L</v>
+                        <v n="Id">976L</v>
                       </o>
                     </l2>
                     <l2 n="Connectors" />
@@ -37457,8 +37889,8 @@ paperMachineHmiCommands.wirePitSetpointAuto
                           </o>
                           <o>
                             <o n="Operand" t="Operand">
-                              <v n="Operand">"0.5"</v>
-                              <v n="Type">"LREAL"</v>
+                              <v n="Operand">"1"</v>
+                              <v n="Type">"INT"</v>
                               <v n="Comment">""</v>
                               <v n="SymbolComment">""</v>
                               <v n="Address">""</v>
@@ -37476,7 +37908,7 @@ paperMachineHmiCommands.wirePitSetpointAuto
                           </o>
                           <o>
                             <o n="Operand" t="Operand">
-                              <v n="Operand">"10"</v>
+                              <v n="Operand">"100"</v>
                               <v n="Type">"INT"</v>
                               <v n="Comment">""</v>
                               <v n="SymbolComment">""</v>
@@ -38065,7 +38497,7 @@ paperMachineHmiCommands.wirePitSetpointAuto
                           </o>
                           <o>
                             <o n="Operand" t="Operand">
-                              <v n="Operand">"30"</v>
+                              <v n="Operand">"65"</v>
                               <v n="Type">"INT"</v>
                               <v n="Comment">""</v>
                               <v n="SymbolComment">""</v>

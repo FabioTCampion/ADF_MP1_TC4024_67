@@ -215,7 +215,7 @@ ELSE
 END_IF;
 
 // Detect when a new target speed change requires ramping
-IF NOT (rampActive AND ABS(rampTargetRPM - baseMasterRefRPM) >= 0.05) OR NOT paperPresenceSensor THEN
+IF NOT (rampActive AND ABS(rampTargetRPM - baseMasterRefRPM) >= 1) OR NOT paperPresenceSensor THEN
    rampActive := TRUE; // Rising edge — ramp request detected
  
 END_IF;

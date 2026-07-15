@@ -457,8 +457,8 @@ CASE step OF
                     KP  := kpUse,
                     TN  := tn,
                     TV  := tv,
-                    LL  := outLowLimitPct,
-                    LH  := outHighLimitPct,
+//                    LL  := outLowLimitPct,
+//                    LH  := outHighLimitPct,
                     Y   => yPID,
                     DIFF=> pidDiff,
                     LIM => pidLimited
@@ -478,8 +478,8 @@ CASE step OF
                     KP  := kpUse,
                     TN  := tn,
                     TV  := tv,
-                    LL  := outLowLimitPct,
-                    LH  := outHighLimitPct,
+//                    LL  := outLowLimitPct,
+//                    LH  := outHighLimitPct,
                     Y   => yPID,
                     DIFF=> pidDiff,
                     LIM => pidLimited
@@ -488,8 +488,15 @@ CASE step OF
                 // Mode select, offset, clamp
                 IF autoMode THEN
                     controlOutputPct := yPID;
+					instPID.LL := outLowLimitPct;
+					instPID.LH := outHighLimitPct;
+				
+					
                 ELSE
                     controlOutputPct := manualCmd;
+					instPID.LL := manualCmd;
+					instPID.LH := manualCmd;
+				
                 END_IF
 
                 controlOutputPct := LIMIT(outLowLimitPct, controlOutputPct + outputOffsetPct, outHighLimitPct);
@@ -664,7 +671,16 @@ instTUNE2AutoSetpoint(
       </Implementation>
     </Method>
     <LineIds Name="FB_WirePitControl">
-      <LineId Id="8502" Count="343" />
+      <LineId Id="8502" Count="298" />
+      <LineId Id="9034" Count="0" />
+      <LineId Id="9036" Count="0" />
+      <LineId Id="9035" Count="0" />
+      <LineId Id="9033" Count="0" />
+      <LineId Id="8801" Count="1" />
+      <LineId Id="9038" Count="0" />
+      <LineId Id="9037" Count="0" />
+      <LineId Id="9039" Count="0" />
+      <LineId Id="8803" Count="42" />
       <LineId Id="6072" Count="0" />
     </LineIds>
     <LineIds Name="FB_WirePitControl._FeedbackDisplay">

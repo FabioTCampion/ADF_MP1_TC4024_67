@@ -65,6 +65,7 @@ VAR_OUTPUT
     deviceState                 : STRING; // Current state string / Estado atual em texto
     statusCode                  : INT;    // 0=Idle, 1=Starting, 2=Running, 3=Fault
     groupFault                  : BOOL;   // TRUE if any group fault active / Falha geral do grupo
+	speedDifError: BOOL;
 
     //────────────────────────────────────────────
     // SPEED REFERENCES (TO DRIVES) AND DISPLAY
@@ -120,8 +121,11 @@ VAR
 	instFB_GroupTorqueTrimControl_V2  : FB_GroupTorqueTrimControl_V2;
 
 	speedDif: REAL;
-	speedDifError: BOOL;
 	instTONWireOverRunTrip: TON;
+	instTONSpeedDifDelay: TON;
+	instTOF_PaperPresenseDelay : TOF;	
+	
+	instTPSpeedDifErrorHold: TP;
 END_VAR
 
 VAR PERSISTENT
@@ -1359,8 +1363,8 @@ END_VAR]]></Declaration>
                             <v n="Extensible">false</v>
                           </o>
                           <n n="InputFlags" />
-                          <l2 n="InputItems" cet="BoxTreeOperand">
-                            <o>
+                          <l2 n="InputItems">
+                            <o t="BoxTreeOperand">
                               <o n="Operand" t="Operand">
                                 <v n="Operand">"groupSpeedAutoMan"</v>
                                 <v n="Type">"BOOL"</v>
@@ -1379,7 +1383,7 @@ END_VAR]]></Declaration>
                               </o>
                               <v n="Id">815L</v>
                             </o>
-                            <o>
+                            <o t="BoxTreeOperand">
                               <o n="Operand" t="Operand">
                                 <v n="Operand">"groupAutoSpeedMPM"</v>
                                 <v n="Type">"REAL"</v>
@@ -1398,7 +1402,7 @@ END_VAR]]></Declaration>
                               </o>
                               <v n="Id">817L</v>
                             </o>
-                            <o>
+                            <o t="BoxTreeOperand">
                               <o n="Operand" t="Operand">
                                 <v n="Operand">"groupManualSpeedMPM"</v>
                                 <v n="Type">"REAL"</v>
@@ -1417,7 +1421,7 @@ END_VAR]]></Declaration>
                               </o>
                               <v n="Id">819L</v>
                             </o>
-                            <o>
+                            <o t="BoxTreeOperand">
                               <o n="Operand" t="Operand">
                                 <v n="Operand">"groupRecoverSpeedCmd"</v>
                                 <v n="Type">"BOOL"</v>
@@ -1436,7 +1440,7 @@ END_VAR]]></Declaration>
                               </o>
                               <v n="Id">821L</v>
                             </o>
-                            <o>
+                            <o t="BoxTreeOperand">
                               <o n="Operand" t="Operand">
                                 <v n="Operand">"machineConfig.groupRecoverIncrement"</v>
                                 <v n="Type">"REAL"</v>
@@ -1455,10 +1459,11 @@ END_VAR]]></Declaration>
                               </o>
                               <v n="Id">823L</v>
                             </o>
-                            <o>
-                              <o n="Operand" t="Operand">
-                                <v n="Operand">"paperPresenceSensor"</v>
-                                <v n="Type">"BOOL"</v>
+                            <o t="BoxTreeBox">
+                              <v n="BoxType">"TOF"</v>
+                              <o n="Instance" t="Operand">
+                                <v n="Operand">"instTOF_PaperPresenseDelay"</v>
+                                <v n="Type">"TOF"</v>
                                 <v n="Comment">""</v>
                                 <v n="SymbolComment">""</v>
                                 <v n="Address">""</v>
@@ -1469,12 +1474,105 @@ END_VAR]]></Declaration>
                                 </o>
                                 <v n="LValue">false</v>
                                 <v n="Boolean">false</v>
-                                <v n="IsInstance">false</v>
-                                <v n="Id">874L</v>
+                                <v n="IsInstance">true</v>
+                                <v n="Id">932L</v>
                               </o>
-                              <v n="Id">873L</v>
+                              <o n="OutputItems" t="OutputItemList">
+                                <l2 n="OutputItems" cet="Operand">
+                                  <n />
+                                  <o>
+                                    <v n="Operand">""</v>
+                                    <n n="Type" />
+                                    <v n="Comment">""</v>
+                                    <v n="SymbolComment">""</v>
+                                    <v n="Address">""</v>
+                                    <o n="Flags" t="Flags">
+                                      <v n="Flags">0</v>
+                                      <v n="Fixed">false</v>
+                                      <v n="Extensible">false</v>
+                                    </o>
+                                    <v n="LValue">true</v>
+                                    <v n="Boolean">false</v>
+                                    <v n="IsInstance">false</v>
+                                    <v n="Id">934L</v>
+                                  </o>
+                                </l2>
+                              </o>
+                              <o n="Flags" t="Flags">
+                                <v n="Flags">0</v>
+                                <v n="Fixed">true</v>
+                                <v n="Extensible">false</v>
+                              </o>
+                              <n n="InputFlags" />
+                              <l2 n="InputItems" cet="BoxTreeOperand">
+                                <o>
+                                  <o n="Operand" t="Operand">
+                                    <v n="Operand">"paperPresenceSensor"</v>
+                                    <v n="Type">"BOOL"</v>
+                                    <v n="Comment">""</v>
+                                    <v n="SymbolComment">""</v>
+                                    <v n="Address">""</v>
+                                    <o n="Flags" t="Flags">
+                                      <v n="Flags">0</v>
+                                      <v n="Fixed">false</v>
+                                      <v n="Extensible">false</v>
+                                    </o>
+                                    <v n="LValue">false</v>
+                                    <v n="Boolean">false</v>
+                                    <v n="IsInstance">false</v>
+                                    <v n="Id">874L</v>
+                                  </o>
+                                  <v n="Id">873L</v>
+                                </o>
+                                <o>
+                                  <o n="Operand" t="Operand">
+                                    <v n="Operand">"T#30S"</v>
+                                    <v n="Type">"TIME"</v>
+                                    <v n="Comment">""</v>
+                                    <v n="SymbolComment">""</v>
+                                    <v n="Address">""</v>
+                                    <o n="Flags" t="Flags">
+                                      <v n="Flags">0</v>
+                                      <v n="Fixed">false</v>
+                                      <v n="Extensible">false</v>
+                                    </o>
+                                    <v n="LValue">false</v>
+                                    <v n="Boolean">false</v>
+                                    <v n="IsInstance">false</v>
+                                    <v n="Id">936L</v>
+                                  </o>
+                                  <v n="Id">935L</v>
+                                </o>
+                              </l2>
+                              <o n="InputParam" t="ParamList">
+                                <l2 n="Names" cet="String">
+                                  <v>IN</v>
+                                  <v>PT</v>
+                                </l2>
+                                <l2 n="Types" cet="String">
+                                  <v>BOOL</v>
+                                  <v>TIME</v>
+                                </l2>
+                              </o>
+                              <o n="OutputParam" t="ParamList">
+                                <l2 n="Names" cet="String">
+                                  <v>Q</v>
+                                  <v>ET</v>
+                                </l2>
+                                <l2 n="Types" cet="String">
+                                  <v>BOOL</v>
+                                  <v>TIME</v>
+                                </l2>
+                              </o>
+                              <v n="CallType" t="Operator">FunctionBlock</v>
+                              <v n="EN">false</v>
+                              <v n="ENO">false</v>
+                              <n n="STSnippet" />
+                              <v n="ContainsExtensibleInputs">false</v>
+                              <v n="ProvidesSTSnippet">false</v>
+                              <v n="Id">933L</v>
                             </o>
-                            <o>
+                            <o t="BoxTreeOperand">
                               <o n="Operand" t="Operand">
                                 <v n="Operand">"machineConfig.tractionRollToSuctionRollGearRatio"</v>
                                 <v n="Type">"REAL"</v>
@@ -1493,7 +1591,7 @@ END_VAR]]></Declaration>
                               </o>
                               <v n="Id">825L</v>
                             </o>
-                            <o>
+                            <o t="BoxTreeOperand">
                               <o n="Operand" t="Operand">
                                 <v n="Operand">"machineConfig.formingBoardTractionRollDiameter"</v>
                                 <v n="Type">"REAL"</v>
@@ -1512,7 +1610,7 @@ END_VAR]]></Declaration>
                               </o>
                               <v n="Id">827L</v>
                             </o>
-                            <o>
+                            <o t="BoxTreeOperand">
                               <o n="Operand" t="Operand">
                                 <v n="Operand">"machineConfig.formingBoardSuctionRollDiameter"</v>
                                 <v n="Type">"REAL"</v>
@@ -1531,7 +1629,7 @@ END_VAR]]></Declaration>
                               </o>
                               <v n="Id">829L</v>
                             </o>
-                            <o>
+                            <o t="BoxTreeOperand">
                               <o n="Operand" t="Operand">
                                 <v n="Operand">"machineConfig.formingBoardTractionRollMotorRPM"</v>
                                 <v n="Type">"REAL"</v>
@@ -1550,7 +1648,7 @@ END_VAR]]></Declaration>
                               </o>
                               <v n="Id">831L</v>
                             </o>
-                            <o>
+                            <o t="BoxTreeOperand">
                               <o n="Operand" t="Operand">
                                 <v n="Operand">"machineConfig.machineRampUPRate"</v>
                                 <v n="Type">"REAL"</v>
@@ -1569,7 +1667,7 @@ END_VAR]]></Declaration>
                               </o>
                               <v n="Id">833L</v>
                             </o>
-                            <o>
+                            <o t="BoxTreeOperand">
                               <o n="Operand" t="Operand">
                                 <v n="Operand">"machineConfig.machineRampDownRate"</v>
                                 <v n="Type">"REAL"</v>
@@ -1588,7 +1686,7 @@ END_VAR]]></Declaration>
                               </o>
                               <v n="Id">835L</v>
                             </o>
-                            <o>
+                            <o t="BoxTreeOperand">
                               <o n="Operand" t="Operand">
                                 <v n="Operand">"machineConfig.machineRampUPRate2"</v>
                                 <v n="Type">"REAL"</v>
@@ -1607,7 +1705,7 @@ END_VAR]]></Declaration>
                               </o>
                               <v n="Id">875L</v>
                             </o>
-                            <o>
+                            <o t="BoxTreeOperand">
                               <o n="Operand" t="Operand">
                                 <v n="Operand">"machineConfig.machineRampDownRate2"</v>
                                 <v n="Type">"REAL"</v>
@@ -1626,7 +1724,7 @@ END_VAR]]></Declaration>
                               </o>
                               <v n="Id">877L</v>
                             </o>
-                            <o>
+                            <o t="BoxTreeOperand">
                               <o n="Operand" t="Operand">
                                 <v n="Operand">"statusCode"</v>
                                 <v n="Type">"INT"</v>
@@ -1645,7 +1743,7 @@ END_VAR]]></Declaration>
                               </o>
                               <v n="Id">837L</v>
                             </o>
-                            <o>
+                            <o t="BoxTreeOperand">
                               <o n="Operand" t="Operand">
                                 <v n="Operand">""</v>
                                 <n n="Type" />
@@ -1664,7 +1762,7 @@ END_VAR]]></Declaration>
                               </o>
                               <v n="Id">839L</v>
                             </o>
-                            <o>
+                            <o t="BoxTreeOperand">
                               <o n="Operand" t="Operand">
                                 <v n="Operand">""</v>
                                 <n n="Type" />
@@ -1683,7 +1781,7 @@ END_VAR]]></Declaration>
                               </o>
                               <v n="Id">841L</v>
                             </o>
-                            <o>
+                            <o t="BoxTreeOperand">
                               <o n="Operand" t="Operand">
                                 <v n="Operand">""</v>
                                 <n n="Type" />
@@ -1702,7 +1800,7 @@ END_VAR]]></Declaration>
                               </o>
                               <v n="Id">843L</v>
                             </o>
-                            <o>
+                            <o t="BoxTreeOperand">
                               <o n="Operand" t="Operand">
                                 <v n="Operand">"machineConfig.groupSpeedDifLimLow"</v>
                                 <v n="Type">"REAL"</v>
@@ -1721,7 +1819,7 @@ END_VAR]]></Declaration>
                               </o>
                               <v n="Id">845L</v>
                             </o>
-                            <o>
+                            <o t="BoxTreeOperand">
                               <o n="Operand" t="Operand">
                                 <v n="Operand">"machineConfig.groupSpeedDifLimHigh"</v>
                                 <v n="Type">"REAL"</v>
@@ -1740,7 +1838,7 @@ END_VAR]]></Declaration>
                               </o>
                               <v n="Id">847L</v>
                             </o>
-                            <o>
+                            <o t="BoxTreeOperand">
                               <o n="Operand" t="Operand">
                                 <v n="Operand">"instFB_GroupDriveControl_V1.rampReset"</v>
                                 <v n="Type">"BOOL"</v>
@@ -2761,7 +2859,7 @@ END_VAR]]></Declaration>
                           <v n="Extensible">false</v>
                         </o>
                         <o n="RValue" t="BoxTreeBox">
-                          <v n="BoxType">"MOVE"</v>
+                          <v n="BoxType">"LIMIT"</v>
                           <o n="Instance" t="Operand">
                             <n n="Operand" />
                             <v n="Type">""</v>
@@ -2776,7 +2874,7 @@ END_VAR]]></Declaration>
                             <v n="LValue">false</v>
                             <v n="Boolean">false</v>
                             <v n="IsInstance">true</v>
-                            <v n="Id">691L</v>
+                            <v n="Id">965L</v>
                           </o>
                           <o n="OutputItems" t="OutputItemList">
                             <l2 n="OutputItems">
@@ -2789,9 +2887,28 @@ END_VAR]]></Declaration>
                             <v n="Extensible">false</v>
                           </o>
                           <n n="InputFlags" />
-                          <l2 n="InputItems" cet="BoxTreeBox">
-                            <o>
-                              <v n="BoxType">"MUL"</v>
+                          <l2 n="InputItems">
+                            <o t="BoxTreeOperand">
+                              <o n="Operand" t="Operand">
+                                <v n="Operand">"0"</v>
+                                <v n="Type">"INT"</v>
+                                <v n="Comment">""</v>
+                                <v n="SymbolComment">""</v>
+                                <v n="Address">""</v>
+                                <o n="Flags" t="Flags">
+                                  <v n="Flags">0</v>
+                                  <v n="Fixed">false</v>
+                                  <v n="Extensible">false</v>
+                                </o>
+                                <v n="LValue">false</v>
+                                <v n="Boolean">false</v>
+                                <v n="IsInstance">false</v>
+                                <v n="Id">972L</v>
+                              </o>
+                              <v n="Id">971L</v>
+                            </o>
+                            <o t="BoxTreeBox">
+                              <v n="BoxType">"MOVE"</v>
                               <o n="Instance" t="Operand">
                                 <n n="Operand" />
                                 <v n="Type">""</v>
@@ -2806,7 +2923,7 @@ END_VAR]]></Declaration>
                                 <v n="LValue">false</v>
                                 <v n="Boolean">false</v>
                                 <v n="IsInstance">true</v>
-                                <v n="Id">713L</v>
+                                <v n="Id">691L</v>
                               </o>
                               <o n="OutputItems" t="OutputItemList">
                                 <l2 n="OutputItems">
@@ -2819,11 +2936,12 @@ END_VAR]]></Declaration>
                                 <v n="Extensible">false</v>
                               </o>
                               <n n="InputFlags" />
-                              <l2 n="InputItems" cet="BoxTreeOperand">
+                              <l2 n="InputItems" cet="BoxTreeBox">
                                 <o>
-                                  <o n="Operand" t="Operand">
-                                    <v n="Operand">"tractionRollTorqueFeedback"</v>
-                                    <v n="Type">"REAL"</v>
+                                  <v n="BoxType">"MUL"</v>
+                                  <o n="Instance" t="Operand">
+                                    <n n="Operand" />
+                                    <v n="Type">""</v>
                                     <v n="Comment">""</v>
                                     <v n="SymbolComment">""</v>
                                     <v n="Address">""</v>
@@ -2834,29 +2952,79 @@ END_VAR]]></Declaration>
                                     </o>
                                     <v n="LValue">false</v>
                                     <v n="Boolean">false</v>
-                                    <v n="IsInstance">false</v>
-                                    <v n="Id">686L</v>
+                                    <v n="IsInstance">true</v>
+                                    <v n="Id">713L</v>
                                   </o>
-                                  <v n="Id">685L</v>
-                                </o>
-                                <o>
-                                  <o n="Operand" t="Operand">
-                                    <v n="Operand">"machineConfig.formingBoardTorqueDif"</v>
-                                    <v n="Type">"REAL"</v>
-                                    <v n="Comment">""</v>
-                                    <v n="SymbolComment">""</v>
-                                    <v n="Address">""</v>
-                                    <o n="Flags" t="Flags">
-                                      <v n="Flags">0</v>
-                                      <v n="Fixed">false</v>
-                                      <v n="Extensible">false</v>
+                                  <o n="OutputItems" t="OutputItemList">
+                                    <l2 n="OutputItems">
+                                      <n />
+                                    </l2>
+                                  </o>
+                                  <o n="Flags" t="Flags">
+                                    <v n="Flags">0</v>
+                                    <v n="Fixed">true</v>
+                                    <v n="Extensible">false</v>
+                                  </o>
+                                  <n n="InputFlags" />
+                                  <l2 n="InputItems" cet="BoxTreeOperand">
+                                    <o>
+                                      <o n="Operand" t="Operand">
+                                        <v n="Operand">"tractionRollTorqueFeedback"</v>
+                                        <v n="Type">"REAL"</v>
+                                        <v n="Comment">""</v>
+                                        <v n="SymbolComment">""</v>
+                                        <v n="Address">""</v>
+                                        <o n="Flags" t="Flags">
+                                          <v n="Flags">0</v>
+                                          <v n="Fixed">false</v>
+                                          <v n="Extensible">false</v>
+                                        </o>
+                                        <v n="LValue">false</v>
+                                        <v n="Boolean">false</v>
+                                        <v n="IsInstance">false</v>
+                                        <v n="Id">686L</v>
+                                      </o>
+                                      <v n="Id">685L</v>
                                     </o>
-                                    <v n="LValue">false</v>
-                                    <v n="Boolean">false</v>
-                                    <v n="IsInstance">false</v>
-                                    <v n="Id">712L</v>
+                                    <o>
+                                      <o n="Operand" t="Operand">
+                                        <v n="Operand">"machineConfig.formingBoardTorqueDif"</v>
+                                        <v n="Type">"REAL"</v>
+                                        <v n="Comment">""</v>
+                                        <v n="SymbolComment">""</v>
+                                        <v n="Address">""</v>
+                                        <o n="Flags" t="Flags">
+                                          <v n="Flags">0</v>
+                                          <v n="Fixed">false</v>
+                                          <v n="Extensible">false</v>
+                                        </o>
+                                        <v n="LValue">false</v>
+                                        <v n="Boolean">false</v>
+                                        <v n="IsInstance">false</v>
+                                        <v n="Id">712L</v>
+                                      </o>
+                                      <v n="Id">711L</v>
+                                    </o>
+                                  </l2>
+                                  <o n="InputParam" t="ParamList">
+                                    <l2 n="Names" />
+                                    <l2 n="Types" />
                                   </o>
-                                  <v n="Id">711L</v>
+                                  <o n="OutputParam" t="ParamList">
+                                    <l2 n="Names" cet="String">
+                                      <v></v>
+                                    </l2>
+                                    <l2 n="Types" cet="String">
+                                      <v>INT</v>
+                                    </l2>
+                                  </o>
+                                  <v n="CallType" t="Operator">Mul</v>
+                                  <v n="EN">false</v>
+                                  <v n="ENO">false</v>
+                                  <n n="STSnippet" />
+                                  <v n="ContainsExtensibleInputs">false</v>
+                                  <v n="ProvidesSTSnippet">false</v>
+                                  <v n="Id">714L</v>
                                 </o>
                               </l2>
                               <o n="InputParam" t="ParamList">
@@ -2868,16 +3036,35 @@ END_VAR]]></Declaration>
                                   <v></v>
                                 </l2>
                                 <l2 n="Types" cet="String">
-                                  <v>INT</v>
+                                  <v></v>
                                 </l2>
                               </o>
-                              <v n="CallType" t="Operator">Mul</v>
+                              <v n="CallType" t="Operator">Move</v>
                               <v n="EN">false</v>
                               <v n="ENO">false</v>
                               <n n="STSnippet" />
                               <v n="ContainsExtensibleInputs">false</v>
                               <v n="ProvidesSTSnippet">false</v>
-                              <v n="Id">714L</v>
+                              <v n="Id">692L</v>
+                            </o>
+                            <o t="BoxTreeOperand">
+                              <o n="Operand" t="Operand">
+                                <v n="Operand">"85"</v>
+                                <v n="Type">"INT"</v>
+                                <v n="Comment">""</v>
+                                <v n="SymbolComment">""</v>
+                                <v n="Address">""</v>
+                                <o n="Flags" t="Flags">
+                                  <v n="Flags">0</v>
+                                  <v n="Fixed">false</v>
+                                  <v n="Extensible">false</v>
+                                </o>
+                                <v n="LValue">false</v>
+                                <v n="Boolean">false</v>
+                                <v n="IsInstance">false</v>
+                                <v n="Id">970L</v>
+                              </o>
+                              <v n="Id">969L</v>
                             </o>
                           </l2>
                           <o n="InputParam" t="ParamList">
@@ -2889,16 +3076,16 @@ END_VAR]]></Declaration>
                               <v></v>
                             </l2>
                             <l2 n="Types" cet="String">
-                              <v></v>
+                              <v>INT</v>
                             </l2>
                           </o>
-                          <v n="CallType" t="Operator">Move</v>
+                          <v n="CallType" t="Operator">Limit</v>
                           <v n="EN">false</v>
                           <v n="ENO">false</v>
                           <n n="STSnippet" />
                           <v n="ContainsExtensibleInputs">false</v>
                           <v n="ProvidesSTSnippet">false</v>
-                          <v n="Id">692L</v>
+                          <v n="Id">966L</v>
                         </o>
                         <v n="Id">694L</v>
                       </o>
@@ -2961,20 +3148,25 @@ METHOD _SpeedDifferenceCheck
 
 *)]]></Declaration>
       <Implementation>
-        <ST><![CDATA[
-
-speedDif := ABS(tractionRollSpeedFeedbackMPM - suctionRollSpeedFeedbackMPM);
+        <ST><![CDATA[speedDif := ABS(tractionRollSpeedFeedbackMPM - suctionRollSpeedFeedbackMPM);
 
 
-IF speedDif > 50 THEN
-	
-	speedDifError := TRUE;
-	
-	ELSE
-		
-	speedDifError := FALSE;
-	
-END_IF]]></ST>
+// Timer de confirmação do erro
+instTONSpeedDifDelay(
+    IN := speedDif > 50,
+    PT := T#3S
+);
+
+
+// Pulso para segurar o status do erro por 100 ms
+instTPSpeedDifErrorHold(
+    IN := instTONSpeedDifDelay.Q,
+    PT := T#100MS
+);
+
+
+// Status final do erro
+speedDifError := instTPSpeedDifErrorHold.Q;]]></ST>
       </Implementation>
     </Method>
     <Method Name="_StateDisplay" Id="{c51260d8-b357-494a-859d-3b8c07339490}">
@@ -3026,17 +3218,8 @@ END_VAR
       <LineId Id="1" Count="5" />
     </LineIds>
     <LineIds Name="FB_FormingBoardControl_V3._SpeedDifferenceCheck">
-      <LineId Id="31" Count="1" />
-      <LineId Id="27" Count="0" />
-      <LineId Id="39" Count="1" />
-      <LineId Id="38" Count="0" />
-      <LineId Id="41" Count="0" />
-      <LineId Id="45" Count="0" />
-      <LineId Id="49" Count="0" />
-      <LineId Id="46" Count="1" />
-      <LineId Id="43" Count="0" />
-      <LineId Id="48" Count="0" />
-      <LineId Id="42" Count="0" />
+      <LineId Id="81" Count="17" />
+      <LineId Id="58" Count="0" />
     </LineIds>
     <LineIds Name="FB_FormingBoardControl_V3._StateDisplay">
       <LineId Id="5" Count="0" />
