@@ -25,12 +25,32 @@ public interface IHistorianRepository
         DateTimeOffset? toUtc,
         int limit,
         CancellationToken cancellationToken);
+    Task<IReadOnlyList<StatusChangeRow>> GetStatusChangesAsync(
+        DateTimeOffset? fromUtc,
+        DateTimeOffset? toUtc,
+        int limit,
+        CancellationToken cancellationToken);
     Task<IReadOnlyList<AlarmEventRow>> GetAlarmEventsAsync(
         DateTimeOffset? fromUtc,
         DateTimeOffset? toUtc,
         bool? active,
         int limit,
         CancellationToken cancellationToken);
+}
+
+public interface IUserRepository
+{
+    Task<int> CountAsync(CancellationToken cancellationToken);
+    Task<ApplicationUser?> FindByUserNameAsync(string userName, CancellationToken cancellationToken);
+    Task<ApplicationUser?> FindByIdAsync(long id, CancellationToken cancellationToken);
+    Task<long> CreateAsync(
+        string userName,
+        string displayName,
+        string passwordHash,
+        string role,
+        DateTimeOffset createdAtUtc,
+        CancellationToken cancellationToken);
+    Task MarkLoginAsync(long id, DateTimeOffset loggedInAtUtc, CancellationToken cancellationToken);
 }
 
 public sealed record StatusSnapshotRow(
@@ -47,6 +67,14 @@ public sealed record CommandEventRow(
     string CurrentValueJson,
     DateTimeOffset ObservedAtUtc,
     string Origin,
+    string MappingVersion);
+
+public sealed record StatusChangeRow(
+    long Id,
+    string FieldName,
+    string? PreviousValueJson,
+    string CurrentValueJson,
+    DateTimeOffset ObservedAtUtc,
     string MappingVersion);
 
 public sealed record AlarmEventRow(

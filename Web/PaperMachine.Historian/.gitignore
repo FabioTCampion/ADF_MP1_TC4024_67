@@ -1,5 +1,8 @@
 **/bin/
 **/obj/
+**/node_modules/
+src/papermachine-web-client/*.tsbuildinfo
+src/papermachine-web-client/node_modules/.tmp/
 .vs/
 data/
 logs/

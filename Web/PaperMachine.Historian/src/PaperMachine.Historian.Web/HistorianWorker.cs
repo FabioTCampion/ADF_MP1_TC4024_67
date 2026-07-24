@@ -47,6 +47,11 @@ public sealed class HistorianWorker(
             }
             catch (Exception exception)
             {
+                if (stoppingToken.IsCancellationRequested)
+                {
+                    break;
+                }
+
                 runtimeState.SetDisconnected(exception.Message);
                 logger.LogWarning(
                     exception,

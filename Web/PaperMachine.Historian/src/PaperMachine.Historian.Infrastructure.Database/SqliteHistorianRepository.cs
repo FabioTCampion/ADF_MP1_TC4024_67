@@ -7,7 +7,7 @@ namespace PaperMachine.Historian.Infrastructure.Database;
 
 public sealed class SqliteHistorianRepository : IHistorianRepository
 {
-    private const int SchemaVersion = 1;
+    private const int SchemaVersion = 2;
     private readonly string _databasePath;
     private readonly string _connectionString;
 
@@ -97,8 +97,21 @@ public sealed class SqliteHistorianRepository : IHistorianRepository
             CREATE INDEX IF NOT EXISTS IX_AdsCommunicationEvents_ObservedAtUtc
                 ON AdsCommunicationEvents (ObservedAtUtc);
 
+            CREATE TABLE IF NOT EXISTS ApplicationUsers (
+                Id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+                UserName TEXT NOT NULL COLLATE NOCASE UNIQUE,
+                DisplayName TEXT NOT NULL,
+                PasswordHash TEXT NOT NULL,
+                Role TEXT NOT NULL,
+                IsActive INTEGER NOT NULL DEFAULT 1,
+                CreatedAtUtc TEXT NOT NULL,
+                LastLoginAtUtc TEXT NULL
+            );
+
             INSERT OR IGNORE INTO SchemaMigrations (Version, AppliedAtUtc)
             VALUES (1, @AppliedAtUtc);
+            INSERT OR IGNORE INTO SchemaMigrations (Version, AppliedAtUtc)
+            VALUES (2, @AppliedAtUtc);
             """;
 
         await ExecuteAsync(
@@ -303,6 +316,43 @@ public sealed class SqliteHistorianRepository : IHistorianRepository
                 ParseDatabaseTimestamp(reader.GetString(4)),
                 reader.GetString(5),
                 reader.GetString(6)));
+        }
+        return rows;
+    }
+
+    public async Task<IReadOnlyList<StatusChangeRow>> GetStatusChangesAsync(
+        DateTimeOffset? fromUtc,
+        DateTimeOffset? toUtc,
+        int limit,
+        CancellationToken cancellationToken)
+    {
+        ValidateLimit(limit);
+        await using var connection = await OpenAsync(cancellationToken);
+        await using var command = CreateRangeCommand(
+            connection,
+            """
+            SELECT Id, FieldName, PreviousValueJson, CurrentValueJson,
+                   ObservedAtUtc, MappingVersion
+            FROM StatusChanges
+            WHERE (@FromUtc IS NULL OR ObservedAtUtc >= @FromUtc)
+              AND (@ToUtc IS NULL OR ObservedAtUtc < @ToUtc)
+            ORDER BY ObservedAtUtc DESC
+            LIMIT @Limit;
+            """,
+            fromUtc,
+            toUtc,
+            limit);
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        var rows = new List<StatusChangeRow>();
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            rows.Add(new StatusChangeRow(
+                reader.GetInt64(0),
+                reader.GetString(1),
+                reader.IsDBNull(2) ? null : reader.GetString(2),
+                reader.GetString(3),
+                ParseDatabaseTimestamp(reader.GetString(4)),
+                reader.GetString(5)));
         }
         return rows;
     }

@@ -1,5 +1,11 @@
 using System.Text.Json;
+using System.Threading.RateLimiting;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.RateLimiting;
 using PaperMachine.Historian.Application;
+using PaperMachine.Historian.Domain;
 using PaperMachine.Historian.Infrastructure.Ads;
 using PaperMachine.Historian.Infrastructure.Database;
 using PaperMachine.Historian.Web;
@@ -29,10 +35,52 @@ builder.Services.AddSingleton(historianOptions);
 builder.Services.AddSingleton(databaseOptions);
 builder.Services.AddSingleton<IPaperMachineReader, AdsPaperMachineReader>();
 builder.Services.AddSingleton<IHistorianRepository, SqliteHistorianRepository>();
+builder.Services.AddSingleton<IUserRepository, SqliteUserRepository>();
+builder.Services.AddSingleton<IPasswordHasher<ApplicationUser>, PasswordHasher<ApplicationUser>>();
+builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddSingleton<HistorianProcessor>();
 builder.Services.AddSingleton<HistorianRuntimeState>();
 builder.Services.AddHostedService<HistorianWorker>();
 builder.Services.AddHealthChecks();
+var keyPath = Path.Combine(
+    Path.GetDirectoryName(databaseOptions.FilePath)!,
+    "keys");
+Directory.CreateDirectory(keyPath);
+builder.Services
+    .AddDataProtection()
+    .SetApplicationName("CPNTeck.PaperMachine.Historian")
+    .PersistKeysToFileSystem(new DirectoryInfo(keyPath));
+builder.Services
+    .AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
+    .AddCookie(options =>
+    {
+        options.Cookie.Name = "PaperMachine.Historian.Session";
+        options.Cookie.HttpOnly = true;
+        options.Cookie.SameSite = SameSiteMode.Strict;
+        options.ExpireTimeSpan = TimeSpan.FromHours(8);
+        options.SlidingExpiration = true;
+        options.Events.OnRedirectToLogin = context =>
+        {
+            context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+            return Task.CompletedTask;
+        };
+        options.Events.OnRedirectToAccessDenied = context =>
+        {
+            context.Response.StatusCode = StatusCodes.Status403Forbidden;
+            return Task.CompletedTask;
+        };
+    });
+builder.Services.AddAuthorization();
+builder.Services.AddRateLimiter(options =>
+    options.AddFixedWindowLimiter(
+        "authentication",
+        limiter =>
+        {
+            limiter.PermitLimit = 5;
+            limiter.Window = TimeSpan.FromMinutes(1);
+            limiter.QueueLimit = 0;
+            limiter.AutoReplenishment = true;
+        }));
 
 var app = builder.Build();
 
@@ -41,12 +89,18 @@ await app.Services.GetRequiredService<IHistorianRepository>()
 
 app.UseDefaultFiles();
 app.UseStaticFiles();
+app.UseRateLimiter();
+app.UseAuthentication();
+app.UseAuthorization();
 
 app.MapHealthChecks("/health");
+app.MapHistorianAuthentication();
 
-app.MapGet("/api/runtime", (HistorianRuntimeState state) => Results.Ok(state.GetStatus()));
+var api = app.MapGroup("/api").RequireAuthorization();
 
-app.MapGet("/api/current", (HistorianRuntimeState state) =>
+api.MapGet("/runtime", (HistorianRuntimeState state) => Results.Ok(state.GetStatus()));
+
+api.MapGet("/current", (HistorianRuntimeState state) =>
 {
     var snapshot = state.GetSnapshot();
     return snapshot is null
@@ -54,8 +108,8 @@ app.MapGet("/api/current", (HistorianRuntimeState state) =>
         : Results.Ok(snapshot);
 });
 
-app.MapGet(
-    "/api/history/status",
+api.MapGet(
+    "/history/status",
     async (
         DateTimeOffset? fromUtc,
         DateTimeOffset? toUtc,
@@ -78,8 +132,22 @@ app.MapGet(
         }));
     });
 
-app.MapGet(
-    "/api/history/commands",
+api.MapGet(
+    "/history/status-changes",
+    async (
+        DateTimeOffset? fromUtc,
+        DateTimeOffset? toUtc,
+        int? limit,
+        IHistorianRepository repository,
+        CancellationToken cancellationToken) =>
+        Results.Ok(await repository.GetStatusChangesAsync(
+            fromUtc,
+            toUtc,
+            limit ?? 500,
+            cancellationToken)));
+
+api.MapGet(
+    "/history/commands",
     async (
         DateTimeOffset? fromUtc,
         DateTimeOffset? toUtc,
@@ -92,8 +160,8 @@ app.MapGet(
             limit ?? 250,
             cancellationToken)));
 
-app.MapGet(
-    "/api/history/alarms",
+api.MapGet(
+    "/history/alarms",
     async (
         DateTimeOffset? fromUtc,
         DateTimeOffset? toUtc,

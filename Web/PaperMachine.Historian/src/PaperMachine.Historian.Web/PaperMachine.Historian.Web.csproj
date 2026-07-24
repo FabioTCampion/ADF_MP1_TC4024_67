@@ -13,5 +13,17 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <UserSecretsId>PaperMachine-Historian-9f44ca86-0676-4999-b2f8-a3230391eca8</UserSecretsId>
+    <ClientAppDirectory>..\papermachine-web-client</ClientAppDirectory>
   </PropertyGroup>
+  <Target Name="BuildClientForPublish" BeforeTargets="ComputeFilesToPublish" Condition="'$(SkipClientBuild)' != 'true'">
+    <Exec WorkingDirectory="$(ClientAppDirectory)" Command="npm ci" />
+    <Exec WorkingDirectory="$(ClientAppDirectory)" Command="npm run build" />
+    <ItemGroup>
+      <ClientDistFiles Include="wwwroot\**\*" />
+      <ResolvedFileToPublish Include="@(ClientDistFiles->'%(FullPath)')" Exclude="@(ResolvedFileToPublish)">
+        <RelativePath>wwwroot\%(RecursiveDir)%(Filename)%(Extension)</RelativePath>
+        <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+      </ResolvedFileToPublish>
+    </ItemGroup>
+  </Target>
 </Project>

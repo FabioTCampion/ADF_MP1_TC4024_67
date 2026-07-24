@@ -37,6 +37,7 @@ O arquivo, seu WAL e arquivos temporários estão ignorados pelo Git. O banco us
 - `CommandEvents`: mudanças observadas na estrutura de comandos;
 - `AlarmEvents`: ativação, normalização e duração;
 - `AdsCommunicationEvents`: conexão e falhas de aquisição;
+- `ApplicationUsers`: usuários locais e hashes de senha;
 - `SchemaMigrations`: versão aplicada ao banco.
 
 Datas são armazenadas em UTC. Alarmes encontrados ativos na primeira leitura ficam marcados como `ActiveAtStartup`, pois o horário real de ativação anterior ao início do serviço é desconhecido.
@@ -46,6 +47,7 @@ Datas são armazenadas em UTC. Alarmes encontrados ativos na primeira leitura fi
 Pré-requisitos:
 
 - .NET SDK 10;
+- Node.js 24 ou superior para alterar/recompilar o frontend;
 - TwinCAT ADS Router com a rota do PLC já configurada;
 - acesso TCP/ADS ao equipamento remoto.
 
@@ -53,10 +55,19 @@ Na pasta do projeto:
 
 ```powershell
 dotnet restore PaperMachine.Historian.slnx
+cd src/papermachine-web-client
+npm ci
+npm run build
+cd ../..
 dotnet run --project src/PaperMachine.Historian.Web
 ```
 
 Abra `http://localhost:5088`.
+
+No primeiro acesso, a tela de configuração solicita a criação do administrador local.
+A senha deve possuir pelo menos oito caracteres.
+O frontend compilado também fica versionado em `wwwroot`, permitindo executar a
+aplicação diretamente quando não houver alterações no cliente React.
 
 Para validar sem comunicar com o PLC:
 
@@ -89,14 +100,16 @@ Mudanças na estrutura PLC devem incrementar `Historian:MappingVersion`.
 - `GET /api/runtime`;
 - `GET /api/current`;
 - `GET /api/history/status`;
+- `GET /api/history/status-changes`;
 - `GET /api/history/commands`;
 - `GET /api/history/alarms`.
 
 Os históricos aceitam `fromUtc`, `toUtc` e `limit`. Alarmes também aceitam `active=true|false`.
+As APIs do Historian exigem autenticação por cookie; `/health` e o fluxo inicial de autenticação permanecem públicos.
 
 ## Limites desta versão
 
 - não escreve comandos no PLC;
 - mudança em `paperMachineHmiCommands` significa **comando observado**, não confirmação de execução;
-- ainda não há autenticação, relatórios PDF, retenção automática ou agregação;
-- o painel inicial é operacional e será substituído/evoluído com os módulos React, autenticação, permissões e relatórios reaproveitados da DryEnd.
+- ainda não há relatórios PDF, retenção automática ou agregação;
+- a administração completa de usuários e grupos será incorporada em uma próxima evolução.
