@@ -8,6 +8,7 @@ export default defineConfig({
   build: {
     outDir: resolve(__dirname, "../PaperMachine.Historian.Web/wwwroot"),
     emptyOutDir: true,
+    chunkSizeWarningLimit: 600,
   },
   server: {
     port: 5188,

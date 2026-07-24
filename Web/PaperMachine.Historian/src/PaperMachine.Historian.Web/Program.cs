@@ -147,6 +147,35 @@ api.MapGet(
             cancellationToken)));
 
 api.MapGet(
+    "/history/motors",
+    async (
+        DateTimeOffset? fromUtc,
+        DateTimeOffset? toUtc,
+        int? maxPoints,
+        TimeProvider clock,
+        IHistorianRepository repository,
+        CancellationToken cancellationToken) =>
+    {
+        var to = (toUtc ?? clock.GetUtcNow()).ToUniversalTime();
+        var from = (fromUtc ?? to.AddHours(-8)).ToUniversalTime();
+        if (from >= to)
+            return Results.BadRequest(new { error = "O início deve ser anterior ao fim do período." });
+        if (to - from > TimeSpan.FromDays(31))
+            return Results.BadRequest(new { error = "O período máximo para gráficos é de 31 dias." });
+
+        var requestedPoints = maxPoints ?? 1_200;
+        if (requestedPoints is < 100 or > 2_000)
+            return Results.BadRequest(new { error = "maxPoints deve estar entre 100 e 2000." });
+
+        var rows = await repository.GetStatusTrendSamplesAsync(
+            from,
+            to,
+            requestedPoints,
+            cancellationToken);
+        return Results.Ok(MotorTrendBuilder.Build(rows));
+    });
+
+api.MapGet(
     "/history/commands",
     async (
         DateTimeOffset? fromUtc,

@@ -48,6 +48,12 @@ public sealed class SqliteHistorianRepositoryTests
 
             Assert.True(File.Exists(databasePath));
             Assert.Single(await repository.GetStatusSnapshotsAsync(null, null, 10, CancellationToken.None));
+            var trendSamples = await repository.GetStatusTrendSamplesAsync(
+                firstAt,
+                firstAt.AddMinutes(1),
+                100,
+                CancellationToken.None);
+            Assert.Single(trendSamples);
             Assert.Equal(2, (await repository.GetCommandEventsAsync(null, null, 10, CancellationToken.None)).Count);
 
             var alarm = Assert.Single(

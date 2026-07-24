@@ -1,10 +1,9 @@
-export type PageId = "dashboard" | "status" | "alarms" | "commands" | "history";
+export type PageId = "dashboard" | "status" | "graphs" | "alarms" | "commands" | "history";
 
 export type NavigationItem = {
   id: PageId;
   label: string;
-  eyebrow: string;
-  icon: "dashboard" | "status" | "alarm" | "command" | "history";
+  icon: "dashboard" | "status" | "graphs" | "alarm" | "command" | "history";
 };
 
 type Props = {
@@ -23,6 +22,9 @@ function Icon({ name }: { name: NavigationItem["icon"] }) {
   if (name === "status") {
     return <svg viewBox="0 0 24 24"><path d="M4 18V8l8-4 8 4v10M3 20h18" /><path d="M8 16v-4h8v4" /></svg>;
   }
+  if (name === "graphs") {
+    return <svg viewBox="0 0 24 24"><path d="M4 19V5M4 19h16M7 15l4-4 3 2 5-6" /></svg>;
+  }
   if (name === "alarm") {
     return <svg viewBox="0 0 24 24"><path d="M18 9a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M9.8 21h4.4" /></svg>;
   }
@@ -40,52 +42,59 @@ export default function SideMenu({
   onSelect,
   onToggle,
 }: Props) {
+  const toggleLabel = collapsed ? "Expandir menu" : "Recolher menu";
+
   return (
-    <aside className={`side-menu${collapsed ? " side-menu--collapsed" : ""}`}>
-      <div className="side-brand">
-        <img src="/brand/cpnteck-icon-white.png" alt="" />
-        <div>
-          <b>Paper Machine</b>
-          <span>Historian</span>
+    <aside
+      className={`side-menu${collapsed ? " side-menu--collapsed" : ""}`}
+      aria-label="Navegação principal"
+    >
+      <div className="side-menu-heading">
+        <div className="side-brand">
+          <img src="/brand/cpnteck-icon-white.png" alt="CPNTeck - Automação Industrial" />
+          <div>
+            <b>Paper Machine</b>
+            <span>Historian</span>
+          </div>
         </div>
+        <button
+          type="button"
+          className="menu-toggle"
+          onClick={onToggle}
+          aria-label={toggleLabel}
+          aria-expanded={!collapsed}
+          title={toggleLabel}
+        >
+          <svg viewBox="0 0 24 24"><path d="m14 7-5 5 5 5" /></svg>
+        </button>
       </div>
 
-      <button
-        type="button"
-        className="menu-toggle"
-        onClick={onToggle}
-        aria-label={collapsed ? "Expandir menu" : "Recolher menu"}
-      >
-        <svg viewBox="0 0 24 24"><path d="m15 18-6-6 6-6" /></svg>
-      </button>
-
-      <nav aria-label="Navegação principal">
+      <nav aria-label="Telas da aplicação">
         {items.map((item) => (
           <button
             type="button"
             key={item.id}
             className={currentPage === item.id ? "active" : ""}
+            aria-current={currentPage === item.id ? "page" : undefined}
+            aria-label={item.label}
             onClick={() => onSelect(item.id)}
             title={collapsed ? item.label : undefined}
+            data-tooltip={collapsed ? item.label : undefined}
           >
             <i><Icon name={item.icon} /></i>
-            <span>
-              <small>{item.eyebrow}</small>
-              {item.label}
-            </span>
+            <span>{item.label}</span>
           </button>
         ))}
       </nav>
 
-      <div className="side-status">
-        <span className={`status-dot${online ? " online" : ""}`} />
-        <div>
-          <b>{online ? "ADS conectado" : "ADS desconectado"}</b>
-          <span>PLC Runtime 1 · 851</span>
-        </div>
+      <div className="side-footer" title={`PLC: ${online ? "ADS conectado" : "ADS desconectado"}`}>
+        <img className="side-logo" src="/brand/cpnteck-logo.svg" alt="CPNTeck - Automação Industrial" />
+        <span className={`side-status${online ? " online" : ""}`}>
+          <i />
+          <span>{online ? "ADS conectado" : "ADS desconectado"}</span>
+        </span>
+        <span className="runtime-label">PLC Runtime 1 · 851</span>
       </div>
-
-      <img className="side-logo" src="/brand/cpnteck-logo-white.png" alt="CPNTeck" />
     </aside>
   );
 }

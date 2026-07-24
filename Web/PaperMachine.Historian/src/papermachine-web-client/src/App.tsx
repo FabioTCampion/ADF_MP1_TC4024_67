@@ -1,6 +1,17 @@
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import {
+  lazy,
+  Suspense,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
 import { useAuth } from "./Auth";
+import type { InteractiveChartOption } from "./InteractiveChart";
 import SideMenu, { type NavigationItem, type PageId } from "./SideMenu";
+
+const InteractiveChart = lazy(() => import("./InteractiveChart"));
 
 type RuntimeStatus = {
   adsConnected: boolean;
@@ -43,12 +54,31 @@ type StatusChange = {
   observedAtUtc: string;
 };
 
+type MotorTrendMotor = {
+  key: string;
+  speedField: string;
+  torqueField: string;
+  speedUnit: string;
+  torqueUnit: string;
+};
+
+type MotorTrendSample = {
+  capturedAtUtc: string;
+  values: Record<string, { speed: number | null; torque: number | null }>;
+};
+
+type MotorTrend = {
+  motors: MotorTrendMotor[];
+  samples: MotorTrendSample[];
+};
+
 const navigation: readonly NavigationItem[] = [
-  { id: "dashboard", label: "Visão geral", eyebrow: "Operação", icon: "dashboard" },
-  { id: "status", label: "Status atual", eyebrow: "Tempo real", icon: "status" },
-  { id: "alarms", label: "Alarmes", eyebrow: "Consulta", icon: "alarm" },
-  { id: "commands", label: "Comandos", eyebrow: "Auditoria", icon: "command" },
-  { id: "history", label: "Histórico de status", eyebrow: "Datalog", icon: "history" },
+  { id: "dashboard", label: "Visão geral", icon: "dashboard" },
+  { id: "status", label: "Status atual", icon: "status" },
+  { id: "graphs", label: "Gráficos", icon: "graphs" },
+  { id: "alarms", label: "Alarmes", icon: "alarm" },
+  { id: "commands", label: "Comandos", icon: "command" },
+  { id: "history", label: "Histórico de status", icon: "history" },
 ];
 
 const dateFormatter = new Intl.DateTimeFormat("pt-BR", {
@@ -136,6 +166,20 @@ export default function App() {
     });
   };
 
+  const collapseMenu = useCallback(() => {
+    if (collapsed) return;
+    window.localStorage.setItem("historian.menu.collapsed", "true");
+    setCollapsed(true);
+  }, [collapsed]);
+
+  useEffect(() => {
+    const collapseOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") collapseMenu();
+    };
+    window.addEventListener("keydown", collapseOnEscape);
+    return () => window.removeEventListener("keydown", collapseOnEscape);
+  }, [collapseMenu]);
+
   return (
     <div className={`app-shell${collapsed ? " app-shell--collapsed" : ""}`}>
       <SideMenu
@@ -146,9 +190,16 @@ export default function App() {
         onSelect={setPage}
         onToggle={toggleMenu}
       />
-      <main className="app-main">
+      <main className="app-main" onPointerDown={collapseMenu}>
         <header className="top-bar">
-          <button type="button" className="mobile-menu" onClick={toggleMenu}>☰</button>
+          <button
+            type="button"
+            className="mobile-menu"
+            onPointerDown={(event) => event.stopPropagation()}
+            onClick={toggleMenu}
+          >
+            ☰
+          </button>
           <div className="top-context">
             <span>Paper Machine Historian</span>
             <b>{navigation.find((item) => item.id === page)?.label}</b>
@@ -171,6 +222,7 @@ export default function App() {
         <div className="screen-content">
           {page === "dashboard" && <Dashboard runtime={runtime} current={current} />}
           {page === "status" && <CurrentStatus current={current} />}
+          {page === "graphs" && <MotorGraphs />}
           {page === "alarms" && <AlarmHistory />}
           {page === "commands" && <CommandHistory />}
           {page === "history" && <StatusHistory />}
@@ -360,6 +412,207 @@ function CurrentStatus({ current }: { current: CurrentSnapshot | null }) {
         ))}
       </section>
     </>
+  );
+}
+
+function MotorGraphs() {
+  const range = useDefaultRange();
+  const [trend, setTrend] = useState<MotorTrend>({ motors: [], samples: [] });
+  const [selectedMotor, setSelectedMotor] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const query = useCallback(async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const parameters = rangeQuery(range.from, range.to);
+      parameters.delete("limit");
+      parameters.set("maxPoints", "1200");
+      const result = await fetchJson<MotorTrend>(`/api/history/motors?${parameters}`);
+      setTrend(result);
+      setSelectedMotor((currentSelection) =>
+        result.motors.some((motor) => motor.key === currentSelection)
+          ? currentSelection
+          : result.motors[0]?.key ?? "",
+      );
+    } catch (exception) {
+      setError(exception instanceof Error ? exception.message : "Consulta falhou.");
+    } finally {
+      setLoading(false);
+    }
+  }, [range.from, range.to]);
+
+  useEffect(() => { void query(); }, [query]);
+
+  const motor = trend.motors.find((item) => item.key === selectedMotor);
+  const speedRows = trend.samples
+    .map((sample) => [sample.capturedAtUtc, sample.values[selectedMotor]?.speed] as const)
+    .filter((row): row is readonly [string, number] => typeof row[1] === "number");
+  const torqueRows = trend.samples
+    .map((sample) => [sample.capturedAtUtc, sample.values[selectedMotor]?.torque] as const)
+    .filter((row): row is readonly [string, number] => typeof row[1] === "number");
+  const applyPeriod = (hours: number) => {
+    const now = new Date();
+    const formatInput = (date: Date) => {
+      const offset = date.getTimezoneOffset();
+      return new Date(date.getTime() - offset * 60_000).toISOString().slice(0, 16);
+    };
+    range.setTo(formatInput(now));
+    range.setFrom(formatInput(new Date(now.getTime() - hours * 60 * 60 * 1000)));
+  };
+
+  return (
+    <>
+      <ScreenTitle
+        eyebrow="Tendências de acionamentos"
+        title="Velocidade e torque"
+        subtitle="Dados históricos obtidos dos snapshots de status, com zoom e navegação temporal."
+        action={<span className="result-count">{trend.samples.length} amostras</span>}
+      />
+
+      <div className="period-presets" aria-label="Períodos rápidos">
+        <button type="button" onClick={() => applyPeriod(1)}>1 hora</button>
+        <button type="button" onClick={() => applyPeriod(8)}>8 horas</button>
+        <button type="button" onClick={() => applyPeriod(24)}>24 horas</button>
+        <button type="button" onClick={() => applyPeriod(24 * 7)}>7 dias</button>
+      </div>
+
+      <div className="query-toolbar graph-toolbar">
+        <label className="motor-select">
+          <span>Motor</span>
+          <select
+            value={selectedMotor}
+            onChange={(event) => setSelectedMotor(event.target.value)}
+            disabled={trend.motors.length === 0}
+          >
+            {trend.motors.map((item) => (
+              <option value={item.key} key={item.key}>{formatFieldName(item.key)}</option>
+            ))}
+          </select>
+        </label>
+        <label><span>De</span><input type="datetime-local" value={range.from} onChange={(event) => range.setFrom(event.target.value)} /></label>
+        <label><span>Até</span><input type="datetime-local" value={range.to} onChange={(event) => range.setTo(event.target.value)} /></label>
+        <button type="button" className="primary-button" onClick={() => void query()} disabled={loading}>
+          {loading ? "Consultando…" : "Atualizar"}
+        </button>
+      </div>
+
+      {error && <div className="error-banner">{error}</div>}
+      {!loading && trend.motors.length === 0 && (
+        <div className="graph-empty">
+          Nenhum par de velocidade e torque foi encontrado no período selecionado.
+        </div>
+      )}
+      {motor && (
+        <section className="trend-grid">
+          <TrendChart
+            title="Velocidade"
+            field={motor.speedField}
+            unit={formatTrendUnit(motor.speedUnit)}
+            color="#55a2ff"
+            rows={speedRows}
+          />
+          <TrendChart
+            title="Torque"
+            field={motor.torqueField}
+            unit={formatTrendUnit(motor.torqueUnit)}
+            color="#e8aa55"
+            rows={torqueRows}
+          />
+        </section>
+      )}
+      <p className="graph-note">
+        Resolução atual: um snapshot a cada 10 segundos. “Unidade PLC” indica que a
+        engenharia do campo ainda precisa ser confirmada como %, Nm, rpm ou outra unidade.
+      </p>
+    </>
+  );
+}
+
+function formatTrendUnit(unit: string) {
+  return unit === "PLC" ? "unidade PLC" : unit;
+}
+
+function TrendChart({
+  title,
+  field,
+  unit,
+  color,
+  rows,
+}: {
+  title: string;
+  field: string;
+  unit: string;
+  color: string;
+  rows: ReadonlyArray<readonly [string, number]>;
+}) {
+  const values = rows.map((row) => row[1]);
+  const minimum = values.length ? Math.min(...values) : 0;
+  const maximum = values.length ? Math.max(...values) : 0;
+  const average = values.length
+    ? values.reduce((sum, value) => sum + value, 0) / values.length
+    : 0;
+  const option = useMemo<InteractiveChartOption>(() => ({
+    backgroundColor: "transparent",
+    animation: false,
+    grid: { left: 64, right: 25, top: 26, bottom: 72 },
+    tooltip: {
+      trigger: "axis",
+      axisPointer: { type: "cross" },
+      valueFormatter: (value: unknown) => `${Number(value).toFixed(2)} ${unit}`,
+    },
+    xAxis: {
+      type: "time",
+      axisLabel: { hideOverlap: true },
+      splitLine: { show: false },
+    },
+    yAxis: {
+      type: "value",
+      scale: true,
+      name: unit,
+      splitLine: { lineStyle: { color: "#26364d" } },
+    },
+    dataZoom: [
+      { type: "inside", zoomOnMouseWheel: true, moveOnMouseMove: true },
+      {
+        type: "slider",
+        height: 24,
+        bottom: 16,
+        borderColor: "#34445c",
+        fillerColor: `${color}44`,
+      },
+    ],
+    series: [{
+      type: "line",
+      name: title,
+      showSymbol: false,
+      sampling: "lttb",
+      connectNulls: false,
+      data: rows,
+      lineStyle: { width: 2, color },
+      areaStyle: { color: `${color}1f` },
+    }],
+  }), [color, rows, title, unit]);
+
+  return (
+    <article className="trend-card">
+      <div className="trend-heading">
+        <div><p className="eyebrow">{field}</p><h2>{title}</h2></div>
+        <div className="trend-stats">
+          <span><small>Mín.</small><b>{minimum.toFixed(2)}</b></span>
+          <span><small>Média</small><b>{average.toFixed(2)}</b></span>
+          <span><small>Máx.</small><b>{maximum.toFixed(2)}</b></span>
+        </div>
+      </div>
+      {rows.length
+        ? (
+          <Suspense fallback={<EmptyState text="Preparando gráfico…" />}>
+            <InteractiveChart option={option} ariaLabel={`${title} do motor ao longo do período`} />
+          </Suspense>
+        )
+        : <EmptyState text={`Sem amostras de ${title.toLowerCase()} no período.`} />}
+    </article>
   );
 }
 

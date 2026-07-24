@@ -20,6 +20,11 @@ public interface IHistorianRepository
         DateTimeOffset? toUtc,
         int limit,
         CancellationToken cancellationToken);
+    Task<IReadOnlyList<StatusSnapshotRow>> GetStatusTrendSamplesAsync(
+        DateTimeOffset fromUtc,
+        DateTimeOffset toUtc,
+        int maximumPoints,
+        CancellationToken cancellationToken);
     Task<IReadOnlyList<CommandEventRow>> GetCommandEventsAsync(
         DateTimeOffset? fromUtc,
         DateTimeOffset? toUtc,

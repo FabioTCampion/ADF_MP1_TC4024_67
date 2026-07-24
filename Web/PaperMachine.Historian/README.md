@@ -101,15 +101,20 @@ Mudanças na estrutura PLC devem incrementar `Historian:MappingVersion`.
 - `GET /api/current`;
 - `GET /api/history/status`;
 - `GET /api/history/status-changes`;
+- `GET /api/history/motors`;
 - `GET /api/history/commands`;
 - `GET /api/history/alarms`.
 
 Os históricos aceitam `fromUtc`, `toUtc` e `limit`. Alarmes também aceitam `active=true|false`.
+O endpoint de motores aceita `fromUtc`, `toUtc` e `maxPoints` entre 100 e 2.000,
+descobre os pares de velocidade/torque do status e limita a consulta a 31 dias.
 As APIs do Historian exigem autenticação por cookie; `/health` e o fluxo inicial de autenticação permanecem públicos.
 
 ## Limites desta versão
 
 - não escreve comandos no PLC;
 - mudança em `paperMachineHmiCommands` significa **comando observado**, não confirmação de execução;
+- os gráficos usam os snapshots de status gravados a cada 10 segundos e não representam picos mais rápidos;
+- campos sem unidade inequívoca no DUT são exibidos como `unidade PLC`;
 - ainda não há relatórios PDF, retenção automática ou agregação;
 - a administração completa de usuários e grupos será incorporada em uma próxima evolução.

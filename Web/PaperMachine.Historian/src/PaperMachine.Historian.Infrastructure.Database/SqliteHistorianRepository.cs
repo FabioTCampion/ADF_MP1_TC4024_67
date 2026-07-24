@@ -282,6 +282,64 @@ public sealed class SqliteHistorianRepository : IHistorianRepository
         return rows;
     }
 
+    public async Task<IReadOnlyList<StatusSnapshotRow>> GetStatusTrendSamplesAsync(
+        DateTimeOffset fromUtc,
+        DateTimeOffset toUtc,
+        int maximumPoints,
+        CancellationToken cancellationToken)
+    {
+        if (fromUtc >= toUtc)
+            throw new ArgumentException("The trend start must be earlier than its end.");
+        if (maximumPoints is < 100 or > 2_000)
+            throw new ArgumentOutOfRangeException(
+                nameof(maximumPoints),
+                "Maximum points must be between 100 and 2000.");
+
+        await using var connection = await OpenAsync(cancellationToken);
+        await using var command = CreateRangeCommand(
+            connection,
+            """
+            WITH BucketedSnapshots AS (
+                SELECT Id, CapturedAtUtc, PayloadJson, MappingVersion, Quality,
+                       NTILE(@MaximumPoints) OVER (ORDER BY CapturedAtUtc) AS Bucket,
+                       ROW_NUMBER() OVER (ORDER BY CapturedAtUtc DESC) AS ReverseNumber
+                FROM StatusSnapshots
+                WHERE CapturedAtUtc >= @FromUtc
+                  AND CapturedAtUtc < @ToUtc
+            ),
+            SampledSnapshots AS (
+                SELECT Id, CapturedAtUtc, PayloadJson, MappingVersion, Quality,
+                       ReverseNumber,
+                       ROW_NUMBER() OVER (
+                           PARTITION BY Bucket
+                           ORDER BY CapturedAtUtc
+                       ) AS BucketRow
+                FROM BucketedSnapshots
+            )
+            SELECT Id, CapturedAtUtc, PayloadJson, MappingVersion, Quality
+            FROM SampledSnapshots
+            WHERE BucketRow = 1 OR ReverseNumber = 1
+            ORDER BY CapturedAtUtc;
+            """,
+            fromUtc,
+            toUtc,
+            maximumPoints);
+        command.Parameters.AddWithValue("@MaximumPoints", maximumPoints);
+
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        var rows = new List<StatusSnapshotRow>();
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            rows.Add(new StatusSnapshotRow(
+                reader.GetInt64(0),
+                ParseDatabaseTimestamp(reader.GetString(1)),
+                reader.GetString(2),
+                reader.GetString(3),
+                reader.GetString(4)));
+        }
+        return rows;
+    }
+
     public async Task<IReadOnlyList<CommandEventRow>> GetCommandEventsAsync(
         DateTimeOffset? fromUtc,
         DateTimeOffset? toUtc,
