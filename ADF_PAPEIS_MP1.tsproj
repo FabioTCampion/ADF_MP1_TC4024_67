@@ -600,7 +600,7 @@
 		</System>
 		<Plc>
 			<Project GUID="{1B0ECF96-BA46-432C-8D32-86F6F536DF4A}" Name="Plc_Prog" PrjFilePath="Plc_Prog\Plc_Prog.plcproj" TmcFilePath="Plc_Prog\Plc_Prog.tmc" ReloadTmc="true" AmsPort="851" FileArchiveSettings="#x000e" CopyTmcToTarget="true" ClearInvalidPersist="true" SymbolicMapping="true">
-				<Instance Id="#x08502000" TcSmClass="TComPlcObjDef" KeepUnrestoredLinks="2" TmcPath="Plc_Prog\Plc_Prog.tmc" TmcHash="{8E7982C0-33EC-E63F-E4AF-D372F03D7F8C}">
+				<Instance Id="#x08502000" TcSmClass="TComPlcObjDef" KeepUnrestoredLinks="2" TmcPath="Plc_Prog\Plc_Prog.tmc" TmcHash="{01FABF2A-E8EC-DA5F-2B28-8E8B6E29199A}">
 					<Name>Plc_Prog Instance</Name>
 					<CLSID ClassFactory="TcPlc30">{08500001-0000-0000-F000-000000000064}</CLSID>
 					<Vars VarGrpType="1">
@@ -10182,6 +10182,12 @@ Bit1: Value bigger/equal Limit2]]></Comment>
 				<EtherCAT DcCycDiag="true" DcSyncMode="3" EnableVirtualSwitch="true" MaxSwitchPorts="3" MaxSwitchFrames="140" MaxSwitchMACs="100"/>
 			</Device>
 		</Io>
+		<SymbolWatch>
+			<Variable>TIID^ETH^+P2=100-UG1 - Drive Roll^1st TxPDO Mapping^Velocity actual value</Variable>
+			<Variable>TIID^ETH^+P3=100-UG1 - SuctionRoll^1st RxPDO Mapping^Target torque</Variable>
+			<Variable>TIID^ETH^+P3=100-UG1 - SuctionRoll^1st RxPDO Mapping^vl target velocity</Variable>
+			<Variable>TIID^ETH^+P3=100-UG1 - SuctionRoll^1st TxPDO Mapping^Velocity actual value</Variable>
+		</SymbolWatch>
 	</Project>
 	<Mappings>
 		<MappingInfo Identifier="{00000000-2001-0850-0020-500810000403}" Id="#x02030020"/>

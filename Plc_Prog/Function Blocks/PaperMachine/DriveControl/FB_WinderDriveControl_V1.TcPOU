@@ -298,11 +298,11 @@ END_VAR
 //IF NOT coreAceleratorMotorReady THEN
 	
 	IF coreAceleratorEngageCmd AND NOT coreAceleratorDisengageCmd THEN
-		
-		instTONCoreAceleratorReturnTime.IN := TRUE;
-		coreAceleratorEngageSolenoid := TRUE;
-		coreAceleratorMotorStart := TRUE;
-	
+		IF corePositioningArmPosLimitFwd OR corePositioningArmPosLimitRev THEN	
+			instTONCoreAceleratorReturnTime.IN := TRUE;
+			coreAceleratorEngageSolenoid := TRUE;
+			coreAceleratorMotorStart := TRUE;
+		END_IF
 	END_IF
 	
 	
@@ -3759,7 +3759,7 @@ CASE riderRollState OF
     instTONAdvanceTime.IN := TRUE;
 
     // When timer finishes, go to work mode
-    IF instTONAdvanceTime.Q THEN
+    IF instTONAdvanceTime.Q OR P10_050_DI5.PDOS.digitalInput_05 THEN
 	
         instTONAdvanceTime.IN := FALSE;
         riderRollState := 3;  // Enter WORK POSITION
@@ -3773,11 +3773,11 @@ CASE riderRollState OF
 //------------------------------------------------------------------
 3:
 
-	instTUNE2_PressureOperatorSide.SET_val := 0.5;
+	instTUNE2_PressureOperatorSide.SET_val := 0.3;
 	instTUNE2_PressureOperatorSide.SET := TRUE;
 	instTUNE2_PressureOperatorSide();
 		
-	instTUNE2_PressureDriveSide.SET_val := 0.5;
+	instTUNE2_PressureDriveSide.SET_val := 0.3;
 	instTUNE2_PressureDriveSide.SET := TRUE;
 	instTUNE2_PressureDriveSide();
 

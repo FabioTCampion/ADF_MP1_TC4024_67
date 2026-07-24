@@ -2890,8 +2890,8 @@ END_VAR]]></Declaration>
                           <l2 n="InputItems">
                             <o t="BoxTreeOperand">
                               <o n="Operand" t="Operand">
-                                <v n="Operand">"0"</v>
-                                <v n="Type">"INT"</v>
+                                <v n="Operand">"machineConfig.suctionRollMinTorque"</v>
+                                <v n="Type">"REAL"</v>
                                 <v n="Comment">""</v>
                                 <v n="SymbolComment">""</v>
                                 <v n="Address">""</v>
@@ -3049,8 +3049,8 @@ END_VAR]]></Declaration>
                             </o>
                             <o t="BoxTreeOperand">
                               <o n="Operand" t="Operand">
-                                <v n="Operand">"85"</v>
-                                <v n="Type">"INT"</v>
+                                <v n="Operand">"machineConfig.suctionRollMaxToque"</v>
+                                <v n="Type">"REAL"</v>
                                 <v n="Comment">""</v>
                                 <v n="SymbolComment">""</v>
                                 <v n="Address">""</v>

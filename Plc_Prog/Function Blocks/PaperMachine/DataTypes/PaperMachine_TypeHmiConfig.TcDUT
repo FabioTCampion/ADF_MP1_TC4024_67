@@ -160,7 +160,9 @@
 	winderRiderRollStartPressure : REAL := 1.0;
 	winderRiderRollAdvTime : TIME := T#2S;
 
-	
+	suctionRollMinTorque : REAL := 0.0;;
+	suctionRollMaxToque : REAL := 100.0;;
+
 			
 	END_STRUCT
 END_TYPE
