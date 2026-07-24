@@ -45,12 +45,13 @@ public static class MotorTrendBuilder
         if (!allFieldNames.Contains(speedField))
             return null;
 
+        var isPump = key.EndsWith("Pump", StringComparison.Ordinal);
         return new MotorTrendMotor(
             key,
             speedField,
             torqueField,
-            speedField.EndsWith("SpeedMPM", StringComparison.Ordinal) ? "m/min" : "PLC",
-            "PLC");
+            isPump ? "%" : "m/min",
+            "%");
     }
 
     private static Dictionary<string, double?> ParseNumbers(string payloadJson)

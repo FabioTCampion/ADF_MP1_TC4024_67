@@ -732,7 +732,9 @@ function MotorGraphs() {
                   <span>
                     <b>{formatMotorMember(motor.key)}</b>
                     <small>
-                      V {currentValue?.speed?.toFixed(1) ?? "—"} · T {currentValue?.torque?.toFixed(1) ?? "—"}
+                      V {currentValue?.speed?.toFixed(1) ?? "—"} {formatTrendUnit(motor.speedUnit)}
+                      {" · "}
+                      T {currentValue?.torque?.toFixed(1) ?? "—"} {formatTrendUnit(motor.torqueUnit)}
                     </small>
                   </span>
                 </label>
@@ -755,8 +757,8 @@ function MotorGraphs() {
         </section>
       )}
       <p className="graph-note">
-        Resolução atual: um snapshot a cada 10 segundos. “Unidade PLC” indica que a
-        engenharia do campo ainda precisa ser confirmada como %, Nm, rpm ou outra unidade.
+        Resolução atual: um snapshot a cada 10 segundos. Velocidades dos acionamentos
+        sincronizados são exibidas em m/min; velocidades das bombas e todos os torques, em %.
       </p>
     </>
   );
@@ -769,6 +771,7 @@ function formatTrendUnit(unit: string) {
 function TrendChart({ title, series }: { title: string; series: TrendSeries[] }) {
   const units = [...new Set(series.map((item) => item.unit))];
   const axisUnit = units.length === 1 ? units[0] : "valor de processo";
+  const seriesIdentity = `${title}:${series.map((item) => item.field).join("|")}`;
   const option = useMemo<InteractiveChartOption>(() => ({
     backgroundColor: "transparent",
     animation: false,
@@ -828,7 +831,11 @@ function TrendChart({ title, series }: { title: string; series: TrendSeries[] })
       {series.some((item) => item.rows.length > 0)
         ? (
           <Suspense fallback={<EmptyState text="Preparando gráfico…" />}>
-            <InteractiveChart option={option} ariaLabel={`${title} dos motores do grupo ao longo do período`} />
+            <InteractiveChart
+              key={seriesIdentity}
+              option={option}
+              ariaLabel={`${title} dos motores do grupo ao longo do período`}
+            />
           </Suspense>
         )
         : <EmptyState text="Selecione ao menos um motor com amostras no período." />}

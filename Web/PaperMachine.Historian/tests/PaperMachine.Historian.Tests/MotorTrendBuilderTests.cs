@@ -17,6 +17,8 @@ public sealed class MotorTrendBuilderTests
                 {
                   "dryingSectionGroup1UpperMasterSpeedMPM": 120.5,
                   "dryingSectionGroup1UpperMasterTorque": 44.2,
+                  "formingBoardSuctionRollSpeed": 118.0,
+                  "formingBoardSuctionRollTorque": 38.0,
                   "stockPumpSpeed": 68.0,
                   "stockPumpTorque": 31.0,
                   "headBoxMMH2O": 350.0
@@ -29,6 +31,8 @@ public sealed class MotorTrendBuilderTests
                 {
                   "dryingSectionGroup1UpperMasterSpeedMPM": 121.5,
                   "dryingSectionGroup1UpperMasterTorque": 45.2,
+                  "formingBoardSuctionRollSpeed": 119.0,
+                  "formingBoardSuctionRollTorque": 39.0,
                   "stockPumpSpeed": 69.0,
                   "stockPumpTorque": 32.0,
                   "headBoxMMH2O": 351.0
@@ -38,12 +42,22 @@ public sealed class MotorTrendBuilderTests
 
         var trend = MotorTrendBuilder.Build(rows);
 
-        Assert.Equal(2, trend.Motors.Count);
+        Assert.Equal(3, trend.Motors.Count);
         var dryingMotor = Assert.Single(
             trend.Motors,
             motor => motor.Key == "dryingSectionGroup1UpperMaster");
         Assert.Equal("m/min", dryingMotor.SpeedUnit);
-        Assert.Equal("PLC", dryingMotor.TorqueUnit);
+        Assert.Equal("%", dryingMotor.TorqueUnit);
+        var formingBoardMotor = Assert.Single(
+            trend.Motors,
+            motor => motor.Key == "formingBoardSuctionRoll");
+        Assert.Equal("m/min", formingBoardMotor.SpeedUnit);
+        Assert.Equal("%", formingBoardMotor.TorqueUnit);
+        var stockPump = Assert.Single(
+            trend.Motors,
+            motor => motor.Key == "stockPump");
+        Assert.Equal("%", stockPump.SpeedUnit);
+        Assert.Equal("%", stockPump.TorqueUnit);
         Assert.Equal(120.5, trend.Samples[0].Values[dryingMotor.Key].Speed);
         Assert.Equal(45.2, trend.Samples[1].Values[dryingMotor.Key].Torque);
     }
