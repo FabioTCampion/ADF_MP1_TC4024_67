@@ -131,6 +131,14 @@ descobre os pares de velocidade/torque do status e limita a consulta a 31 dias.
 Na interface, os acionamentos são organizados por grupo funcional. Os motores
 selecionados por checkbox são comparados como séries no mesmo gráfico de
 velocidade e no mesmo gráfico de torque.
+As métricas de manutenção usam as quebras confirmadas pela condição de
+produtividade: MTTR é a duração média das quebras, MTBF é o tempo produtivo
+acumulado dividido pelo número de quebras e MTTF é a duração média dos períodos
+produtivos que terminaram em quebra. Lacunas sem amostras não são tratadas como
+tempo produtivo.
+A análise de correlação relaciona cada quebra a comandos e mudanças discretas
+de estado ocorridos entre cinco minutos antes e um minuto depois do seu início.
+Ela destaca recorrência temporal, mas não atribui causalidade automaticamente.
 As APIs do Historian exigem autenticação por cookie; `/health` e o fluxo inicial de autenticação permanecem públicos.
 
 ## Limites desta versão
@@ -139,6 +147,8 @@ As APIs do Historian exigem autenticação por cookie; `/health` e o fluxo inici
 - mudança em `paperMachineHmiCommands` é capturada por notificação ADS imediata,
   mas significa **comando observado**, não confirmação de execução;
 - os gráficos usam os snapshots de status gravados a cada 10 segundos e não representam picos mais rápidos;
+- correlações de quebra são indícios temporais e precisam de confirmação por
+  alarme, diagnóstico do drive ou análise técnica;
 - campos sem unidade inequívoca no DUT são exibidos como `unidade PLC`;
 - ainda não há relatórios PDF, retenção automática ou agregação;
 - a administração completa de usuários e grupos será incorporada em uma próxima evolução.

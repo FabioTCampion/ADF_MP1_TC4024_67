@@ -8,6 +8,7 @@ type MetricView =
   | "hourlyBreaks"
   | "hourlyLoss"
   | "interruptions"
+  | "correlations"
   | "table";
 
 type ProductivitySample = {
@@ -31,12 +32,61 @@ type ProductionInterruption = {
   durationMinutes: number;
 };
 
+type ProductiveRun = {
+  start: Date;
+  end: Date;
+  durationMinutes: number;
+};
+
+type CommandEvent = {
+  id: number;
+  commandName: string;
+  previousValueJson: string | null;
+  currentValueJson: string;
+  observedAtUtc: string;
+  origin: string;
+};
+
+type StatusChange = {
+  id: number;
+  fieldName: string;
+  previousValueJson: string | null;
+  currentValueJson: string;
+  observedAtUtc: string;
+};
+
+type CorrelationEvent = {
+  id: string;
+  kind: "command" | "status";
+  name: string;
+  previousValueJson: string | null;
+  currentValueJson: string;
+  observedAt: Date;
+  offsetMilliseconds: number;
+};
+
+type BreakCorrelation = {
+  interruption: ProductionInterruption;
+  events: CorrelationEvent[];
+};
+
 const DEFAULT_PRODUCTIVE_SPEED_MPM = 10;
 const DEFAULT_SAMPLE_INTERVAL_MILLISECONDS = 10_000;
 const MAX_CONTINUOUS_GAP_MILLISECONDS = 5 * 60_000;
 const MINIMUM_INTERRUPTION_MILLISECONDS = 60_000;
 const MAX_RANGE_MILLISECONDS = 7 * 24 * 60 * 60_000;
+const CORRELATION_LOOKBACK_MILLISECONDS = 5 * 60_000;
+const CORRELATION_AFTER_MILLISECONDS = 60_000;
+const CORRELATION_EVENT_LIMIT = 5_000;
+const MAX_CORRELATION_EVENTS_PER_BREAK = 8;
 const HOURS = Array.from({ length: 24 }, (_, index) => index);
+
+const CONTINUOUS_STATUS_FIELD_PATTERN =
+  /speed|torque|current|pressure|temperature|level|reference|setpoint|percent|mpm|rpm/i;
+const BREAK_SOURCE_FIELDS = new Set([
+  "dryingSectionGroup3UpperMasterSpeedMPM",
+  "dryingSectionGroup3PaperPresence",
+]);
 
 const startOfDay = (value = new Date()) =>
   new Date(value.getFullYear(), value.getMonth(), value.getDate());
@@ -67,6 +117,37 @@ const formatDuration = (minutes: number | null) => {
   const hours = Math.floor(minutes / 60);
   const remainingMinutes = Math.round(minutes % 60);
   return `${formatNumber(hours, 0)}h ${remainingMinutes.toString().padStart(2, "0")}min`;
+};
+
+const average = (values: number[]) =>
+  values.length > 0
+    ? values.reduce((total, value) => total + value, 0) / values.length
+    : null;
+
+const parseStoredValue = (value: string | null) => {
+  if (value === null) return "—";
+  try {
+    const parsed = JSON.parse(value) as unknown;
+    if (parsed === true) return "Ligado";
+    if (parsed === false) return "Desligado";
+    if (parsed === null) return "—";
+    if (typeof parsed === "object") return JSON.stringify(parsed);
+    return String(parsed);
+  } catch {
+    return value;
+  }
+};
+
+const formatCorrelationOffset = (milliseconds: number) => {
+  const absoluteSeconds = Math.round(Math.abs(milliseconds) / 1000);
+  if (absoluteSeconds <= 5) return "no início";
+  const minutes = Math.floor(absoluteSeconds / 60);
+  const seconds = absoluteSeconds % 60;
+  const duration =
+    minutes > 0
+      ? `${minutes}min${seconds > 0 ? ` ${seconds}s` : ""}`
+      : `${seconds}s`;
+  return `${duration} ${milliseconds < 0 ? "antes" : "depois"}`;
 };
 
 const isValidSample = (
@@ -184,13 +265,18 @@ function buildInterruptions(intervals: ProductivityInterval[]) {
 }
 
 function buildProductiveRuns(intervals: ProductivityInterval[]) {
-  const durations: number[] = [];
+  const runs: ProductiveRun[] = [];
   let activeStart: Date | null = null;
   let activeEnd: Date | null = null;
 
   const appendActive = () => {
     if (activeStart && activeEnd) {
-      durations.push((activeEnd.getTime() - activeStart.getTime()) / 60_000);
+      runs.push({
+        start: activeStart,
+        end: activeEnd,
+        durationMinutes:
+          (activeEnd.getTime() - activeStart.getTime()) / 60_000,
+      });
     }
     activeStart = null;
     activeEnd = null;
@@ -212,7 +298,112 @@ function buildProductiveRuns(intervals: ProductivityInterval[]) {
     activeEnd = interval.end;
   });
   appendActive();
-  return durations;
+  return runs;
+}
+
+function calculateReliabilityMetrics(
+  intervals: ProductivityInterval[],
+  interruptions: ProductionInterruption[],
+  cadence: number,
+) {
+  const mttrMinutes = average(
+    interruptions.map((interruption) => interruption.durationMinutes),
+  );
+  const totalProductiveMinutes = intervals.reduce(
+    (total, interval) =>
+      total +
+      (interval.productive
+        ? (interval.end.getTime() - interval.start.getTime()) / 60_000
+        : 0),
+    0,
+  );
+  const productiveRuns = buildProductiveRuns(intervals);
+  const runsEndingInFailure = productiveRuns.filter((run) =>
+    interruptions.some(
+      (interruption) =>
+        Math.abs(run.end.getTime() - interruption.start.getTime()) <= cadence,
+    ),
+  );
+
+  return {
+    mttrMinutes,
+    mtbfMinutes:
+      interruptions.length > 0
+        ? totalProductiveMinutes / interruptions.length
+        : null,
+    mttfMinutes: average(
+      runsEndingInFailure.map((run) => run.durationMinutes),
+    ),
+    failuresWithOperatingRun: runsEndingInFailure.length,
+  };
+}
+
+function isDiscreteStatusChange(change: StatusChange) {
+  if (BREAK_SOURCE_FIELDS.has(change.fieldName)) return false;
+  if (CONTINUOUS_STATUS_FIELD_PATTERN.test(change.fieldName)) return false;
+  const currentValue = parseStoredValue(change.currentValueJson);
+  const previousValue = parseStoredValue(change.previousValueJson);
+  return currentValue !== previousValue;
+}
+
+function buildBreakCorrelations(
+  interruptions: ProductionInterruption[],
+  commandEvents: CommandEvent[],
+  statusChanges: StatusChange[],
+) {
+  const sourceEvents = [
+    ...commandEvents.map((event): Omit<CorrelationEvent, "offsetMilliseconds"> => ({
+      id: `command-${event.id}`,
+      kind: "command",
+      name: event.commandName,
+      previousValueJson: event.previousValueJson,
+      currentValueJson: event.currentValueJson,
+      observedAt: new Date(event.observedAtUtc),
+    })),
+    ...statusChanges
+      .filter(isDiscreteStatusChange)
+      .map((event): Omit<CorrelationEvent, "offsetMilliseconds"> => ({
+        id: `status-${event.id}`,
+        kind: "status",
+        name: event.fieldName,
+        previousValueJson: event.previousValueJson,
+        currentValueJson: event.currentValueJson,
+        observedAt: new Date(event.observedAtUtc),
+      })),
+  ];
+
+  return interruptions.map((interruption): BreakCorrelation => {
+    const breakAt = interruption.start.getTime();
+    const candidates = sourceEvents
+      .map((event) => ({
+        ...event,
+        offsetMilliseconds: event.observedAt.getTime() - breakAt,
+      }))
+      .filter(
+        (event) =>
+          event.offsetMilliseconds >= -CORRELATION_LOOKBACK_MILLISECONDS &&
+          event.offsetMilliseconds <= CORRELATION_AFTER_MILLISECONDS,
+      )
+      .sort(
+        (left, right) =>
+          Math.abs(left.offsetMilliseconds) -
+          Math.abs(right.offsetMilliseconds),
+      );
+    const statusQuota = 3;
+    const events = [
+      ...candidates
+        .filter((event) => event.kind === "command")
+        .slice(0, MAX_CORRELATION_EVENTS_PER_BREAK - statusQuota),
+      ...candidates
+        .filter((event) => event.kind === "status")
+        .slice(0, statusQuota),
+    ].sort(
+      (left, right) =>
+        Math.abs(left.offsetMilliseconds) -
+        Math.abs(right.offsetMilliseconds),
+    );
+    return { interruption, events };
+  });
 }
 
 function summarizeProductivity(
@@ -271,6 +462,11 @@ function summarizeProductivity(
   );
   const interruptions = buildInterruptions(intervals);
   const productiveRuns = buildProductiveRuns(intervals);
+  const reliability = calculateReliabilityMetrics(
+    intervals,
+    interruptions,
+    cadence,
+  );
   const hourlyBreaks = HOURS.map(() => 0);
   interruptions.forEach((interruption) => {
     hourlyBreaks[interruption.start.getHours()] += 1;
@@ -280,9 +476,12 @@ function summarizeProductivity(
     cadence,
     intervals,
     interruptions,
+    reliability,
     hourlyBreaks,
     longestProductiveRunMinutes:
-      productiveRuns.length > 0 ? Math.max(...productiveRuns) : null,
+      productiveRuns.length > 0
+        ? Math.max(...productiveRuns.map((run) => run.durationMinutes))
+        : null,
     coveredMinutes: coveredMilliseconds / 60_000,
     productiveMinutes: productiveMilliseconds / 60_000,
     unproductiveMinutes: unproductiveMilliseconds / 60_000,
@@ -536,6 +735,131 @@ function InterruptionChart({
   );
 }
 
+function CorrelationAnalysis({
+  correlations,
+  historyTruncated,
+  warning,
+}: {
+  correlations: BreakCorrelation[];
+  historyTruncated: boolean;
+  warning: string;
+}) {
+  const recurrence = new Map<
+    string,
+    { kind: CorrelationEvent["kind"]; name: string; breaks: number }
+  >();
+  correlations.forEach((correlation) => {
+    const seenInBreak = new Set<string>();
+    correlation.events.forEach((event) => {
+      const key = `${event.kind}:${event.name}`;
+      if (seenInBreak.has(key)) return;
+      seenInBreak.add(key);
+      const current = recurrence.get(key);
+      recurrence.set(key, {
+        kind: event.kind,
+        name: event.name,
+        breaks: (current?.breaks ?? 0) + 1,
+      });
+    });
+  });
+  const recurringEvents = [...recurrence.values()]
+    .filter((event) => event.breaks >= 2)
+    .sort((left, right) => right.breaks - left.breaks)
+    .slice(0, 4);
+
+  return (
+    <div className="metrics-correlations">
+      <div className="correlation-explanation">
+        <strong>Correlação temporal, não causa comprovada</strong>
+        <span>
+          Eventos entre 5 minutos antes e 1 minuto depois do início de cada
+          quebra. Leituras contínuas e os próprios sinais usados para detectar a
+          quebra são descartados.
+        </span>
+      </div>
+
+      {(historyTruncated || warning) && (
+        <div className="correlation-warning">
+          {warning ||
+            "O período atingiu o limite de 5.000 eventos. A análise pode estar incompleta; reduza o intervalo para maior precisão."}
+        </div>
+      )}
+
+      <section className="correlation-patterns">
+        <span>Padrões recorrentes</span>
+        {recurringEvents.length === 0 ? (
+          <small>
+            Nenhum comando ou estado apareceu próximo de duas ou mais quebras.
+          </small>
+        ) : (
+          <div>
+            {recurringEvents.map((event) => (
+              <article key={`${event.kind}-${event.name}`}>
+                <b>{event.name}</b>
+                <small>
+                  {event.kind === "command" ? "Comando" : "Mudança de estado"} ·{" "}
+                  {event.breaks} de {correlations.length} quebras
+                </small>
+              </article>
+            ))}
+          </div>
+        )}
+      </section>
+
+      <div className="correlation-breaks">
+        {correlations.length === 0 ? (
+          <div className="metrics-stop-empty">
+            Nenhuma quebra confirmada para correlacionar.
+          </div>
+        ) : (
+          correlations.map((correlation, index) => (
+            <article
+              className="correlation-break"
+              key={`${correlation.interruption.start.toISOString()}-${index}`}
+            >
+              <header>
+                <div>
+                  <span>Quebra {index + 1}</span>
+                  <b>
+                    {correlation.interruption.start.toLocaleString("pt-BR")}
+                  </b>
+                </div>
+                <small>
+                  Duração:{" "}
+                  {formatDuration(correlation.interruption.durationMinutes)}
+                </small>
+              </header>
+              {correlation.events.length === 0 ? (
+                <p>Nenhum evento discreto encontrado na janela analisada.</p>
+              ) : (
+                <div className="correlation-events">
+                  {correlation.events.map((event) => (
+                    <div className="correlation-event" key={event.id}>
+                      <em className={`correlation-event-${event.kind}`}>
+                        {event.kind === "command" ? "Comando" : "Estado"}
+                      </em>
+                      <div>
+                        <b>{event.name}</b>
+                        <small>
+                          {parseStoredValue(event.previousValueJson)} →{" "}
+                          {parseStoredValue(event.currentValueJson)}
+                        </small>
+                      </div>
+                      <span>
+                        {formatCorrelationOffset(event.offsetMilliseconds)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </article>
+          ))
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function MetricsScreen() {
   const now = new Date();
   const [periodStart, setPeriodStart] = useState(() => startOfDay());
@@ -546,6 +870,9 @@ export default function MetricsScreen() {
     DEFAULT_PRODUCTIVE_SPEED_MPM,
   );
   const [samples, setSamples] = useState<ProductivitySample[]>([]);
+  const [commandEvents, setCommandEvents] = useState<CommandEvent[]>([]);
+  const [statusChanges, setStatusChanges] = useState<StatusChange[]>([]);
+  const [correlationWarning, setCorrelationWarning] = useState("");
   const [view, setView] = useState<MetricView>("speed");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -558,10 +885,29 @@ export default function MetricsScreen() {
         fromUtc: start.toISOString(),
         toUtc: end.toISOString(),
       });
-      const response = await fetch(`/api/history/productivity?${parameters}`, {
-        headers: { Accept: "application/json" },
+      const eventParameters = new URLSearchParams({
+        fromUtc: new Date(
+          start.getTime() - CORRELATION_LOOKBACK_MILLISECONDS,
+        ).toISOString(),
+        toUtc: end.toISOString(),
+        limit: String(CORRELATION_EVENT_LIMIT),
       });
-      if (response.status === 401) {
+      const [response, commandsResponse, statusResponse] = await Promise.all([
+        fetch(`/api/history/productivity?${parameters}`, {
+          headers: { Accept: "application/json" },
+        }),
+        fetch(`/api/history/commands?${eventParameters}`, {
+          headers: { Accept: "application/json" },
+        }),
+        fetch(`/api/history/status-changes?${eventParameters}`, {
+          headers: { Accept: "application/json" },
+        }),
+      ]);
+      if (
+        response.status === 401 ||
+        commandsResponse.status === 401 ||
+        statusResponse.status === 401
+      ) {
         window.location.reload();
         return;
       }
@@ -572,8 +918,29 @@ export default function MetricsScreen() {
         throw new Error(body?.error ?? `Consulta falhou (${response.status}).`);
       }
       setSamples((await response.json()) as ProductivitySample[]);
+      const unavailableSources: string[] = [];
+      if (commandsResponse.ok) {
+        setCommandEvents((await commandsResponse.json()) as CommandEvent[]);
+      } else {
+        setCommandEvents([]);
+        unavailableSources.push("comandos");
+      }
+      if (statusResponse.ok) {
+        setStatusChanges((await statusResponse.json()) as StatusChange[]);
+      } else {
+        setStatusChanges([]);
+        unavailableSources.push("mudanças de estado");
+      }
+      setCorrelationWarning(
+        unavailableSources.length > 0
+          ? `Não foi possível consultar ${unavailableSources.join(" e ")}. A correlação está incompleta.`
+          : "",
+      );
     } catch (exception) {
       setSamples([]);
+      setCommandEvents([]);
+      setStatusChanges([]);
+      setCorrelationWarning("");
       setError(
         exception instanceof Error
           ? exception.message
@@ -626,6 +993,18 @@ export default function MetricsScreen() {
       ),
     [periodEnd, periodStart, productiveSpeedMpm, samples],
   );
+  const correlations = useMemo(
+    () =>
+      buildBreakCorrelations(
+        summary.interruptions,
+        commandEvents,
+        statusChanges,
+      ),
+    [commandEvents, statusChanges, summary.interruptions],
+  );
+  const correlationHistoryTruncated =
+    commandEvents.length >= CORRELATION_EVENT_LIMIT ||
+    statusChanges.length >= CORRELATION_EVENT_LIMIT;
   const longestInterruption =
     summary.interruptions.length > 0
       ? Math.max(
@@ -644,6 +1023,7 @@ export default function MetricsScreen() {
     hourlyBreaks: "Número de quebras por hora",
     hourlyLoss: "Tempo sem produção por hora",
     interruptions: "Duração das interrupções",
+    correlations: "Eventos próximos às quebras",
     table: "Tabela de interrupções",
   };
 
@@ -836,6 +1216,43 @@ export default function MetricsScreen() {
         </div>
       </section>
 
+      <section className="reliability-panel">
+        <div className="reliability-heading">
+          <div>
+            <p className="metrics-eyebrow">Confiabilidade operacional</p>
+            <h2>Indicadores de manutenção</h2>
+          </div>
+          <small>
+            Base: quebras confirmadas e somente intervalos efetivamente
+            cobertos por dados válidos.
+          </small>
+        </div>
+        <div className="reliability-grid">
+          <article>
+            <span>MTTR</span>
+            <b>{formatDuration(summary.reliability.mttrMinutes)}</b>
+            <small>Tempo médio para restaurar a produção após uma quebra</small>
+          </article>
+          <article>
+            <span>MTBF</span>
+            <b>{formatDuration(summary.reliability.mtbfMinutes)}</b>
+            <small>Tempo produtivo acumulado por quebra confirmada</small>
+          </article>
+          <article>
+            <span>MTTF</span>
+            <b>{formatDuration(summary.reliability.mttfMinutes)}</b>
+            <small>
+              Duração média dos períodos produtivos que terminaram em quebra
+            </small>
+          </article>
+        </div>
+        <p>
+          {summary.interruptions.length > 0
+            ? `${summary.interruptions.length} quebra${summary.interruptions.length > 1 ? "s" : ""} usada${summary.interruptions.length > 1 ? "s" : ""} no MTTR/MTBF e ${summary.reliability.failuresWithOperatingRun} com período produtivo anterior identificado no MTTF.`
+            : "Os indicadores exigem pelo menos uma quebra confirmada no período."}
+        </p>
+      </section>
+
       <div className="metrics-workspace">
         <nav className="metrics-navigation" aria-label="Tipos de métrica">
           <button
@@ -875,6 +1292,13 @@ export default function MetricsScreen() {
           </button>
           <button
             type="button"
+            className={view === "correlations" ? "active" : ""}
+            onClick={() => setView("correlations")}
+          >
+            Correlação de eventos
+          </button>
+          <button
+            type="button"
             className={view === "table" ? "active" : ""}
             onClick={() => setView("table")}
           >
@@ -888,7 +1312,7 @@ export default function MetricsScreen() {
               <h2>{viewTitles[view]}</h2>
               <span>{formatPeriod(periodStart, periodEnd)}</span>
             </div>
-            {view !== "table" && (
+            {view !== "table" && view !== "correlations" && (
               <div className="metrics-interaction-hint">
                 <b>Interativo</b>
                 <span>Role para zoom · arraste para navegar</span>
@@ -942,6 +1366,13 @@ export default function MetricsScreen() {
                     Nenhuma interrupção superior a 60 segundos.
                   </div>
                 ))}
+              {view === "correlations" && (
+                <CorrelationAnalysis
+                  correlations={correlations}
+                  historyTruncated={correlationHistoryTruncated}
+                  warning={correlationWarning}
+                />
+              )}
               {view === "table" && (
                 <div className="metrics-stop-table">
                   <div className="metrics-stop-head">

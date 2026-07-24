@@ -12,6 +12,13 @@ using PaperMachine.Historian.Web;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Host.UseWindowsService(options => options.ServiceName = "Paper Machine Historian");
+builder.Logging.ClearProviders();
+builder.Logging.AddConfiguration(builder.Configuration.GetSection("Logging"));
+builder.Logging.AddSimpleConsole(options =>
+{
+    options.SingleLine = true;
+    options.TimestampFormat = "yyyy-MM-dd HH:mm:ss ";
+});
 
 var adsOptions = builder.Configuration
     .GetSection(AdsOptions.SectionName)
