@@ -1,9 +1,9 @@
-export type PageId = "dashboard" | "status" | "graphs" | "alarms" | "commands" | "history";
+export type PageId = "dashboard" | "metrics" | "status" | "graphs" | "alarms" | "commands" | "history";
 
 export type NavigationItem = {
   id: PageId;
   label: string;
-  icon: "dashboard" | "status" | "graphs" | "alarm" | "command" | "history";
+  icon: "dashboard" | "metrics" | "status" | "graphs" | "alarm" | "command" | "history";
 };
 
 type Props = {
@@ -24,6 +24,9 @@ function Icon({ name }: { name: NavigationItem["icon"] }) {
   }
   if (name === "graphs") {
     return <svg viewBox="0 0 24 24"><path d="M4 19V5M4 19h16M7 15l4-4 3 2 5-6" /></svg>;
+  }
+  if (name === "metrics") {
+    return <svg viewBox="0 0 24 24"><path d="M4 19V9M10 19V5M16 19v-7M22 19H2" /><path d="m4 7 6-4 6 6 5-4" /></svg>;
   }
   if (name === "alarm") {
     return <svg viewBox="0 0 24 24"><path d="M18 9a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M9.8 21h4.4" /></svg>;

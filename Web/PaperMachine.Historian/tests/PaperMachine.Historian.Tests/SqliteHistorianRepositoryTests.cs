@@ -27,7 +27,7 @@ public sealed class SqliteHistorianRepositoryTests
             await repository.PersistCycleAsync(
                 processor.Process(HistorianProcessorTests.CreateSnapshot(
                     firstAt,
-                    """{"speed":10.0,"mixingPumpFaultCode":0,"mixingPumpFaultTorque":0.0,"mixingPumpFaultEventCounter":0}""",
+                    """{"speed":10.0,"dryingSectionGroup3UpperMasterSpeedMPM":336.7,"dryingSectionGroup3PaperPresence":true,"mixingPumpFaultCode":0,"mixingPumpFaultTorque":0.0,"mixingPumpFaultEventCounter":0}""",
                     """{"start":false}""",
                     """{"mixingPumpFaultAlarm":false}""")),
                 CancellationToken.None);
@@ -54,6 +54,13 @@ public sealed class SqliteHistorianRepositoryTests
                 100,
                 CancellationToken.None);
             Assert.Single(trendSamples);
+            var productivitySample = Assert.Single(
+                await repository.GetMachineProductivitySamplesAsync(
+                    firstAt,
+                    firstAt.AddMinutes(1),
+                    CancellationToken.None));
+            Assert.Equal(336.7, productivitySample.SpeedMpm);
+            Assert.True(productivitySample.PaperPresent);
             Assert.Equal(2, (await repository.GetCommandEventsAsync(null, null, 10, CancellationToken.None)).Count);
 
             var alarm = Assert.Single(

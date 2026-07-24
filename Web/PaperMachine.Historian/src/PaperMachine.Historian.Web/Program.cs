@@ -176,6 +176,28 @@ api.MapGet(
     });
 
 api.MapGet(
+    "/history/productivity",
+    async (
+        DateTimeOffset? fromUtc,
+        DateTimeOffset? toUtc,
+        TimeProvider clock,
+        IHistorianRepository repository,
+        CancellationToken cancellationToken) =>
+    {
+        var to = (toUtc ?? clock.GetUtcNow()).ToUniversalTime();
+        var from = (fromUtc ?? to.AddHours(-8)).ToUniversalTime();
+        if (from >= to)
+            return Results.BadRequest(new { error = "O início deve ser anterior ao fim do período." });
+        if (to - from > TimeSpan.FromDays(7))
+            return Results.BadRequest(new { error = "O período máximo para métricas é de 7 dias." });
+
+        return Results.Ok(await repository.GetMachineProductivitySamplesAsync(
+            from,
+            to,
+            cancellationToken));
+    });
+
+api.MapGet(
     "/history/commands",
     async (
         DateTimeOffset? fromUtc,

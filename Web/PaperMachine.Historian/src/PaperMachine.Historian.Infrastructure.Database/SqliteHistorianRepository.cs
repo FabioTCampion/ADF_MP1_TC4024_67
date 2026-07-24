@@ -391,6 +391,53 @@ public sealed class SqliteHistorianRepository : IHistorianRepository
         return rows;
     }
 
+    public async Task<IReadOnlyList<MachineProductivitySampleRow>> GetMachineProductivitySamplesAsync(
+        DateTimeOffset fromUtc,
+        DateTimeOffset toUtc,
+        CancellationToken cancellationToken)
+    {
+        if (fromUtc >= toUtc)
+            throw new ArgumentException("The productivity start must be earlier than its end.");
+
+        await using var connection = await OpenAsync(cancellationToken);
+        await using var command = CreateRangeCommand(
+            connection,
+            """
+            SELECT CapturedAtUtc,
+                   json_extract(
+                       PayloadJson,
+                       '$.dryingSectionGroup3UpperMasterSpeedMPM'),
+                   json_extract(
+                       PayloadJson,
+                       '$.dryingSectionGroup3PaperPresence'),
+                   Quality
+            FROM StatusSnapshots
+            WHERE CapturedAtUtc >= @FromUtc
+              AND CapturedAtUtc < @ToUtc
+            ORDER BY CapturedAtUtc;
+            """,
+            fromUtc,
+            toUtc,
+            limit: 1);
+        command.Parameters.RemoveAt("@Limit");
+
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        var rows = new List<MachineProductivitySampleRow>();
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            rows.Add(new MachineProductivitySampleRow(
+                ParseDatabaseTimestamp(reader.GetString(0)),
+                reader.IsDBNull(1)
+                    ? null
+                    : Convert.ToDouble(reader.GetValue(1), CultureInfo.InvariantCulture),
+                reader.IsDBNull(2)
+                    ? null
+                    : Convert.ToInt64(reader.GetValue(2), CultureInfo.InvariantCulture) != 0,
+                reader.GetString(3)));
+        }
+        return rows;
+    }
+
     public async Task<IReadOnlyList<CommandEventRow>> GetCommandEventsAsync(
         DateTimeOffset? fromUtc,
         DateTimeOffset? toUtc,

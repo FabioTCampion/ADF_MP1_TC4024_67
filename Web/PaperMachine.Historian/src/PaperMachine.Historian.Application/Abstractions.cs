@@ -25,6 +25,10 @@ public interface IHistorianRepository
         DateTimeOffset toUtc,
         int maximumPoints,
         CancellationToken cancellationToken);
+    Task<IReadOnlyList<MachineProductivitySampleRow>> GetMachineProductivitySamplesAsync(
+        DateTimeOffset fromUtc,
+        DateTimeOffset toUtc,
+        CancellationToken cancellationToken);
     Task<IReadOnlyList<CommandEventRow>> GetCommandEventsAsync(
         DateTimeOffset? fromUtc,
         DateTimeOffset? toUtc,
@@ -63,6 +67,12 @@ public sealed record StatusSnapshotRow(
     DateTimeOffset CapturedAtUtc,
     string PayloadJson,
     string MappingVersion,
+    string Quality);
+
+public sealed record MachineProductivitySampleRow(
+    DateTimeOffset CapturedAtUtc,
+    double? SpeedMpm,
+    bool? PaperPresent,
     string Quality);
 
 public sealed record CommandEventRow(

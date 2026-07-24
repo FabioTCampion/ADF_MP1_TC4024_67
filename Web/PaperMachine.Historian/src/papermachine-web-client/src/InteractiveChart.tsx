@@ -1,19 +1,24 @@
 import { useEffect, useRef } from "react";
 import { init, use as registerECharts, type EChartsCoreOption } from "echarts/core";
-import { LineChart } from "echarts/charts";
+import { BarChart, LineChart } from "echarts/charts";
 import {
   DataZoomComponent,
   GridComponent,
   LegendComponent,
+  MarkAreaComponent,
+  MarkLineComponent,
   TooltipComponent,
 } from "echarts/components";
 import { CanvasRenderer } from "echarts/renderers";
 
 registerECharts([
+  BarChart,
   LineChart,
   DataZoomComponent,
   GridComponent,
   LegendComponent,
+  MarkAreaComponent,
+  MarkLineComponent,
   TooltipComponent,
   CanvasRenderer,
 ]);

@@ -12,6 +12,7 @@ import type { InteractiveChartOption } from "./InteractiveChart";
 import SideMenu, { type NavigationItem, type PageId } from "./SideMenu";
 
 const InteractiveChart = lazy(() => import("./InteractiveChart"));
+const MetricsScreen = lazy(() => import("./MetricsScreen"));
 
 type RuntimeStatus = {
   adsConnected: boolean;
@@ -90,6 +91,7 @@ type MotorTrend = {
 
 const navigation: readonly NavigationItem[] = [
   { id: "dashboard", label: "Visão geral", icon: "dashboard" },
+  { id: "metrics", label: "Métricas", icon: "metrics" },
   { id: "status", label: "Status atual", icon: "status" },
   { id: "graphs", label: "Gráficos", icon: "graphs" },
   { id: "alarms", label: "Alarmes", icon: "alarm" },
@@ -299,6 +301,11 @@ export default function App() {
 
         <div className="screen-content">
           {page === "dashboard" && <Dashboard runtime={runtime} current={current} />}
+          {page === "metrics" && (
+            <Suspense fallback={<EmptyState text="Preparando métricas…" />}>
+              <MetricsScreen />
+            </Suspense>
+          )}
           {page === "status" && <CurrentStatus current={current} />}
           {page === "graphs" && <MotorGraphs />}
           {page === "alarms" && <AlarmHistory />}
