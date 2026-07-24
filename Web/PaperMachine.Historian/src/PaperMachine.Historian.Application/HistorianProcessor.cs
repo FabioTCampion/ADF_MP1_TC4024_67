@@ -37,6 +37,7 @@ public sealed class HistorianProcessor
         var alarmTransitions = FindAlarmTransitions(
             _lastAlarms,
             snapshot.Alarms,
+            snapshot.Status,
             snapshot.CapturedAtUtc,
             initialObservation);
 
@@ -83,6 +84,7 @@ public sealed class HistorianProcessor
     private static IReadOnlyList<AlarmTransition> FindAlarmTransitions(
         JsonElement? previous,
         JsonElement current,
+        JsonElement currentStatus,
         DateTimeOffset observedAtUtc,
         bool initialObservation)
     {
@@ -99,16 +101,42 @@ public sealed class HistorianProcessor
             if (initialObservation)
             {
                 // The initial false observation closes an alarm left open across an application restart.
-                transitions.Add(new AlarmTransition(item.Name, isActive, observedAtUtc, true));
+                transitions.Add(CreateAlarmTransition(
+                    item.Name,
+                    isActive,
+                    observedAtUtc,
+                    true,
+                    currentStatus));
                 continue;
             }
 
             if (before is null || !before.TryGetValue(item.Name, out var wasActive) || wasActive != isActive)
-                transitions.Add(new AlarmTransition(item.Name, isActive, observedAtUtc, false));
+            {
+                transitions.Add(CreateAlarmTransition(
+                    item.Name,
+                    isActive,
+                    observedAtUtc,
+                    false,
+                    currentStatus));
+            }
         }
 
         return transitions;
     }
+
+    private static AlarmTransition CreateAlarmTransition(
+        string alarmName,
+        bool isActive,
+        DateTimeOffset observedAtUtc,
+        bool initialObservation,
+        JsonElement currentStatus) =>
+        new(
+            alarmName,
+            isActive,
+            observedAtUtc,
+            initialObservation,
+            AlarmCatalog.Resolve(alarmName),
+            DriveDiagnosticCatalog.Resolve(alarmName, currentStatus));
 
     private static void EnsureObject(JsonElement value, string name)
     {

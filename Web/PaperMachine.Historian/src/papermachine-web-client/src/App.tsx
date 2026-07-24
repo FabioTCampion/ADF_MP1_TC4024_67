@@ -31,10 +31,26 @@ type CurrentSnapshot = {
 type AlarmEvent = {
   id: number;
   alarmName: string;
+  displayName: string;
+  description: string;
+  recommendedAction: string;
+  severity: string;
+  area: string;
+  catalogVersion: string;
   activatedAtUtc: string;
   clearedAtUtc: string | null;
   durationMilliseconds: number | null;
   activeAtStartup: boolean;
+  driveModel: string | null;
+  driveFaultCode: number | null;
+  driveFaultCodeHex: string | null;
+  driveFaultMnemonic: string | null;
+  driveFaultTitle: string | null;
+  driveFaultDescription: string | null;
+  driveRecommendedAction: string | null;
+  driveFaultTorque: number | null;
+  driveFaultEventCounter: number | null;
+  manualReference: string | null;
 };
 
 type CommandEvent = {
@@ -97,6 +113,15 @@ const formatDuration = (milliseconds: number | null) => {
   const seconds = totalSeconds % 60;
   return [hours && `${hours}h`, minutes && `${minutes}min`, `${seconds}s`].filter(Boolean).join(" ");
 };
+
+const formatFaultCode = (alarm: AlarmEvent) => {
+  if (alarm.driveFaultCode === null) return "—";
+  const mnemonic = alarm.driveFaultMnemonic ? ` · ${alarm.driveFaultMnemonic}` : "";
+  return `${alarm.driveFaultCodeHex ?? alarm.driveFaultCode}${mnemonic}`;
+};
+
+const formatFaultTorque = (alarm: AlarmEvent) =>
+  alarm.driveFaultTorque === null ? "—" : `${alarm.driveFaultTorque.toFixed(2)} (unidade PLC)`;
 
 const formatFieldName = (value: string) =>
   value
@@ -309,8 +334,12 @@ function Dashboard({
               <div className="event-row" key={alarm.id}>
                 <span className={`event-icon alarm${alarm.clearedAtUtc ? " cleared" : ""}`}>!</span>
                 <div>
-                  <b>{formatFieldName(alarm.alarmName)}</b>
-                  <span>{formatDate(alarm.activatedAtUtc)}</span>
+                  <b>{alarm.displayName}</b>
+                  <span>
+                    {formatDate(alarm.activatedAtUtc)}
+                    {alarm.driveFaultCode !== null ? ` · ${formatFaultCode(alarm)}` : ""}
+                    {alarm.driveFaultTorque !== null ? ` · torque ${formatFaultTorque(alarm)}` : ""}
+                  </span>
                 </div>
                 <em>{alarm.clearedAtUtc ? "Normalizado" : "Ativo"}</em>
               </div>
@@ -802,7 +831,13 @@ function AlarmHistory() {
   }, [range.from, range.to, state]);
 
   useEffect(() => { void query(); }, [query]);
-  const filtered = rows.filter((row) => row.alarmName.toLowerCase().includes(search.toLowerCase()));
+  const filtered = rows.filter((row) => {
+    const term = search.toLowerCase();
+    return row.alarmName.toLowerCase().includes(term) ||
+      row.displayName.toLowerCase().includes(term) ||
+      row.description.toLowerCase().includes(term) ||
+      row.driveFaultTitle?.toLowerCase().includes(term);
+  });
 
   return (
     <>
@@ -811,10 +846,33 @@ function AlarmHistory() {
         <label><span>Estado</span><select value={state} onChange={(event) => setState(event.target.value)}><option value="all">Todos</option><option value="active">Ativos</option><option value="cleared">Normalizados</option></select></label>
       </RangeFilters>
       {error && <div className="error-banner">{error}</div>}
-      <DataTable headers={["Alarme", "Ativação", "Normalização", "Duração", "Estado"]} loading={loading} empty={filtered.length === 0}>
+      <DataTable headers={["Alarme", "Diagnóstico C2000 Plus", "Ativação", "Normalização", "Duração", "Estado"]} loading={loading} empty={filtered.length === 0} layout="alarm">
         {filtered.map((alarm) => (
           <div className="data-row alarm-row" key={alarm.id}>
-            <div><b>{formatFieldName(alarm.alarmName)}</b><small>{alarm.alarmName}</small></div>
+            <div className="alarm-copy">
+              <div className="alarm-title-line">
+                <b>{alarm.displayName}</b>
+                <span className={`severity-badge severity-${alarm.severity.toLowerCase()}`}>{alarm.severity}</span>
+              </div>
+              <small>{alarm.area} · variável: {alarm.alarmName}</small>
+              <p>{alarm.description}</p>
+              <em>Ação: {alarm.recommendedAction}</em>
+            </div>
+            <div className="drive-diagnostic">
+              {alarm.driveFaultCode === null
+                ? <span className="no-diagnostic">Sem diagnóstico de drive associado</span>
+                : (
+                  <>
+                    <b>{formatFaultCode(alarm)}</b>
+                    <strong>{alarm.driveFaultTitle}</strong>
+                    <span>{alarm.driveFaultDescription}</span>
+                    <span>Torque na falha: <em>{formatFaultTorque(alarm)}</em></span>
+                    <small>{alarm.driveModel} · evento #{alarm.driveFaultEventCounter}</small>
+                    <small>{alarm.manualReference}</small>
+                    <p>Ação do manual: {alarm.driveRecommendedAction}</p>
+                  </>
+                )}
+            </div>
             <span>{formatDate(alarm.activatedAtUtc)}</span>
             <span>{formatDate(alarm.clearedAtUtc)}</span>
             <span>{formatDuration(alarm.durationMilliseconds)}</span>
@@ -904,16 +962,18 @@ function DataTable({
   loading,
   empty,
   compact = false,
+  layout,
   children,
 }: {
   headers: string[];
   loading: boolean;
   empty: boolean;
   compact?: boolean;
+  layout?: "alarm";
   children: ReactNode;
 }) {
   return (
-    <section className={`data-table${compact ? " data-table--compact" : ""}`}>
+    <section className={`data-table${compact ? " data-table--compact" : ""}${layout ? ` data-table--${layout}` : ""}`}>
       <div className="data-head">{headers.map((header) => <span key={header}>{header}</span>)}</div>
       {loading ? <EmptyState text="Consultando histórico…" /> : empty ? <EmptyState text="Nenhum registro encontrado no período." /> : children}
     </section>

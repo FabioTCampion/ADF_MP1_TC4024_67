@@ -19,7 +19,29 @@ public sealed record AlarmTransition(
     string AlarmName,
     bool IsActive,
     DateTimeOffset ObservedAtUtc,
-    bool InitialObservation);
+    bool InitialObservation,
+    AlarmDefinition Definition,
+    DriveFaultContext? DriveFault);
+
+public sealed record AlarmDefinition(
+    string DisplayName,
+    string Description,
+    string RecommendedAction,
+    string Severity,
+    string Area,
+    string CatalogVersion);
+
+public sealed record DriveFaultContext(
+    string Model,
+    ushort Code,
+    string CodeHex,
+    string? Mnemonic,
+    string Title,
+    string Description,
+    string RecommendedAction,
+    double TorqueAtTrip,
+    uint EventCounter,
+    string ManualReference);
 
 public sealed record HistorianCycle(
     PaperMachineSnapshot Snapshot,

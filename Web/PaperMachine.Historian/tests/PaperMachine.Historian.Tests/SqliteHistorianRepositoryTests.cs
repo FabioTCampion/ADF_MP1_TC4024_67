@@ -27,23 +27,23 @@ public sealed class SqliteHistorianRepositoryTests
             await repository.PersistCycleAsync(
                 processor.Process(HistorianProcessorTests.CreateSnapshot(
                     firstAt,
-                    """{"speed":10.0}""",
+                    """{"speed":10.0,"mixingPumpFaultCode":0,"mixingPumpFaultTorque":0.0,"mixingPumpFaultEventCounter":0}""",
                     """{"start":false}""",
-                    """{"driveFault":false}""")),
+                    """{"mixingPumpFaultAlarm":false}""")),
                 CancellationToken.None);
             await repository.PersistCycleAsync(
                 processor.Process(HistorianProcessorTests.CreateSnapshot(
                     firstAt.AddSeconds(1),
-                    """{"speed":11.0}""",
+                    """{"speed":11.0,"mixingPumpFaultCode":1,"mixingPumpFaultTorque":12.3,"mixingPumpFaultEventCounter":1}""",
                     """{"start":true}""",
-                    """{"driveFault":true}""")),
+                    """{"mixingPumpFaultAlarm":true}""")),
                 CancellationToken.None);
             await repository.PersistCycleAsync(
                 processor.Process(HistorianProcessorTests.CreateSnapshot(
                     firstAt.AddSeconds(2),
-                    """{"speed":11.0}""",
+                    """{"speed":11.0,"mixingPumpFaultCode":1,"mixingPumpFaultTorque":12.3,"mixingPumpFaultEventCounter":1}""",
                     """{"start":false}""",
-                    """{"driveFault":false}""")),
+                    """{"mixingPumpFaultAlarm":false}""")),
                 CancellationToken.None);
 
             Assert.True(File.Exists(databasePath));
@@ -60,6 +60,11 @@ public sealed class SqliteHistorianRepositoryTests
                 await repository.GetAlarmEventsAsync(null, null, null, 10, CancellationToken.None));
             Assert.NotNull(alarm.ClearedAtUtc);
             Assert.Equal(1_000, alarm.DurationMilliseconds);
+            Assert.Equal("Alto", alarm.Severity);
+            Assert.Contains("Falha", alarm.DisplayName);
+            Assert.Equal(1, alarm.DriveFaultCode);
+            Assert.Equal("ocA", alarm.DriveFaultMnemonic);
+            Assert.Equal(12.3, alarm.DriveFaultTorque);
         }
         finally
         {

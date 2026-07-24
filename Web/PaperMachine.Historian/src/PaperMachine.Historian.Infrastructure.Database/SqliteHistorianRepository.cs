@@ -7,7 +7,7 @@ namespace PaperMachine.Historian.Infrastructure.Database;
 
 public sealed class SqliteHistorianRepository : IHistorianRepository
 {
-    private const int SchemaVersion = 2;
+    private const int SchemaVersion = 3;
     private readonly string _databasePath;
     private readonly string _connectionString;
 
@@ -75,11 +75,27 @@ public sealed class SqliteHistorianRepository : IHistorianRepository
             CREATE TABLE IF NOT EXISTS AlarmEvents (
                 Id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
                 AlarmName TEXT NOT NULL,
+                DisplayName TEXT NOT NULL DEFAULT '',
+                Description TEXT NOT NULL DEFAULT '',
+                RecommendedAction TEXT NOT NULL DEFAULT '',
+                Severity TEXT NOT NULL DEFAULT 'Médio',
+                Area TEXT NOT NULL DEFAULT 'Máquina',
+                CatalogVersion TEXT NOT NULL DEFAULT '',
                 ActivatedAtUtc TEXT NOT NULL,
                 ClearedAtUtc TEXT NULL,
                 DurationMilliseconds INTEGER NULL,
                 ActiveAtStartup INTEGER NOT NULL,
-                MappingVersion TEXT NOT NULL
+                MappingVersion TEXT NOT NULL,
+                DriveModel TEXT NULL,
+                DriveFaultCode INTEGER NULL,
+                DriveFaultCodeHex TEXT NULL,
+                DriveFaultMnemonic TEXT NULL,
+                DriveFaultTitle TEXT NULL,
+                DriveFaultDescription TEXT NULL,
+                DriveRecommendedAction TEXT NULL,
+                DriveFaultTorque REAL NULL,
+                DriveFaultEventCounter INTEGER NULL,
+                ManualReference TEXT NULL
             );
             CREATE INDEX IF NOT EXISTS IX_AlarmEvents_Alarm_Activated
                 ON AlarmEvents (AlarmName, ActivatedAtUtc);
@@ -118,6 +134,17 @@ public sealed class SqliteHistorianRepository : IHistorianRepository
             connection,
             null,
             schema,
+            cancellationToken,
+            ("@AppliedAtUtc", ToDatabaseTimestamp(DateTimeOffset.UtcNow)));
+
+        await EnsureAlarmEventColumnsAsync(connection, cancellationToken);
+        await ExecuteAsync(
+            connection,
+            null,
+            """
+            INSERT OR IGNORE INTO SchemaMigrations (Version, AppliedAtUtc)
+            VALUES (3, @AppliedAtUtc);
+            """,
             cancellationToken,
             ("@AppliedAtUtc", ToDatabaseTimestamp(DateTimeOffset.UtcNow)));
 
@@ -192,15 +219,39 @@ public sealed class SqliteHistorianRepository : IHistorianRepository
                     transaction,
                     """
                     INSERT OR IGNORE INTO AlarmEvents
-                        (AlarmName, ActivatedAtUtc, ClearedAtUtc, DurationMilliseconds, ActiveAtStartup, MappingVersion)
+                        (AlarmName, DisplayName, Description, RecommendedAction, Severity, Area, CatalogVersion,
+                         ActivatedAtUtc, ClearedAtUtc, DurationMilliseconds, ActiveAtStartup, MappingVersion,
+                         DriveModel, DriveFaultCode, DriveFaultCodeHex, DriveFaultMnemonic, DriveFaultTitle,
+                         DriveFaultDescription, DriveRecommendedAction, DriveFaultTorque,
+                         DriveFaultEventCounter, ManualReference)
                     VALUES
-                        (@AlarmName, @ObservedAtUtc, NULL, NULL, @ActiveAtStartup, @MappingVersion);
+                        (@AlarmName, @DisplayName, @Description, @RecommendedAction, @Severity, @Area, @CatalogVersion,
+                         @ObservedAtUtc, NULL, NULL, @ActiveAtStartup, @MappingVersion,
+                         @DriveModel, @DriveFaultCode, @DriveFaultCodeHex, @DriveFaultMnemonic, @DriveFaultTitle,
+                         @DriveFaultDescription, @DriveRecommendedAction, @DriveFaultTorque,
+                         @DriveFaultEventCounter, @ManualReference);
                     """,
                     cancellationToken,
                     ("@AlarmName", transition.AlarmName),
+                    ("@DisplayName", transition.Definition.DisplayName),
+                    ("@Description", transition.Definition.Description),
+                    ("@RecommendedAction", transition.Definition.RecommendedAction),
+                    ("@Severity", transition.Definition.Severity),
+                    ("@Area", transition.Definition.Area),
+                    ("@CatalogVersion", transition.Definition.CatalogVersion),
                     ("@ObservedAtUtc", ToDatabaseTimestamp(transition.ObservedAtUtc)),
                     ("@ActiveAtStartup", transition.InitialObservation ? 1 : 0),
-                    ("@MappingVersion", cycle.Snapshot.MappingVersion));
+                    ("@MappingVersion", cycle.Snapshot.MappingVersion),
+                    ("@DriveModel", transition.DriveFault?.Model),
+                    ("@DriveFaultCode", transition.DriveFault?.Code),
+                    ("@DriveFaultCodeHex", transition.DriveFault?.CodeHex),
+                    ("@DriveFaultMnemonic", transition.DriveFault?.Mnemonic),
+                    ("@DriveFaultTitle", transition.DriveFault?.Title),
+                    ("@DriveFaultDescription", transition.DriveFault?.Description),
+                    ("@DriveRecommendedAction", transition.DriveFault?.RecommendedAction),
+                    ("@DriveFaultTorque", transition.DriveFault?.TorqueAtTrip),
+                    ("@DriveFaultEventCounter", transition.DriveFault?.EventCounter),
+                    ("@ManualReference", transition.DriveFault?.ManualReference));
             }
             else
             {
@@ -427,8 +478,12 @@ public sealed class SqliteHistorianRepository : IHistorianRepository
         await using var command = CreateRangeCommand(
             connection,
             """
-            SELECT Id, AlarmName, ActivatedAtUtc, ClearedAtUtc,
-                   DurationMilliseconds, ActiveAtStartup, MappingVersion
+            SELECT Id, AlarmName, DisplayName, Description, RecommendedAction,
+                   Severity, Area, CatalogVersion, ActivatedAtUtc, ClearedAtUtc,
+                   DurationMilliseconds, ActiveAtStartup, MappingVersion,
+                   DriveModel, DriveFaultCode, DriveFaultCodeHex, DriveFaultMnemonic,
+                   DriveFaultTitle, DriveFaultDescription, DriveRecommendedAction,
+                   DriveFaultTorque, DriveFaultEventCounter, ManualReference
             FROM AlarmEvents
             WHERE (@FromUtc IS NULL OR ActivatedAtUtc >= @FromUtc)
               AND (@ToUtc IS NULL OR ActivatedAtUtc < @ToUtc)
@@ -446,16 +501,86 @@ public sealed class SqliteHistorianRepository : IHistorianRepository
         var rows = new List<AlarmEventRow>();
         while (await reader.ReadAsync(cancellationToken))
         {
+            var alarmName = reader.GetString(1);
+            var fallback = AlarmCatalog.Resolve(alarmName);
+            var storedCatalogVersion = reader.IsDBNull(7) ? null : reader.GetString(7);
+            var hasStoredCatalog = !string.IsNullOrWhiteSpace(storedCatalogVersion);
             rows.Add(new AlarmEventRow(
                 reader.GetInt64(0),
-                reader.GetString(1),
-                ParseDatabaseTimestamp(reader.GetString(2)),
-                reader.IsDBNull(3) ? null : ParseDatabaseTimestamp(reader.GetString(3)),
-                reader.IsDBNull(4) ? null : reader.GetInt64(4),
-                reader.GetInt64(5) == 1,
-                reader.GetString(6)));
+                alarmName,
+                hasStoredCatalog ? ReadCatalogText(reader, 2, fallback.DisplayName) : fallback.DisplayName,
+                hasStoredCatalog ? ReadCatalogText(reader, 3, fallback.Description) : fallback.Description,
+                hasStoredCatalog ? ReadCatalogText(reader, 4, fallback.RecommendedAction) : fallback.RecommendedAction,
+                hasStoredCatalog ? ReadCatalogText(reader, 5, fallback.Severity) : fallback.Severity,
+                hasStoredCatalog ? ReadCatalogText(reader, 6, fallback.Area) : fallback.Area,
+                hasStoredCatalog ? storedCatalogVersion! : fallback.CatalogVersion,
+                ParseDatabaseTimestamp(reader.GetString(8)),
+                reader.IsDBNull(9) ? null : ParseDatabaseTimestamp(reader.GetString(9)),
+                reader.IsDBNull(10) ? null : reader.GetInt64(10),
+                reader.GetInt64(11) == 1,
+                reader.GetString(12),
+                reader.IsDBNull(13) ? null : reader.GetString(13),
+                reader.IsDBNull(14) ? null : reader.GetInt32(14),
+                reader.IsDBNull(15) ? null : reader.GetString(15),
+                reader.IsDBNull(16) ? null : reader.GetString(16),
+                reader.IsDBNull(17) ? null : reader.GetString(17),
+                reader.IsDBNull(18) ? null : reader.GetString(18),
+                reader.IsDBNull(19) ? null : reader.GetString(19),
+                reader.IsDBNull(20) ? null : reader.GetDouble(20),
+                reader.IsDBNull(21) ? null : reader.GetInt64(21),
+                reader.IsDBNull(22) ? null : reader.GetString(22)));
         }
         return rows;
+    }
+
+    private static string ReadCatalogText(SqliteDataReader reader, int ordinal, string fallback) =>
+        reader.IsDBNull(ordinal) || string.IsNullOrWhiteSpace(reader.GetString(ordinal))
+            ? fallback
+            : reader.GetString(ordinal);
+
+    private static async Task EnsureAlarmEventColumnsAsync(
+        SqliteConnection connection,
+        CancellationToken cancellationToken)
+    {
+        var existing = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        await using (var command = connection.CreateCommand())
+        {
+            command.CommandText = "PRAGMA table_info(AlarmEvents);";
+            await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+            while (await reader.ReadAsync(cancellationToken))
+                existing.Add(reader.GetString(1));
+        }
+
+        var required = new (string Name, string Sql)[]
+        {
+            ("DisplayName", "TEXT NOT NULL DEFAULT ''"),
+            ("Description", "TEXT NOT NULL DEFAULT ''"),
+            ("RecommendedAction", "TEXT NOT NULL DEFAULT ''"),
+            ("Severity", "TEXT NOT NULL DEFAULT 'Médio'"),
+            ("Area", "TEXT NOT NULL DEFAULT 'Máquina'"),
+            ("CatalogVersion", "TEXT NOT NULL DEFAULT ''"),
+            ("DriveModel", "TEXT NULL"),
+            ("DriveFaultCode", "INTEGER NULL"),
+            ("DriveFaultCodeHex", "TEXT NULL"),
+            ("DriveFaultMnemonic", "TEXT NULL"),
+            ("DriveFaultTitle", "TEXT NULL"),
+            ("DriveFaultDescription", "TEXT NULL"),
+            ("DriveRecommendedAction", "TEXT NULL"),
+            ("DriveFaultTorque", "REAL NULL"),
+            ("DriveFaultEventCounter", "INTEGER NULL"),
+            ("ManualReference", "TEXT NULL")
+        };
+
+        foreach (var column in required)
+        {
+            if (existing.Contains(column.Name))
+                continue;
+            await ExecuteAsync(
+                connection,
+                null,
+                $"ALTER TABLE AlarmEvents ADD COLUMN {column.Name} {column.Sql};",
+                cancellationToken);
+        }
     }
 
     private async Task<SqliteConnection> OpenAsync(CancellationToken cancellationToken)

@@ -35,12 +35,30 @@ O arquivo, seu WAL e arquivos temporários estão ignorados pelo Git. O banco us
 - `StatusSnapshots`: payload completo de status a cada 10 segundos;
 - `StatusChanges`: uma linha por campo de status alterado;
 - `CommandEvents`: mudanças observadas na estrutura de comandos;
-- `AlarmEvents`: ativação, normalização e duração;
+- `AlarmEvents`: ativação, normalização, duração, mensagem didática em português
+  e contexto C2000 Plus (código, descrição, torque retido e referência do manual);
 - `AdsCommunicationEvents`: conexão e falhas de aquisição;
 - `ApplicationUsers`: usuários locais e hashes de senha;
 - `SchemaMigrations`: versão aplicada ao banco.
 
 Datas são armazenadas em UTC. Alarmes encontrados ativos na primeira leitura ficam marcados como `ActiveAtStartup`, pois o horário real de ativação anterior ao início do serviço é desconhecido.
+
+## Diagnóstico dos drives C2000 Plus
+
+O objeto EtherCAT `603Fh` já entrega o código de erro no PDO. O bloco
+`FB_DELTA_C2000_ETC` publica e retém, para cada acionamento:
+
+- código C2000 Plus no momento da falha;
+- torque de saída escalonado no mesmo ciclo da falha;
+- contador incremental do evento.
+
+Esses valores são espelhados em `.paperMachineHmiStatus`. A aplicação associa o
+snapshot ao alarme booleano correspondente, grava os valores brutos no SQLite e
+apresenta a descrição em português. Código desconhecido permanece visível em
+decimal e hexadecimal e não recebe interpretação presumida.
+
+As ações apresentadas são orientações de diagnóstico. A aplicação continua
+somente leitura e nunca executa reset automático no drive ou no PLC.
 
 ## Executar
 
