@@ -11,6 +11,13 @@ using PaperMachine.Historian.Infrastructure.Database;
 using PaperMachine.Historian.Web;
 
 var builder = WebApplication.CreateBuilder(args);
+var externalConfigurationPath =
+    Environment.GetEnvironmentVariable("PAPER_MACHINE_HISTORIAN_CONFIG");
+if (!string.IsNullOrWhiteSpace(externalConfigurationPath))
+    builder.Configuration.AddJsonFile(
+        Path.GetFullPath(externalConfigurationPath),
+        optional: false,
+        reloadOnChange: true);
 builder.Host.UseWindowsService(options => options.ServiceName = "Paper Machine Historian");
 builder.Logging.ClearProviders();
 builder.Logging.AddConfiguration(builder.Configuration.GetSection("Logging"));
@@ -101,6 +108,31 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapHealthChecks("/health");
+app.MapGet("/health/ready", (HistorianRuntimeState state) =>
+{
+    var runtime = state.GetStatus();
+    var response = new
+    {
+        ready = runtime.AdsConnected,
+        databaseAvailable = true,
+        plcOnline = runtime.AdsConnected,
+        runtime.LastSuccessfulReadAtUtc,
+        runtime.LastError
+    };
+    return runtime.AdsConnected
+        ? Results.Ok(response)
+        : Results.Json(response, statusCode: StatusCodes.Status503ServiceUnavailable);
+});
+app.MapGet("/api/version", () =>
+{
+    var assembly = typeof(Program).Assembly.GetName();
+    return Results.Ok(new
+    {
+        product = "CPNTeck Paper Machine Historian",
+        version = assembly.Version?.ToString(3) ?? "unknown",
+        readOnly = true
+    });
+});
 app.MapHistorianAuthentication();
 
 var api = app.MapGroup("/api").RequireAuthorization();

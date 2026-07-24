@@ -6,6 +6,7 @@ src/papermachine-web-client/node_modules/.tmp/
 .vs/
 data/
 logs/
+artifacts/
 *.db
 *.db-shm
 *.db-wal

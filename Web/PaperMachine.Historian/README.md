@@ -96,6 +96,9 @@ dotnet test PaperMachine.Historian.slnx
 
 Os testes não escrevem no PLC. Um banco SQLite temporário é usado no teste de persistência.
 
+Para gerar o pacote autocontido e instalar como serviço Windows com início
+automático, consulte [DEPLOYMENT.md](DEPLOYMENT.md).
+
 ## Configuração
 
 Os valores iniciais ficam em
