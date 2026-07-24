@@ -276,6 +276,29 @@ public sealed class SqliteHistorianRepository : IHistorianRepository
         await transaction.CommitAsync(cancellationToken);
     }
 
+    public async Task AddCommandEventAsync(
+        FieldChange change,
+        string mappingVersion,
+        CancellationToken cancellationToken)
+    {
+        await using var connection = await OpenAsync(cancellationToken);
+        await ExecuteAsync(
+            connection,
+            null,
+            """
+            INSERT INTO CommandEvents
+                (CommandName, PreviousValueJson, CurrentValueJson, ObservedAtUtc, Origin, MappingVersion)
+            VALUES
+                (@Name, @Previous, @Current, @ObservedAtUtc, 'AdsOnChange', @MappingVersion);
+            """,
+            cancellationToken,
+            ("@Name", change.FieldName),
+            ("@Previous", change.PreviousValueJson),
+            ("@Current", change.CurrentValueJson),
+            ("@ObservedAtUtc", ToDatabaseTimestamp(change.ObservedAtUtc)),
+            ("@MappingVersion", mappingVersion));
+    }
+
     public async Task AddCommunicationEventAsync(
         CommunicationEvent communicationEvent,
         CancellationToken cancellationToken)

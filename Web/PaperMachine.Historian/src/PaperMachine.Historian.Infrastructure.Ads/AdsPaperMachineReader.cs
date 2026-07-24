@@ -1,5 +1,8 @@
+using System.Collections.Concurrent;
+using System.Runtime.CompilerServices;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using System.Threading.Channels;
 using PaperMachine.Historian.Application;
 using PaperMachine.Historian.Domain;
 using TwinCAT;
@@ -15,6 +18,15 @@ public sealed class AdsPaperMachineReader : IPaperMachineReader
     private readonly AdsOptions _options;
     private readonly HistorianOptions _historianOptions;
     private readonly SemaphoreSlim _operationLock = new(1, 1);
+    private readonly Channel<FieldChange> _commandChanges =
+        Channel.CreateUnbounded<FieldChange>(new UnboundedChannelOptions
+        {
+            SingleReader = true,
+            SingleWriter = false
+        });
+    private readonly ConcurrentDictionary<string, string> _commandValues =
+        new(StringComparer.OrdinalIgnoreCase);
+    private readonly List<IValueSymbol> _commandSubscriptions = [];
     private IReadOnlyDictionary<string, ISymbol>? _rootSymbols;
 
     public AdsPaperMachineReader(AdsOptions options, HistorianOptions historianOptions)
@@ -35,6 +47,7 @@ public sealed class AdsPaperMachineReader : IPaperMachineReader
         using var timeout = CreateTimeout(cancellationToken);
         await _client.ConnectAsync(new AmsNetId(_options.AmsNetId), _options.Port, timeout.Token);
         LoadRootSymbols();
+        await SubscribeCommandChangesAsync(timeout.Token);
     }
 
     public async Task<PaperMachineSnapshot> ReadSnapshotAsync(CancellationToken cancellationToken)
@@ -64,8 +77,19 @@ public sealed class AdsPaperMachineReader : IPaperMachineReader
         }
     }
 
+    public async IAsyncEnumerable<FieldChange> ReadCommandChangesAsync(
+        [EnumeratorCancellation] CancellationToken cancellationToken)
+    {
+        while (await _commandChanges.Reader.WaitToReadAsync(cancellationToken))
+        {
+            while (_commandChanges.Reader.TryRead(out var change))
+                yield return change;
+        }
+    }
+
     public Task DisconnectAsync(CancellationToken cancellationToken)
     {
+        UnsubscribeCommandChanges();
         _rootSymbols = null;
         if (_client.IsConnected)
             _client.Disconnect();
@@ -74,9 +98,69 @@ public sealed class AdsPaperMachineReader : IPaperMachineReader
 
     public ValueTask DisposeAsync()
     {
+        UnsubscribeCommandChanges();
+        _commandChanges.Writer.TryComplete();
         _client.Dispose();
         _operationLock.Dispose();
         return ValueTask.CompletedTask;
+    }
+
+    private async Task SubscribeCommandChangesAsync(CancellationToken cancellationToken)
+    {
+        UnsubscribeCommandChanges();
+
+        var baseline = await ReadFlatStructureAsync(_options.CommandsRoot, cancellationToken);
+        foreach (var item in baseline.EnumerateObject())
+            _commandValues[item.Name] = item.Value.GetRawText();
+
+        try
+        {
+            var commandRoot = _rootSymbols![_options.CommandsRoot];
+            foreach (var child in commandRoot.SubSymbols)
+            {
+                if (child is not IValueSymbol valueSymbol)
+                    continue;
+
+                valueSymbol.NotificationSettings = NotificationSettings.ImmediatelyOnChange;
+                valueSymbol.ValueChanged += OnCommandValueChanged;
+                _commandSubscriptions.Add(valueSymbol);
+            }
+        }
+        catch
+        {
+            UnsubscribeCommandChanges();
+            throw;
+        }
+    }
+
+    private void UnsubscribeCommandChanges()
+    {
+        foreach (var valueSymbol in _commandSubscriptions)
+            valueSymbol.ValueChanged -= OnCommandValueChanged;
+        _commandSubscriptions.Clear();
+        _commandValues.Clear();
+    }
+
+    private void OnCommandValueChanged(object? sender, ValueChangedEventArgs eventArgs)
+    {
+        var symbol = eventArgs.Symbol;
+        var commandName = GetMemberName(
+            _rootSymbols?[_options.CommandsRoot].InstancePath ?? _options.CommandsRoot,
+            symbol.InstancePath);
+        var currentJson =
+            ToJsonValue(eventArgs.Value, symbol.InstancePath)?.ToJsonString() ?? "null";
+
+        if (_commandValues.TryGetValue(commandName, out var previousJson) &&
+            !string.Equals(previousJson, currentJson, StringComparison.Ordinal))
+        {
+            _commandChanges.Writer.TryWrite(new FieldChange(
+                commandName,
+                previousJson,
+                currentJson,
+                eventArgs.DateTime.ToUniversalTime()));
+        }
+
+        _commandValues[commandName] = currentJson;
     }
 
     private async Task<JsonElement> ReadFlatStructureAsync(string configuredRoot, CancellationToken cancellationToken)

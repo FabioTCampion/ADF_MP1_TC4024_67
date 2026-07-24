@@ -7,6 +7,7 @@ public interface IPaperMachineReader : IAsyncDisposable
     bool IsConnected { get; }
     Task ConnectAsync(CancellationToken cancellationToken);
     Task<PaperMachineSnapshot> ReadSnapshotAsync(CancellationToken cancellationToken);
+    IAsyncEnumerable<FieldChange> ReadCommandChangesAsync(CancellationToken cancellationToken);
     Task DisconnectAsync(CancellationToken cancellationToken);
 }
 
@@ -14,6 +15,10 @@ public interface IHistorianRepository
 {
     Task InitializeAsync(CancellationToken cancellationToken);
     Task PersistCycleAsync(HistorianCycle cycle, CancellationToken cancellationToken);
+    Task AddCommandEventAsync(
+        FieldChange change,
+        string mappingVersion,
+        CancellationToken cancellationToken);
     Task AddCommunicationEventAsync(CommunicationEvent communicationEvent, CancellationToken cancellationToken);
     Task<IReadOnlyList<StatusSnapshotRow>> GetStatusSnapshotsAsync(
         DateTimeOffset? fromUtc,

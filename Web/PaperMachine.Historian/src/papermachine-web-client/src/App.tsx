@@ -106,6 +106,52 @@ const dateFormatter = new Intl.DateTimeFormat("pt-BR", {
 
 const machineSpeedField = "dryingSectionGroup3UpperMasterSpeedMPM";
 const paperPresenceField = "dryingSectionGroup3PaperPresence";
+const groupRunningSpeedMpm = 1;
+
+const machineGroupCatalog = [
+  {
+    key: "forming",
+    label: "Mesa formadora",
+    speedFields: [
+      "formingBoardSuctionRollSpeed",
+      "formingBoardTractionRollSpeed",
+    ],
+  },
+  {
+    key: "press",
+    label: "Prensas",
+    speedFields: ["firstPressSectionSpeed", "secondPressSectionSpeed"],
+  },
+  {
+    key: "drying-1",
+    label: "Secagem 1",
+    speedFields: [
+      "dryingSectionGroup1UpperMasterSpeedMPM",
+      "dryingSectionGroup1LowerMasterSpeedMPM",
+    ],
+  },
+  {
+    key: "drying-2",
+    label: "Secagem 2",
+    speedFields: [
+      "dryingSectionGroup2UpperMasterSpeedMPM",
+      "dryingSectionGroup2LowerMasterSpeedMPM",
+    ],
+  },
+  {
+    key: "drying-3",
+    label: "Secagem 3",
+    speedFields: [
+      "dryingSectionGroup3UpperMasterSpeedMPM",
+      "dryingSectionGroup3LowerMasterSpeedMPM",
+    ],
+  },
+  {
+    key: "winder",
+    label: "Enroladeira",
+    speedFields: ["winderSpeedMPM"],
+  },
+] as const;
 
 const formatDate = (value: string | null | undefined) =>
   value ? dateFormatter.format(new Date(value)) : "—";
@@ -203,6 +249,12 @@ export default function App() {
   const [clock, setClock] = useState(new Date());
   const machineSpeed = readStatusNumber(current, machineSpeedField);
   const paperPresent = readStatusBoolean(current, paperPresenceField);
+
+  useEffect(() => {
+    const pageTitle =
+      navigation.find((item) => item.id === page)?.label ?? "Paper Machine";
+    document.title = `CPNTeck | ${pageTitle}`;
+  }, [page]);
 
   const refreshLiveData = useCallback(async () => {
     const [runtimeResult, currentResult] = await Promise.allSettled([
@@ -399,6 +451,11 @@ function Dashboard({
         </div>
       </section>
 
+      <MachineGroupStatus
+        current={current}
+        connected={runtime?.adsConnected ?? false}
+      />
+
       <section className="metric-grid">
         <MetricCard label="Comunicação ADS" value={runtime?.adsConnected ? "Conectado" : "Desconectado"} accent={runtime?.adsConnected ? "green" : "red"} detail="192.168.100.1.1.1 · 851" />
         <MetricCard label="Alarmes ativos" value={String(activeAlarmCount)} accent={activeAlarmCount ? "red" : "green"} detail="Estado atual no PLC" />
@@ -448,6 +505,68 @@ function Dashboard({
         </article>
       </section>
     </>
+  );
+}
+
+function MachineGroupStatus({
+  current,
+  connected,
+}: {
+  current: CurrentSnapshot | null;
+  connected: boolean;
+}) {
+  const groups = machineGroupCatalog.map((group) => {
+    const speeds = group.speedFields
+      .map((field) => readStatusNumber(current, field))
+      .filter((value): value is number => value !== null);
+    const referenceSpeed =
+      speeds.length > 0
+        ? Math.max(...speeds.map((speed) => Math.abs(speed)))
+        : null;
+    const state =
+      !connected || referenceSpeed === null
+        ? "unknown"
+        : referenceSpeed >= groupRunningSpeedMpm
+          ? "running"
+          : "stopped";
+    return { ...group, referenceSpeed, state };
+  });
+
+  return (
+    <section className="group-status-panel" aria-label="Status dos grupos da máquina">
+      <div className="group-status-heading">
+        <div>
+          <p className="eyebrow">Acionamentos principais</p>
+          <h2>Status dos grupos</h2>
+        </div>
+        <small>Ligado quando a velocidade medida é ≥ {groupRunningSpeedMpm} m/min</small>
+      </div>
+      <div className="group-status-grid">
+        {groups.map((group) => (
+          <article
+            className={`group-status-card group-status-card--${group.state}`}
+            key={group.key}
+          >
+            <i />
+            <div>
+              <span>{group.label}</span>
+              <b>
+                {group.state === "running"
+                  ? "Ligado"
+                  : group.state === "stopped"
+                    ? "Desligado"
+                    : "Sem leitura"}
+              </b>
+              <small>
+                {group.referenceSpeed === null
+                  ? "Velocidade indisponível"
+                  : `${formatMachineSpeed(group.referenceSpeed)} m/min`}
+              </small>
+            </div>
+          </article>
+        ))}
+      </div>
+    </section>
   );
 }
 
@@ -994,7 +1113,7 @@ function CommandHistory() {
 
   return (
     <>
-      <ScreenTitle eyebrow="Auditoria somente leitura" title="Datalog de comandos" subtitle="Mudanças observadas na estrutura paperMachineHmiCommands." action={<span className="result-count">{filtered.length} registros</span>} />
+      <ScreenTitle eyebrow="Auditoria somente leitura" title="Datalog de comandos" subtitle="Eventos recebidos diretamente por notificação ADS on-change da estrutura paperMachineHmiCommands." action={<span className="result-count">{filtered.length} registros</span>} />
       <RangeFilters from={range.from} to={range.to} search={search} onFrom={range.setFrom} onTo={range.setTo} onSearch={setSearch} onQuery={() => void query()} />
       <DataTable headers={["Comando", "Valor anterior", "Novo valor", "Horário", "Origem"]} loading={loading} empty={filtered.length === 0}>
         {filtered.map((command) => (
@@ -1003,7 +1122,7 @@ function CommandHistory() {
             <span>{parseStoredValue(command.previousValueJson)}</span>
             <span className="changed-value">{parseStoredValue(command.currentValueJson)}</span>
             <span>{formatDate(command.observedAtUtc)}</span>
-            <span>PLC observado</span>
+            <span>{command.origin === "AdsOnChange" ? "ADS on-change" : "PLC observado"}</span>
           </div>
         ))}
       </DataTable>

@@ -1,4 +1,5 @@
 using PaperMachine.Historian.Application;
+using PaperMachine.Historian.Domain;
 using PaperMachine.Historian.Infrastructure.Database;
 using Microsoft.Data.Sqlite;
 
@@ -31,6 +32,14 @@ public sealed class SqliteHistorianRepositoryTests
                     """{"start":false}""",
                     """{"mixingPumpFaultAlarm":false}""")),
                 CancellationToken.None);
+            await repository.AddCommandEventAsync(
+                new FieldChange(
+                    "pulse",
+                    "false",
+                    "true",
+                    firstAt.AddMilliseconds(2_250)),
+                "test-v1",
+                CancellationToken.None);
             await repository.PersistCycleAsync(
                 processor.Process(HistorianProcessorTests.CreateSnapshot(
                     firstAt.AddSeconds(1),
@@ -61,7 +70,12 @@ public sealed class SqliteHistorianRepositoryTests
                     CancellationToken.None));
             Assert.Equal(336.7, productivitySample.SpeedMpm);
             Assert.True(productivitySample.PaperPresent);
-            Assert.Equal(2, (await repository.GetCommandEventsAsync(null, null, 10, CancellationToken.None)).Count);
+            var commandEvents =
+                await repository.GetCommandEventsAsync(null, null, 10, CancellationToken.None);
+            Assert.Equal(3, commandEvents.Count);
+            Assert.Contains(
+                commandEvents,
+                item => item.CommandName == "pulse" && item.Origin == "AdsOnChange");
 
             var alarm = Assert.Single(
                 await repository.GetAlarmEventsAsync(null, null, null, 10, CancellationToken.None));

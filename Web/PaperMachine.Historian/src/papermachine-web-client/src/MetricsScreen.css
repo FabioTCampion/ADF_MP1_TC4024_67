@@ -243,11 +243,12 @@
 .metrics-summary {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1px;
   margin-bottom: 14px;
   overflow: hidden;
   border: 1px solid #28364c;
   border-radius: 16px;
-  background: linear-gradient(135deg, #131f30, #0e1826);
+  background: #28364c;
   box-shadow: 0 14px 38px rgba(0, 0, 0, .13);
 }
 
@@ -258,21 +259,12 @@
   flex-direction: column;
   gap: 6px;
   padding: 19px 20px;
-  border-right: 1px solid #28364c;
-  border-bottom: 1px solid #28364c;
+  background: linear-gradient(135deg, #131f30, #0e1826);
   transition: background .18s ease;
 }
 
 .metrics-summary > div:hover {
   background: #192a40;
-}
-
-.metrics-summary > div:nth-child(4n) {
-  border-right: 0;
-}
-
-.metrics-summary > div:nth-child(n + 5) {
-  border-bottom: 0;
 }
 
 .metrics-summary > div.productivity {
@@ -483,16 +475,7 @@
   }
 
   .metrics-summary > div {
-    border-right: 1px solid #28364c;
-    border-bottom: 1px solid #28364c;
-  }
-
-  .metrics-summary > div:nth-child(2n) {
-    border-right: 0;
-  }
-
-  .metrics-summary > div:nth-child(n + 7) {
-    border-bottom: 0;
+    border: 0;
   }
 
   .metrics-workspace {
@@ -549,12 +532,7 @@
   }
 
   .metrics-summary > div {
-    border-right: 0;
-    border-bottom: 1px solid #28364c !important;
-  }
-
-  .metrics-summary > div:last-child {
-    border-bottom: 0 !important;
+    border: 0 !important;
   }
 
   .metrics-navigation {

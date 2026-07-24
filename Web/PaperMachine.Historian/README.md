@@ -34,7 +34,8 @@ O arquivo, seu WAL e arquivos temporários estão ignorados pelo Git. O banco us
 
 - `StatusSnapshots`: payload completo de status a cada 10 segundos;
 - `StatusChanges`: uma linha por campo de status alterado;
-- `CommandEvents`: mudanças observadas na estrutura de comandos;
+- `CommandEvents`: eventos ADS `on-change` da estrutura de comandos, independentes
+  do ciclo periódico dos snapshots;
 - `AlarmEvents`: ativação, normalização, duração, mensagem didática em português
   e contexto C2000 Plus (código, descrição, torque retido e referência do manual);
 - `AdsCommunicationEvents`: conexão e falhas de aquisição;
@@ -120,6 +121,7 @@ Mudanças na estrutura PLC devem incrementar `Historian:MappingVersion`.
 - `GET /api/history/status`;
 - `GET /api/history/status-changes`;
 - `GET /api/history/motors`;
+- `GET /api/history/productivity`;
 - `GET /api/history/commands`;
 - `GET /api/history/alarms`.
 
@@ -134,7 +136,8 @@ As APIs do Historian exigem autenticação por cookie; `/health` e o fluxo inici
 ## Limites desta versão
 
 - não escreve comandos no PLC;
-- mudança em `paperMachineHmiCommands` significa **comando observado**, não confirmação de execução;
+- mudança em `paperMachineHmiCommands` é capturada por notificação ADS imediata,
+  mas significa **comando observado**, não confirmação de execução;
 - os gráficos usam os snapshots de status gravados a cada 10 segundos e não representam picos mais rápidos;
 - campos sem unidade inequívoca no DUT são exibidos como `unidade PLC`;
 - ainda não há relatórios PDF, retenção automática ou agregação;

@@ -34,6 +34,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [requiresSetup, setRequiresSetup] = useState(false);
 
   useEffect(() => {
+    if (loading) {
+      document.title = "CPNTeck | Carregando";
+      return;
+    }
+    if (!user) {
+      document.title = requiresSetup
+        ? "CPNTeck | Configuração inicial"
+        : "CPNTeck | Login";
+    }
+  }, [loading, requiresSetup, user]);
+
+  useEffect(() => {
     Promise.all([fetch("/api/auth/status"), fetch("/api/auth/me")])
       .then(async ([statusResponse, meResponse]) => {
         if (statusResponse.ok) {

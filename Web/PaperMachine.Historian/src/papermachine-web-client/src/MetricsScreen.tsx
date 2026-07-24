@@ -5,6 +5,7 @@ import "./MetricsScreen.css";
 type MetricView =
   | "speed"
   | "hourlyProductivity"
+  | "hourlyBreaks"
   | "hourlyLoss"
   | "interruptions"
   | "table";
@@ -182,6 +183,38 @@ function buildInterruptions(intervals: ProductivityInterval[]) {
   return interruptions;
 }
 
+function buildProductiveRuns(intervals: ProductivityInterval[]) {
+  const durations: number[] = [];
+  let activeStart: Date | null = null;
+  let activeEnd: Date | null = null;
+
+  const appendActive = () => {
+    if (activeStart && activeEnd) {
+      durations.push((activeEnd.getTime() - activeStart.getTime()) / 60_000);
+    }
+    activeStart = null;
+    activeEnd = null;
+  };
+
+  intervals.forEach((interval) => {
+    if (!interval.productive) {
+      appendActive();
+      return;
+    }
+    if (
+      activeEnd &&
+      interval.start.getTime() - activeEnd.getTime() >
+        DEFAULT_SAMPLE_INTERVAL_MILLISECONDS
+    ) {
+      appendActive();
+    }
+    activeStart ??= interval.start;
+    activeEnd = interval.end;
+  });
+  appendActive();
+  return durations;
+}
+
 function summarizeProductivity(
   samples: ProductivitySample[],
   periodStart: Date,
@@ -236,10 +269,20 @@ function summarizeProductivity(
     0,
     coveredMilliseconds - productiveMilliseconds,
   );
+  const interruptions = buildInterruptions(intervals);
+  const productiveRuns = buildProductiveRuns(intervals);
+  const hourlyBreaks = HOURS.map(() => 0);
+  interruptions.forEach((interruption) => {
+    hourlyBreaks[interruption.start.getHours()] += 1;
+  });
+
   return {
     cadence,
     intervals,
-    interruptions: buildInterruptions(intervals),
+    interruptions,
+    hourlyBreaks,
+    longestProductiveRunMinutes:
+      productiveRuns.length > 0 ? Math.max(...productiveRuns) : null,
     coveredMinutes: coveredMilliseconds / 60_000,
     productiveMinutes: productiveMilliseconds / 60_000,
     unproductiveMinutes: unproductiveMilliseconds / 60_000,
@@ -380,11 +423,13 @@ function HourlyChart({
   unit,
   maximum,
   color,
+  digits = 1,
 }: {
   values: number[];
   unit: string;
   maximum?: number;
   color: string;
+  digits?: number;
 }) {
   const option: InteractiveChartOption = {
     backgroundColor: "transparent",
@@ -394,7 +439,7 @@ function HourlyChart({
       trigger: "axis",
       axisPointer: { type: "shadow" },
       valueFormatter: (value: unknown) =>
-        `${formatNumber(Number(value), 1)} ${unit}`,
+        `${formatNumber(Number(value), digits)} ${unit}`,
     },
     xAxis: {
       type: "category",
@@ -416,7 +461,7 @@ function HourlyChart({
       {
         type: "bar",
         name: unit,
-        data: values.map((value) => Number(value.toFixed(2))),
+        data: values.map((value) => Number(value.toFixed(digits))),
         barMaxWidth: 28,
         itemStyle: { color, borderRadius: [5, 5, 0, 0] },
       },
@@ -589,9 +634,14 @@ export default function MetricsScreen() {
           ),
         )
       : null;
+  const lastInterruption =
+    summary.interruptions.length > 0
+      ? summary.interruptions[summary.interruptions.length - 1]
+      : null;
   const viewTitles: Record<MetricView, string> = {
     speed: "Velocidade do terceiro grupo",
     hourlyProductivity: "Produtividade por hora",
+    hourlyBreaks: "Número de quebras por hora",
     hourlyLoss: "Tempo sem produção por hora",
     interruptions: "Duração das interrupções",
     table: "Tabela de interrupções",
@@ -770,6 +820,20 @@ export default function MetricsScreen() {
             {formatNumber(summary.cadence / 1000, 0)} s
           </small>
         </div>
+        <div>
+          <span>Tempo máximo sem quebra</span>
+          <b>{formatDuration(summary.longestProductiveRunMinutes)}</b>
+          <small>Maior período produtivo contínuo</small>
+        </div>
+        <div>
+          <span>Duração da última quebra</span>
+          <b>{formatDuration(lastInterruption?.durationMinutes ?? null)}</b>
+          <small>
+            {lastInterruption
+              ? `Início: ${lastInterruption.start.toLocaleString("pt-BR")}`
+              : "Nenhuma quebra confirmada no período"}
+          </small>
+        </div>
       </section>
 
       <div className="metrics-workspace">
@@ -794,6 +858,13 @@ export default function MetricsScreen() {
             onClick={() => setView("hourlyLoss")}
           >
             Tempo sem produção H/H
+          </button>
+          <button
+            type="button"
+            className={view === "hourlyBreaks" ? "active" : ""}
+            onClick={() => setView("hourlyBreaks")}
+          >
+            Número de quebras H/H
           </button>
           <button
             type="button"
@@ -853,6 +924,14 @@ export default function MetricsScreen() {
                   values={summary.hourlyUnproductiveMinutes}
                   unit="min"
                   color="#df765d"
+                />
+              )}
+              {view === "hourlyBreaks" && (
+                <HourlyChart
+                  values={summary.hourlyBreaks}
+                  unit="quebras"
+                  color="#e7b85c"
+                  digits={0}
                 />
               )}
               {view === "interruptions" &&

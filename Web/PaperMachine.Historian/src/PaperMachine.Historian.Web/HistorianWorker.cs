@@ -17,6 +17,7 @@ public sealed class HistorianWorker(
     {
         var retryDelay = adsOptions.ReconnectMinimumDelayMilliseconds;
         var communicationState = "Starting";
+        var commandPersistenceTask = PersistCommandChangesAsync(stoppingToken);
 
         while (!stoppingToken.IsCancellationRequested)
         {
@@ -35,7 +36,7 @@ public sealed class HistorianWorker(
                 }
 
                 var snapshot = await reader.ReadSnapshotAsync(stoppingToken);
-                var cycle = processor.Process(snapshot);
+                var cycle = processor.Process(snapshot) with { CommandChanges = [] };
                 await repository.PersistCycleAsync(cycle, stoppingToken);
                 runtimeState.SetConnected(snapshot);
 
@@ -85,6 +86,45 @@ public sealed class HistorianWorker(
         catch (Exception exception)
         {
             logger.LogDebug(exception, "ADS disconnect during service shutdown did not complete cleanly.");
+        }
+
+        try
+        {
+            await commandPersistenceTask;
+        }
+        catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+        {
+            // Normal shutdown.
+        }
+    }
+
+    private async Task PersistCommandChangesAsync(CancellationToken cancellationToken)
+    {
+        await foreach (var change in reader.ReadCommandChangesAsync(cancellationToken))
+        {
+            while (!cancellationToken.IsCancellationRequested)
+            {
+                try
+                {
+                    await repository.AddCommandEventAsync(
+                        change,
+                        historianOptions.MappingVersion,
+                        cancellationToken);
+                    break;
+                }
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                {
+                    return;
+                }
+                catch (Exception exception)
+                {
+                    logger.LogError(
+                        exception,
+                        "Could not persist ADS on-change command {CommandName}; retrying.",
+                        change.FieldName);
+                    await Task.Delay(TimeSpan.FromSeconds(1), cancellationToken);
+                }
+            }
         }
     }
 
