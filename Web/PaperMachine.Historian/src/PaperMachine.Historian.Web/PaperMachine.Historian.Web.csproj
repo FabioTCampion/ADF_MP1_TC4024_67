@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <ItemGroup>
+    <ProjectReference Include="..\PaperMachine.Historian.Application\PaperMachine.Historian.Application.csproj" />
+    <ProjectReference Include="..\PaperMachine.Historian.Domain\PaperMachine.Historian.Domain.csproj" />
+    <ProjectReference Include="..\PaperMachine.Historian.Infrastructure.Ads\PaperMachine.Historian.Infrastructure.Ads.csproj" />
+    <ProjectReference Include="..\PaperMachine.Historian.Infrastructure.Database\PaperMachine.Historian.Infrastructure.Database.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Hosting.WindowsServices" Version="10.0.10" />
+  </ItemGroup>
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <UserSecretsId>PaperMachine-Historian-9f44ca86-0676-4999-b2f8-a3230391eca8</UserSecretsId>
+  </PropertyGroup>
+</Project>

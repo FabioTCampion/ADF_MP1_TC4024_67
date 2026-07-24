@@ -1,0 +1,12 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/PaperMachine.Historian.Application/PaperMachine.Historian.Application.csproj" />
+    <Project Path="src/PaperMachine.Historian.Domain/PaperMachine.Historian.Domain.csproj" />
+    <Project Path="src/PaperMachine.Historian.Infrastructure.Ads/PaperMachine.Historian.Infrastructure.Ads.csproj" />
+    <Project Path="src/PaperMachine.Historian.Infrastructure.Database/PaperMachine.Historian.Infrastructure.Database.csproj" />
+    <Project Path="src/PaperMachine.Historian.Web/PaperMachine.Historian.Web.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/PaperMachine.Historian.Tests/PaperMachine.Historian.Tests.csproj" />
+  </Folder>
+</Solution>

@@ -1,0 +1,443 @@
+using System.Globalization;
+using Microsoft.Data.Sqlite;
+using PaperMachine.Historian.Application;
+using PaperMachine.Historian.Domain;
+
+namespace PaperMachine.Historian.Infrastructure.Database;
+
+public sealed class SqliteHistorianRepository : IHistorianRepository
+{
+    private const int SchemaVersion = 1;
+    private readonly string _databasePath;
+    private readonly string _connectionString;
+
+    public SqliteHistorianRepository(DatabaseOptions options)
+    {
+        options.Validate();
+        SQLitePCL.Batteries_V2.Init();
+        _databasePath = Path.GetFullPath(options.FilePath);
+        _connectionString = new SqliteConnectionStringBuilder
+        {
+            DataSource = _databasePath,
+            Mode = SqliteOpenMode.ReadWriteCreate,
+            Cache = SqliteCacheMode.Shared,
+            ForeignKeys = true
+        }.ToString();
+    }
+
+    public async Task InitializeAsync(CancellationToken cancellationToken)
+    {
+        Directory.CreateDirectory(Path.GetDirectoryName(_databasePath)!);
+        await using var connection = await OpenAsync(cancellationToken);
+        await ExecuteAsync(connection, null, "PRAGMA journal_mode=WAL;", cancellationToken);
+        await ExecuteAsync(connection, null, "PRAGMA synchronous=NORMAL;", cancellationToken);
+        await ExecuteAsync(connection, null, "PRAGMA busy_timeout=5000;", cancellationToken);
+
+        const string schema = """
+            CREATE TABLE IF NOT EXISTS SchemaMigrations (
+                Version INTEGER NOT NULL PRIMARY KEY,
+                AppliedAtUtc TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS StatusSnapshots (
+                Id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+                CapturedAtUtc TEXT NOT NULL,
+                PayloadJson TEXT NOT NULL,
+                MappingVersion TEXT NOT NULL,
+                Quality TEXT NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS IX_StatusSnapshots_CapturedAtUtc
+                ON StatusSnapshots (CapturedAtUtc);
+
+            CREATE TABLE IF NOT EXISTS StatusChanges (
+                Id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+                FieldName TEXT NOT NULL,
+                PreviousValueJson TEXT NULL,
+                CurrentValueJson TEXT NOT NULL,
+                ObservedAtUtc TEXT NOT NULL,
+                MappingVersion TEXT NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS IX_StatusChanges_Field_Observed
+                ON StatusChanges (FieldName, ObservedAtUtc);
+
+            CREATE TABLE IF NOT EXISTS CommandEvents (
+                Id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+                CommandName TEXT NOT NULL,
+                PreviousValueJson TEXT NULL,
+                CurrentValueJson TEXT NOT NULL,
+                ObservedAtUtc TEXT NOT NULL,
+                Origin TEXT NOT NULL,
+                MappingVersion TEXT NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS IX_CommandEvents_Command_Observed
+                ON CommandEvents (CommandName, ObservedAtUtc);
+
+            CREATE TABLE IF NOT EXISTS AlarmEvents (
+                Id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+                AlarmName TEXT NOT NULL,
+                ActivatedAtUtc TEXT NOT NULL,
+                ClearedAtUtc TEXT NULL,
+                DurationMilliseconds INTEGER NULL,
+                ActiveAtStartup INTEGER NOT NULL,
+                MappingVersion TEXT NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS IX_AlarmEvents_Alarm_Activated
+                ON AlarmEvents (AlarmName, ActivatedAtUtc);
+            CREATE UNIQUE INDEX IF NOT EXISTS UX_AlarmEvents_Open
+                ON AlarmEvents (AlarmName) WHERE ClearedAtUtc IS NULL;
+
+            CREATE TABLE IF NOT EXISTS AdsCommunicationEvents (
+                Id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+                ObservedAtUtc TEXT NOT NULL,
+                State TEXT NOT NULL,
+                Detail TEXT NULL,
+                AmsNetId TEXT NOT NULL,
+                AdsPort INTEGER NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS IX_AdsCommunicationEvents_ObservedAtUtc
+                ON AdsCommunicationEvents (ObservedAtUtc);
+
+            INSERT OR IGNORE INTO SchemaMigrations (Version, AppliedAtUtc)
+            VALUES (1, @AppliedAtUtc);
+            """;
+
+        await ExecuteAsync(
+            connection,
+            null,
+            schema,
+            cancellationToken,
+            ("@AppliedAtUtc", ToDatabaseTimestamp(DateTimeOffset.UtcNow)));
+
+        var version = await ScalarAsync<long>(
+            connection,
+            "SELECT COALESCE(MAX(Version), 0) FROM SchemaMigrations;",
+            cancellationToken);
+        if (version != SchemaVersion)
+            throw new InvalidOperationException(
+                $"Unsupported historian database schema version {version}; expected {SchemaVersion}.");
+    }
+
+    public async Task PersistCycleAsync(HistorianCycle cycle, CancellationToken cancellationToken)
+    {
+        await using var connection = await OpenAsync(cancellationToken);
+        await using var transaction = connection.BeginTransaction();
+
+        if (cycle.SaveStatusSnapshot)
+        {
+            await ExecuteAsync(
+                connection,
+                transaction,
+                """
+                INSERT INTO StatusSnapshots
+                    (CapturedAtUtc, PayloadJson, MappingVersion, Quality)
+                VALUES
+                    (@CapturedAtUtc, @PayloadJson, @MappingVersion, 'Good');
+                """,
+                cancellationToken,
+                ("@CapturedAtUtc", ToDatabaseTimestamp(cycle.Snapshot.CapturedAtUtc)),
+                ("@PayloadJson", cycle.Snapshot.Status.GetRawText()),
+                ("@MappingVersion", cycle.Snapshot.MappingVersion));
+        }
+
+        foreach (var change in cycle.StatusChanges)
+        {
+            await InsertFieldChangeAsync(
+                connection,
+                transaction,
+                "StatusChanges",
+                "FieldName",
+                change,
+                cycle.Snapshot.MappingVersion,
+                cancellationToken);
+        }
+
+        foreach (var change in cycle.CommandChanges)
+        {
+            await ExecuteAsync(
+                connection,
+                transaction,
+                """
+                INSERT INTO CommandEvents
+                    (CommandName, PreviousValueJson, CurrentValueJson, ObservedAtUtc, Origin, MappingVersion)
+                VALUES
+                    (@Name, @Previous, @Current, @ObservedAtUtc, 'PlcObserved', @MappingVersion);
+                """,
+                cancellationToken,
+                ("@Name", change.FieldName),
+                ("@Previous", change.PreviousValueJson),
+                ("@Current", change.CurrentValueJson),
+                ("@ObservedAtUtc", ToDatabaseTimestamp(change.ObservedAtUtc)),
+                ("@MappingVersion", cycle.Snapshot.MappingVersion));
+        }
+
+        foreach (var transition in cycle.AlarmTransitions)
+        {
+            if (transition.IsActive)
+            {
+                await ExecuteAsync(
+                    connection,
+                    transaction,
+                    """
+                    INSERT OR IGNORE INTO AlarmEvents
+                        (AlarmName, ActivatedAtUtc, ClearedAtUtc, DurationMilliseconds, ActiveAtStartup, MappingVersion)
+                    VALUES
+                        (@AlarmName, @ObservedAtUtc, NULL, NULL, @ActiveAtStartup, @MappingVersion);
+                    """,
+                    cancellationToken,
+                    ("@AlarmName", transition.AlarmName),
+                    ("@ObservedAtUtc", ToDatabaseTimestamp(transition.ObservedAtUtc)),
+                    ("@ActiveAtStartup", transition.InitialObservation ? 1 : 0),
+                    ("@MappingVersion", cycle.Snapshot.MappingVersion));
+            }
+            else
+            {
+                await ExecuteAsync(
+                    connection,
+                    transaction,
+                    """
+                    UPDATE AlarmEvents
+                    SET ClearedAtUtc = @ObservedAtUtc,
+                        DurationMilliseconds =
+                            CAST(ROUND(
+                                (julianday(@ObservedAtUtc) - julianday(ActivatedAtUtc)) * 86400000
+                            ) AS INTEGER)
+                    WHERE AlarmName = @AlarmName AND ClearedAtUtc IS NULL;
+                    """,
+                    cancellationToken,
+                    ("@AlarmName", transition.AlarmName),
+                    ("@ObservedAtUtc", ToDatabaseTimestamp(transition.ObservedAtUtc)));
+            }
+        }
+
+        await transaction.CommitAsync(cancellationToken);
+    }
+
+    public async Task AddCommunicationEventAsync(
+        CommunicationEvent communicationEvent,
+        CancellationToken cancellationToken)
+    {
+        await using var connection = await OpenAsync(cancellationToken);
+        await ExecuteAsync(
+            connection,
+            null,
+            """
+            INSERT INTO AdsCommunicationEvents
+                (ObservedAtUtc, State, Detail, AmsNetId, AdsPort)
+            VALUES
+                (@ObservedAtUtc, @State, @Detail, @AmsNetId, @AdsPort);
+            """,
+            cancellationToken,
+            ("@ObservedAtUtc", ToDatabaseTimestamp(communicationEvent.ObservedAtUtc)),
+            ("@State", communicationEvent.State),
+            ("@Detail", communicationEvent.Detail),
+            ("@AmsNetId", communicationEvent.AmsNetId),
+            ("@AdsPort", communicationEvent.AdsPort));
+    }
+
+    public async Task<IReadOnlyList<StatusSnapshotRow>> GetStatusSnapshotsAsync(
+        DateTimeOffset? fromUtc,
+        DateTimeOffset? toUtc,
+        int limit,
+        CancellationToken cancellationToken)
+    {
+        ValidateLimit(limit);
+        await using var connection = await OpenAsync(cancellationToken);
+        await using var command = CreateRangeCommand(
+            connection,
+            """
+            SELECT Id, CapturedAtUtc, PayloadJson, MappingVersion, Quality
+            FROM StatusSnapshots
+            WHERE (@FromUtc IS NULL OR CapturedAtUtc >= @FromUtc)
+              AND (@ToUtc IS NULL OR CapturedAtUtc < @ToUtc)
+            ORDER BY CapturedAtUtc DESC
+            LIMIT @Limit;
+            """,
+            fromUtc,
+            toUtc,
+            limit);
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        var rows = new List<StatusSnapshotRow>();
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            rows.Add(new StatusSnapshotRow(
+                reader.GetInt64(0),
+                ParseDatabaseTimestamp(reader.GetString(1)),
+                reader.GetString(2),
+                reader.GetString(3),
+                reader.GetString(4)));
+        }
+        return rows;
+    }
+
+    public async Task<IReadOnlyList<CommandEventRow>> GetCommandEventsAsync(
+        DateTimeOffset? fromUtc,
+        DateTimeOffset? toUtc,
+        int limit,
+        CancellationToken cancellationToken)
+    {
+        ValidateLimit(limit);
+        await using var connection = await OpenAsync(cancellationToken);
+        await using var command = CreateRangeCommand(
+            connection,
+            """
+            SELECT Id, CommandName, PreviousValueJson, CurrentValueJson,
+                   ObservedAtUtc, Origin, MappingVersion
+            FROM CommandEvents
+            WHERE (@FromUtc IS NULL OR ObservedAtUtc >= @FromUtc)
+              AND (@ToUtc IS NULL OR ObservedAtUtc < @ToUtc)
+            ORDER BY ObservedAtUtc DESC
+            LIMIT @Limit;
+            """,
+            fromUtc,
+            toUtc,
+            limit);
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        var rows = new List<CommandEventRow>();
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            rows.Add(new CommandEventRow(
+                reader.GetInt64(0),
+                reader.GetString(1),
+                reader.IsDBNull(2) ? null : reader.GetString(2),
+                reader.GetString(3),
+                ParseDatabaseTimestamp(reader.GetString(4)),
+                reader.GetString(5),
+                reader.GetString(6)));
+        }
+        return rows;
+    }
+
+    public async Task<IReadOnlyList<AlarmEventRow>> GetAlarmEventsAsync(
+        DateTimeOffset? fromUtc,
+        DateTimeOffset? toUtc,
+        bool? active,
+        int limit,
+        CancellationToken cancellationToken)
+    {
+        ValidateLimit(limit);
+        await using var connection = await OpenAsync(cancellationToken);
+        await using var command = CreateRangeCommand(
+            connection,
+            """
+            SELECT Id, AlarmName, ActivatedAtUtc, ClearedAtUtc,
+                   DurationMilliseconds, ActiveAtStartup, MappingVersion
+            FROM AlarmEvents
+            WHERE (@FromUtc IS NULL OR ActivatedAtUtc >= @FromUtc)
+              AND (@ToUtc IS NULL OR ActivatedAtUtc < @ToUtc)
+              AND (@Active IS NULL
+                   OR (@Active = 1 AND ClearedAtUtc IS NULL)
+                   OR (@Active = 0 AND ClearedAtUtc IS NOT NULL))
+            ORDER BY ActivatedAtUtc DESC
+            LIMIT @Limit;
+            """,
+            fromUtc,
+            toUtc,
+            limit);
+        command.Parameters.AddWithValue("@Active", active.HasValue ? (active.Value ? 1 : 0) : DBNull.Value);
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        var rows = new List<AlarmEventRow>();
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            rows.Add(new AlarmEventRow(
+                reader.GetInt64(0),
+                reader.GetString(1),
+                ParseDatabaseTimestamp(reader.GetString(2)),
+                reader.IsDBNull(3) ? null : ParseDatabaseTimestamp(reader.GetString(3)),
+                reader.IsDBNull(4) ? null : reader.GetInt64(4),
+                reader.GetInt64(5) == 1,
+                reader.GetString(6)));
+        }
+        return rows;
+    }
+
+    private async Task<SqliteConnection> OpenAsync(CancellationToken cancellationToken)
+    {
+        var connection = new SqliteConnection(_connectionString);
+        await connection.OpenAsync(cancellationToken);
+        await ExecuteAsync(connection, null, "PRAGMA busy_timeout=5000;", cancellationToken);
+        return connection;
+    }
+
+    private static async Task InsertFieldChangeAsync(
+        SqliteConnection connection,
+        SqliteTransaction transaction,
+        string table,
+        string nameColumn,
+        FieldChange change,
+        string mappingVersion,
+        CancellationToken cancellationToken)
+    {
+        await ExecuteAsync(
+            connection,
+            transaction,
+            $"""
+             INSERT INTO {table}
+                 ({nameColumn}, PreviousValueJson, CurrentValueJson, ObservedAtUtc, MappingVersion)
+             VALUES
+                 (@Name, @Previous, @Current, @ObservedAtUtc, @MappingVersion);
+             """,
+            cancellationToken,
+            ("@Name", change.FieldName),
+            ("@Previous", change.PreviousValueJson),
+            ("@Current", change.CurrentValueJson),
+            ("@ObservedAtUtc", ToDatabaseTimestamp(change.ObservedAtUtc)),
+            ("@MappingVersion", mappingVersion));
+    }
+
+    private static SqliteCommand CreateRangeCommand(
+        SqliteConnection connection,
+        string sql,
+        DateTimeOffset? fromUtc,
+        DateTimeOffset? toUtc,
+        int limit)
+    {
+        var command = connection.CreateCommand();
+        command.CommandText = sql;
+        command.Parameters.AddWithValue(
+            "@FromUtc",
+            fromUtc.HasValue ? ToDatabaseTimestamp(fromUtc.Value) : DBNull.Value);
+        command.Parameters.AddWithValue(
+            "@ToUtc",
+            toUtc.HasValue ? ToDatabaseTimestamp(toUtc.Value) : DBNull.Value);
+        command.Parameters.AddWithValue("@Limit", limit);
+        return command;
+    }
+
+    private static async Task ExecuteAsync(
+        SqliteConnection connection,
+        SqliteTransaction? transaction,
+        string sql,
+        CancellationToken cancellationToken,
+        params (string Name, object? Value)[] parameters)
+    {
+        await using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText = sql;
+        foreach (var parameter in parameters)
+            command.Parameters.AddWithValue(parameter.Name, parameter.Value ?? DBNull.Value);
+        await command.ExecuteNonQueryAsync(cancellationToken);
+    }
+
+    private static async Task<T> ScalarAsync<T>(
+        SqliteConnection connection,
+        string sql,
+        CancellationToken cancellationToken)
+    {
+        await using var command = connection.CreateCommand();
+        command.CommandText = sql;
+        var value = await command.ExecuteScalarAsync(cancellationToken);
+        return (T)Convert.ChangeType(value!, typeof(T), CultureInfo.InvariantCulture);
+    }
+
+    private static string ToDatabaseTimestamp(DateTimeOffset value) =>
+        value.ToUniversalTime().ToString("O", CultureInfo.InvariantCulture);
+
+    private static DateTimeOffset ParseDatabaseTimestamp(string value) =>
+        DateTimeOffset.Parse(value, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind);
+
+    private static void ValidateLimit(int limit)
+    {
+        if (limit is < 1 or > 5_000)
+            throw new ArgumentOutOfRangeException(nameof(limit), "Limit must be between 1 and 5000.");
+    }
+}

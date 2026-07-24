@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Paper Machine Historian</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <header>
+    <div>
+      <p class="eyebrow">CPNTeck · coleta somente leitura</p>
+      <h1>Paper Machine Historian</h1>
+    </div>
+    <div id="connection" class="connection connection--pending">Inicializando</div>
+  </header>
+
+  <main>
+    <section class="summary">
+      <article>
+        <span>Última leitura</span>
+        <strong id="last-read">—</strong>
+      </article>
+      <article>
+        <span>Alarmes ativos</span>
+        <strong id="active-alarm-count">—</strong>
+      </article>
+      <article>
+        <span>Versão do mapeamento</span>
+        <strong id="mapping-version">—</strong>
+      </article>
+    </section>
+
+    <section class="panel">
+      <div class="panel__heading">
+        <div>
+          <p class="eyebrow">Eventos</p>
+          <h2>Alarmes</h2>
+        </div>
+        <button type="button" data-refresh>Atualizar</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>Alarme</th><th>Ativado</th><th>Normalizado</th><th>Duração</th></tr>
+          </thead>
+          <tbody id="alarms"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel__heading">
+        <div>
+          <p class="eyebrow">Mudanças observadas no PLC</p>
+          <h2>Comandos</h2>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>Comando</th><th>Anterior</th><th>Novo valor</th><th>Horário</th></tr>
+          </thead>
+          <tbody id="commands"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel__heading">
+        <div>
+          <p class="eyebrow">Último snapshot válido</p>
+          <h2>Status da máquina</h2>
+        </div>
+      </div>
+      <div id="status-grid" class="status-grid"></div>
+    </section>
+  </main>
+
+  <script src="/app.js" defer></script>
+</body>
+</html>
