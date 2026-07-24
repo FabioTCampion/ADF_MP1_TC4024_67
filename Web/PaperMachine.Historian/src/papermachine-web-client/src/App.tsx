@@ -102,8 +102,43 @@ const dateFormatter = new Intl.DateTimeFormat("pt-BR", {
   timeStyle: "medium",
 });
 
+const machineSpeedField = "dryingSectionGroup3UpperMasterSpeedMPM";
+const paperPresenceField = "dryingSectionGroup3PaperPresence";
+
 const formatDate = (value: string | null | undefined) =>
   value ? dateFormatter.format(new Date(value)) : "—";
+
+const readStatusNumber = (
+  current: CurrentSnapshot | null,
+  fieldName: string,
+) => {
+  const value = current?.status[fieldName];
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+};
+
+const readStatusBoolean = (
+  current: CurrentSnapshot | null,
+  fieldName: string,
+) => {
+  const value = current?.status[fieldName];
+  return typeof value === "boolean" ? value : null;
+};
+
+const formatMachineSpeed = (speed: number | null) =>
+  speed === null ? "—" : speed.toLocaleString("pt-BR", {
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 1,
+  });
+
+const paperPresenceLabel = (paperPresent: boolean | null) => {
+  if (paperPresent === null) return "Sem leitura";
+  return paperPresent ? "Papel presente" : "Sem papel";
+};
+
+const paperPresenceClass = (paperPresent: boolean | null) => {
+  if (paperPresent === null) return "unknown";
+  return paperPresent ? "present" : "absent";
+};
 
 const formatDuration = (milliseconds: number | null) => {
   if (milliseconds === null) return "Em andamento";
@@ -164,6 +199,8 @@ export default function App() {
   const [runtime, setRuntime] = useState<RuntimeStatus | null>(null);
   const [current, setCurrent] = useState<CurrentSnapshot | null>(null);
   const [clock, setClock] = useState(new Date());
+  const machineSpeed = readStatusNumber(current, machineSpeedField);
+  const paperPresent = readStatusBoolean(current, paperPresenceField);
 
   const refreshLiveData = useCallback(async () => {
     const [runtimeResult, currentResult] = await Promise.allSettled([
@@ -230,6 +267,22 @@ export default function App() {
             <b>{navigation.find((item) => item.id === page)?.label}</b>
           </div>
           <div className="top-spacer" />
+          <div className="top-machine-state" aria-label="Estado atual da máquina">
+            <div className="top-machine-speed">
+              <span>Velocidade atual</span>
+              <b>
+                {formatMachineSpeed(machineSpeed)}
+                <small>m/min</small>
+              </b>
+            </div>
+            <div className={`top-paper-state top-paper-state--${paperPresenceClass(paperPresent)}`}>
+              <i />
+              <div>
+                <span>Sensor de papel</span>
+                <b>{paperPresenceLabel(paperPresent)}</b>
+              </div>
+            </div>
+          </div>
           <div className="top-clock">
             <span>{clock.toLocaleDateString("pt-BR")}</span>
             <b>{clock.toLocaleTimeString("pt-BR")}</b>
@@ -306,6 +359,8 @@ function Dashboard({
   const trueStatusCount = current
     ? Object.values(current.status).filter((value) => value === true).length
     : 0;
+  const machineSpeed = readStatusNumber(current, machineSpeedField);
+  const paperPresent = readStatusBoolean(current, paperPresenceField);
 
   return (
     <>
@@ -315,6 +370,27 @@ function Dashboard({
         subtitle="Resumo da aquisição ADS e dos eventos mais recentes da máquina."
         action={<ConnectionBadge connected={runtime?.adsConnected ?? false} />}
       />
+
+      <section className="machine-overview-card" aria-label="Estado operacional da máquina">
+        <div className="machine-overview-heading">
+          <p className="eyebrow">Produção em tempo real</p>
+          <h2>Estado atual da máquina</h2>
+          <span>Leitura do terceiro grupo de secagem</span>
+        </div>
+        <div className="machine-speed-readout">
+          <span>Velocidade atual</span>
+          <strong>{formatMachineSpeed(machineSpeed)}</strong>
+          <small>m/min</small>
+        </div>
+        <div className={`machine-paper-readout machine-paper-readout--${paperPresenceClass(paperPresent)}`}>
+          <i />
+          <div>
+            <span>Presença de papel</span>
+            <strong>{paperPresenceLabel(paperPresent)}</strong>
+            <small>Sensor do terceiro grupo</small>
+          </div>
+        </div>
+      </section>
 
       <section className="metric-grid">
         <MetricCard label="Comunicação ADS" value={runtime?.adsConnected ? "Conectado" : "Desconectado"} accent={runtime?.adsConnected ? "green" : "red"} detail="192.168.100.1.1.1 · 851" />
