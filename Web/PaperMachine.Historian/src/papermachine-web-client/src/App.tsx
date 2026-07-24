@@ -415,10 +415,76 @@ function CurrentStatus({ current }: { current: CurrentSnapshot | null }) {
   );
 }
 
+type MotorGroup = {
+  key: string;
+  label: string;
+  motors: MotorTrendMotor[];
+};
+
+type TrendSeries = {
+  key: string;
+  label: string;
+  field: string;
+  unit: string;
+  color: string;
+  rows: ReadonlyArray<readonly [string, number]>;
+};
+
+const trendColors = [
+  "#55a2ff",
+  "#e8aa55",
+  "#56d4a0",
+  "#c48cff",
+  "#ff7185",
+  "#4fd2e7",
+  "#b6cf62",
+  "#ef8ed7",
+] as const;
+
+const motorGroupCatalog = [
+  { key: "drying-1", label: "Secagem — Grupo 1", matches: (key: string) => key.startsWith("dryingSectionGroup1") },
+  { key: "drying-2", label: "Secagem — Grupo 2", matches: (key: string) => key.startsWith("dryingSectionGroup2") },
+  { key: "drying-3", label: "Secagem — Grupo 3", matches: (key: string) => key.startsWith("dryingSectionGroup3") },
+  { key: "forming", label: "Mesa formadora", matches: (key: string) => key.startsWith("formingBoard") },
+  { key: "presses", label: "Prensas", matches: (key: string) => key.endsWith("PressSection") },
+  { key: "pumps", label: "Bombas de processo", matches: (key: string) => key.endsWith("Pump") },
+  { key: "winder", label: "Enroladeira", matches: (key: string) => key.startsWith("winder") },
+] as const;
+
+function buildMotorGroups(motors: MotorTrendMotor[]): MotorGroup[] {
+  const assigned = new Set<string>();
+  const groups: MotorGroup[] = motorGroupCatalog
+    .map((group) => {
+      const groupMotors = motors.filter((motor) => group.matches(motor.key));
+      groupMotors.forEach((motor) => assigned.add(motor.key));
+      return { key: group.key, label: group.label, motors: groupMotors };
+    })
+    .filter((group) => group.motors.length > 0);
+  const remaining = motors.filter((motor) => !assigned.has(motor.key));
+  if (remaining.length > 0) {
+    groups.push({ key: "others", label: "Outros acionamentos", motors: remaining });
+  }
+  return groups;
+}
+
+function formatMotorMember(key: string) {
+  const member = key
+    .replace(/^dryingSectionGroup\d/, "")
+    .replace(/^formingBoard/, "")
+    .replace(/Section$/, "")
+    .replace(/^winder$/, "Enroladeira")
+    .replace(/^Upper/, "Superior")
+    .replace(/^Lower/, "Inferior")
+    .replace(/Master/, " Mestre")
+    .replace(/Slave(\d)/, " Escravo $1");
+  return formatFieldName(member);
+}
+
 function MotorGraphs() {
   const range = useDefaultRange();
   const [trend, setTrend] = useState<MotorTrend>({ motors: [], samples: [] });
-  const [selectedMotor, setSelectedMotor] = useState("");
+  const [selectedGroup, setSelectedGroup] = useState("drying-1");
+  const [selectedMotors, setSelectedMotors] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -429,13 +495,7 @@ function MotorGraphs() {
       const parameters = rangeQuery(range.from, range.to);
       parameters.delete("limit");
       parameters.set("maxPoints", "1200");
-      const result = await fetchJson<MotorTrend>(`/api/history/motors?${parameters}`);
-      setTrend(result);
-      setSelectedMotor((currentSelection) =>
-        result.motors.some((motor) => motor.key === currentSelection)
-          ? currentSelection
-          : result.motors[0]?.key ?? "",
-      );
+      setTrend(await fetchJson<MotorTrend>(`/api/history/motors?${parameters}`));
     } catch (exception) {
       setError(exception instanceof Error ? exception.message : "Consulta falhou.");
     } finally {
@@ -445,13 +505,49 @@ function MotorGraphs() {
 
   useEffect(() => { void query(); }, [query]);
 
-  const motor = trend.motors.find((item) => item.key === selectedMotor);
-  const speedRows = trend.samples
-    .map((sample) => [sample.capturedAtUtc, sample.values[selectedMotor]?.speed] as const)
-    .filter((row): row is readonly [string, number] => typeof row[1] === "number");
-  const torqueRows = trend.samples
-    .map((sample) => [sample.capturedAtUtc, sample.values[selectedMotor]?.torque] as const)
-    .filter((row): row is readonly [string, number] => typeof row[1] === "number");
+  const groups = useMemo(() => buildMotorGroups(trend.motors), [trend.motors]);
+  const activeGroup = groups.find((group) => group.key === selectedGroup) ?? groups[0];
+
+  useEffect(() => {
+    if (!activeGroup) return;
+    if (activeGroup.key !== selectedGroup) setSelectedGroup(activeGroup.key);
+    setSelectedMotors((current) => {
+      const validSelection = current.filter((key) =>
+        activeGroup.motors.some((motor) => motor.key === key));
+      return validSelection.length > 0
+        ? validSelection
+        : activeGroup.motors.map((motor) => motor.key);
+    });
+  }, [activeGroup, selectedGroup]);
+
+  const toggleMotor = (key: string) => {
+    setSelectedMotors((current) =>
+      current.includes(key)
+        ? current.filter((selectedKey) => selectedKey !== key)
+        : [...current, key]);
+  };
+  const changeGroup = (key: string) => {
+    const group = groups.find((item) => item.key === key);
+    setSelectedGroup(key);
+    setSelectedMotors(group?.motors.map((motor) => motor.key) ?? []);
+  };
+  const buildSeries = (metric: "speed" | "torque"): TrendSeries[] =>
+    (activeGroup?.motors ?? [])
+      .map((motor, index) => ({
+        key: motor.key,
+        label: formatMotorMember(motor.key),
+        field: metric === "speed" ? motor.speedField : motor.torqueField,
+        unit: formatTrendUnit(metric === "speed" ? motor.speedUnit : motor.torqueUnit),
+        color: trendColors[index % trendColors.length],
+        rows: trend.samples
+          .map((sample) =>
+            [sample.capturedAtUtc, sample.values[motor.key]?.[metric]] as const)
+          .filter((row): row is readonly [string, number] => typeof row[1] === "number"),
+      }))
+      .filter((series) => selectedMotors.includes(series.key));
+  const speedSeries = buildSeries("speed");
+  const torqueSeries = buildSeries("torque");
+  const latestSample = trend.samples[trend.samples.length - 1];
   const applyPeriod = (hours: number) => {
     const now = new Date();
     const formatInput = (date: Date) => {
@@ -467,7 +563,7 @@ function MotorGraphs() {
       <ScreenTitle
         eyebrow="Tendências de acionamentos"
         title="Velocidade e torque"
-        subtitle="Dados históricos obtidos dos snapshots de status, com zoom e navegação temporal."
+        subtitle="Compare os motores de cada grupo no mesmo eixo e oculte séries individualmente."
         action={<span className="result-count">{trend.samples.length} amostras</span>}
       />
 
@@ -480,14 +576,16 @@ function MotorGraphs() {
 
       <div className="query-toolbar graph-toolbar">
         <label className="motor-select">
-          <span>Motor</span>
+          <span>Grupo</span>
           <select
-            value={selectedMotor}
-            onChange={(event) => setSelectedMotor(event.target.value)}
-            disabled={trend.motors.length === 0}
+            value={activeGroup?.key ?? ""}
+            onChange={(event) => changeGroup(event.target.value)}
+            disabled={groups.length === 0}
           >
-            {trend.motors.map((item) => (
-              <option value={item.key} key={item.key}>{formatFieldName(item.key)}</option>
+            {groups.map((group) => (
+              <option value={group.key} key={group.key}>
+                {group.label} · {group.motors.length} {group.motors.length === 1 ? "motor" : "motores"}
+              </option>
             ))}
           </select>
         </label>
@@ -498,28 +596,57 @@ function MotorGraphs() {
         </button>
       </div>
 
+      {activeGroup && (
+        <section className="motor-selection">
+          <div className="motor-selection-heading">
+            <div>
+              <p className="eyebrow">Séries visíveis</p>
+              <h2>{activeGroup.label}</h2>
+            </div>
+            <div>
+              <button type="button" onClick={() => setSelectedMotors(activeGroup.motors.map((motor) => motor.key))}>Todos</button>
+              <button type="button" onClick={() => setSelectedMotors([])}>Nenhum</button>
+            </div>
+          </div>
+          <div className="motor-checks">
+            {activeGroup.motors.map((motor, index) => {
+              const currentValue = latestSample?.values[motor.key];
+              return (
+                <label key={motor.key}>
+                  <input
+                    type="checkbox"
+                    checked={selectedMotors.includes(motor.key)}
+                    onChange={() => toggleMotor(motor.key)}
+                  />
+                  <i
+                    style={{
+                      backgroundColor: trendColors[index % trendColors.length],
+                      color: trendColors[index % trendColors.length],
+                    }}
+                  />
+                  <span>
+                    <b>{formatMotorMember(motor.key)}</b>
+                    <small>
+                      V {currentValue?.speed?.toFixed(1) ?? "—"} · T {currentValue?.torque?.toFixed(1) ?? "—"}
+                    </small>
+                  </span>
+                </label>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
       {error && <div className="error-banner">{error}</div>}
       {!loading && trend.motors.length === 0 && (
         <div className="graph-empty">
           Nenhum par de velocidade e torque foi encontrado no período selecionado.
         </div>
       )}
-      {motor && (
+      {activeGroup && (
         <section className="trend-grid">
-          <TrendChart
-            title="Velocidade"
-            field={motor.speedField}
-            unit={formatTrendUnit(motor.speedUnit)}
-            color="#55a2ff"
-            rows={speedRows}
-          />
-          <TrendChart
-            title="Torque"
-            field={motor.torqueField}
-            unit={formatTrendUnit(motor.torqueUnit)}
-            color="#e8aa55"
-            rows={torqueRows}
-          />
+          <TrendChart title="Velocidade" series={speedSeries} />
+          <TrendChart title="Torque" series={torqueSeries} />
         </section>
       )}
       <p className="graph-note">
@@ -534,33 +661,18 @@ function formatTrendUnit(unit: string) {
   return unit === "PLC" ? "unidade PLC" : unit;
 }
 
-function TrendChart({
-  title,
-  field,
-  unit,
-  color,
-  rows,
-}: {
-  title: string;
-  field: string;
-  unit: string;
-  color: string;
-  rows: ReadonlyArray<readonly [string, number]>;
-}) {
-  const values = rows.map((row) => row[1]);
-  const minimum = values.length ? Math.min(...values) : 0;
-  const maximum = values.length ? Math.max(...values) : 0;
-  const average = values.length
-    ? values.reduce((sum, value) => sum + value, 0) / values.length
-    : 0;
+function TrendChart({ title, series }: { title: string; series: TrendSeries[] }) {
+  const units = [...new Set(series.map((item) => item.unit))];
+  const axisUnit = units.length === 1 ? units[0] : "valor de processo";
   const option = useMemo<InteractiveChartOption>(() => ({
     backgroundColor: "transparent",
     animation: false,
+    color: series.map((item) => item.color),
     grid: { left: 64, right: 25, top: 26, bottom: 72 },
     tooltip: {
       trigger: "axis",
       axisPointer: { type: "cross" },
-      valueFormatter: (value: unknown) => `${Number(value).toFixed(2)} ${unit}`,
+      valueFormatter: (value: unknown) => `${Number(value).toFixed(2)} ${axisUnit}`,
     },
     xAxis: {
       type: "time",
@@ -570,7 +682,7 @@ function TrendChart({
     yAxis: {
       type: "value",
       scale: true,
-      name: unit,
+      name: axisUnit,
       splitLine: { lineStyle: { color: "#26364d" } },
     },
     dataZoom: [
@@ -580,38 +692,41 @@ function TrendChart({
         height: 24,
         bottom: 16,
         borderColor: "#34445c",
-        fillerColor: `${color}44`,
+        fillerColor: "#397fd144",
       },
     ],
-    series: [{
+    series: series.map((item) => ({
       type: "line",
-      name: title,
+      name: item.label,
       showSymbol: false,
       sampling: "lttb",
       connectNulls: false,
-      data: rows,
-      lineStyle: { width: 2, color },
-      areaStyle: { color: `${color}1f` },
-    }],
-  }), [color, rows, title, unit]);
+      data: item.rows,
+      lineStyle: { width: 1.8, color: item.color },
+      emphasis: { focus: "series", lineStyle: { width: 3 } },
+    })),
+  }), [axisUnit, series]);
 
   return (
     <article className="trend-card">
       <div className="trend-heading">
-        <div><p className="eyebrow">{field}</p><h2>{title}</h2></div>
-        <div className="trend-stats">
-          <span><small>Mín.</small><b>{minimum.toFixed(2)}</b></span>
-          <span><small>Média</small><b>{average.toFixed(2)}</b></span>
-          <span><small>Máx.</small><b>{maximum.toFixed(2)}</b></span>
+        <div>
+          <p className="eyebrow">{series.length} séries visíveis</p>
+          <h2>{title}</h2>
+        </div>
+        <div className="trend-legend">
+          {series.map((item) => (
+            <span key={item.key}><i style={{ backgroundColor: item.color }} />{item.label}</span>
+          ))}
         </div>
       </div>
-      {rows.length
+      {series.some((item) => item.rows.length > 0)
         ? (
           <Suspense fallback={<EmptyState text="Preparando gráfico…" />}>
-            <InteractiveChart option={option} ariaLabel={`${title} do motor ao longo do período`} />
+            <InteractiveChart option={option} ariaLabel={`${title} dos motores do grupo ao longo do período`} />
           </Suspense>
         )
-        : <EmptyState text={`Sem amostras de ${title.toLowerCase()} no período.`} />}
+        : <EmptyState text="Selecione ao menos um motor com amostras no período." />}
     </article>
   );
 }

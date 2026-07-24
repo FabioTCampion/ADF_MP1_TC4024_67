@@ -108,6 +108,9 @@ Mudanças na estrutura PLC devem incrementar `Historian:MappingVersion`.
 Os históricos aceitam `fromUtc`, `toUtc` e `limit`. Alarmes também aceitam `active=true|false`.
 O endpoint de motores aceita `fromUtc`, `toUtc` e `maxPoints` entre 100 e 2.000,
 descobre os pares de velocidade/torque do status e limita a consulta a 31 dias.
+Na interface, os acionamentos são organizados por grupo funcional. Os motores
+selecionados por checkbox são comparados como séries no mesmo gráfico de
+velocidade e no mesmo gráfico de torque.
 As APIs do Historian exigem autenticação por cookie; `/health` e o fluxo inicial de autenticação permanecem públicos.
 
 ## Limites desta versão
