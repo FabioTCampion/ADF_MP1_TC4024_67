@@ -600,7 +600,7 @@
 		</System>
 		<Plc>
 			<Project GUID="{1B0ECF96-BA46-432C-8D32-86F6F536DF4A}" Name="Plc_Prog" PrjFilePath="Plc_Prog\Plc_Prog.plcproj" TmcFilePath="Plc_Prog\Plc_Prog.tmc" ReloadTmc="true" AmsPort="851" FileArchiveSettings="#x000e" CopyTmcToTarget="true" ClearInvalidPersist="true" SymbolicMapping="true">
-				<Instance Id="#x08502000" TcSmClass="TComPlcObjDef" KeepUnrestoredLinks="2" TmcPath="Plc_Prog\Plc_Prog.tmc" TmcHash="{CBB53759-EDB3-C27E-43D6-688C69F477BB}">
+				<Instance Id="#x08502000" TcSmClass="TComPlcObjDef" KeepUnrestoredLinks="2" TmcPath="Plc_Prog\Plc_Prog.tmc" TmcHash="{7D7A3377-7FD6-11B5-61C0-20003A6472A0}">
 					<Name>Plc_Prog Instance</Name>
 					<CLSID ClassFactory="TcPlc30">{08500001-0000-0000-F000-000000000064}</CLSID>
 					<Vars VarGrpType="1">
@@ -632,576 +632,6 @@
 						</Var>
 						<Var>
 							<Name>.P1_100_UG01.PDOS.DrvToPLC.torqueActualValue</Name>
-							<Comment><![CDATA[Actual torque feedback]]></Comment>
-							<Type>INT</Type>
-						</Var>
-						<Var>
-							<Name>.P1_100_UG02.PDOS.DrvToPLC.statusWord</Name>
-							<Comment><![CDATA[Status word of the drive]]></Comment>
-							<Type>UINT</Type>
-						</Var>
-						<Var>
-							<Name>.P1_100_UG02.PDOS.DrvToPLC.errorCode</Name>
-							<Comment><![CDATA[Error code of the drive]]></Comment>
-							<Type>UINT</Type>
-						</Var>
-						<Var>
-							<Name>.P1_100_UG02.PDOS.DrvToPLC.modesOfOperationDisplay</Name>
-							<Comment><![CDATA[Current mode of operation]]></Comment>
-							<Type>SINT</Type>
-						</Var>
-						<Var>
-							<Name>.P1_100_UG02.PDOS.DrvToPLC.positionActualValue</Name>
-							<Comment><![CDATA[Actual position feedback]]></Comment>
-							<Type>DINT</Type>
-						</Var>
-						<Var>
-							<Name>.P1_100_UG02.PDOS.DrvToPLC.velocityActualValue</Name>
-							<Comment><![CDATA[Actual velocity feedback]]></Comment>
-							<Type>DINT</Type>
-						</Var>
-						<Var>
-							<Name>.P1_100_UG02.PDOS.DrvToPLC.torqueActualValue</Name>
-							<Comment><![CDATA[Actual torque feedback]]></Comment>
-							<Type>INT</Type>
-						</Var>
-						<Var>
-							<Name>.P1_100_UG03_SuctionRoll.PDOS.DrvToPLC.statusWord</Name>
-							<Comment><![CDATA[Status word of the drive]]></Comment>
-							<Type>UINT</Type>
-						</Var>
-						<Var>
-							<Name>.P1_100_UG03_SuctionRoll.PDOS.DrvToPLC.errorCode</Name>
-							<Comment><![CDATA[Error code of the drive]]></Comment>
-							<Type>UINT</Type>
-						</Var>
-						<Var>
-							<Name>.P1_100_UG03_SuctionRoll.PDOS.DrvToPLC.modesOfOperationDisplay</Name>
-							<Comment><![CDATA[Current mode of operation]]></Comment>
-							<Type>SINT</Type>
-						</Var>
-						<Var>
-							<Name>.P1_100_UG03_SuctionRoll.PDOS.DrvToPLC.positionActualValue</Name>
-							<Comment><![CDATA[Actual position feedback]]></Comment>
-							<Type>DINT</Type>
-						</Var>
-						<Var>
-							<Name>.P1_100_UG03_SuctionRoll.PDOS.DrvToPLC.velocityActualValue</Name>
-							<Comment><![CDATA[Actual velocity feedback]]></Comment>
-							<Type>DINT</Type>
-						</Var>
-						<Var>
-							<Name>.P1_100_UG03_SuctionRoll.PDOS.DrvToPLC.torqueActualValue</Name>
-							<Comment><![CDATA[Actual torque feedback]]></Comment>
-							<Type>INT</Type>
-						</Var>
-						<Var>
-							<Name>.P1_100_UG04.PDOS.DrvToPLC.statusWord</Name>
-							<Comment><![CDATA[Status word of the drive]]></Comment>
-							<Type>UINT</Type>
-						</Var>
-						<Var>
-							<Name>.P1_100_UG04.PDOS.DrvToPLC.errorCode</Name>
-							<Comment><![CDATA[Error code of the drive]]></Comment>
-							<Type>UINT</Type>
-						</Var>
-						<Var>
-							<Name>.P1_100_UG04.PDOS.DrvToPLC.modesOfOperationDisplay</Name>
-							<Comment><![CDATA[Current mode of operation]]></Comment>
-							<Type>SINT</Type>
-						</Var>
-						<Var>
-							<Name>.P1_100_UG04.PDOS.DrvToPLC.positionActualValue</Name>
-							<Comment><![CDATA[Actual position feedback]]></Comment>
-							<Type>DINT</Type>
-						</Var>
-						<Var>
-							<Name>.P1_100_UG04.PDOS.DrvToPLC.velocityActualValue</Name>
-							<Comment><![CDATA[Actual velocity feedback]]></Comment>
-							<Type>DINT</Type>
-						</Var>
-						<Var>
-							<Name>.P1_100_UG04.PDOS.DrvToPLC.torqueActualValue</Name>
-							<Comment><![CDATA[Actual torque feedback]]></Comment>
-							<Type>INT</Type>
-						</Var>
-						<Var>
-							<Name>.P1_100_UG05.PDOS.DrvToPLC.statusWord</Name>
-							<Comment><![CDATA[Status word of the drive]]></Comment>
-							<Type>UINT</Type>
-						</Var>
-						<Var>
-							<Name>.P1_100_UG05.PDOS.DrvToPLC.errorCode</Name>
-							<Comment><![CDATA[Error code of the drive]]></Comment>
-							<Type>UINT</Type>
-						</Var>
-						<Var>
-							<Name>.P1_100_UG05.PDOS.DrvToPLC.modesOfOperationDisplay</Name>
-							<Comment><![CDATA[Current mode of operation]]></Comment>
-							<Type>SINT</Type>
-						</Var>
-						<Var>
-							<Name>.P1_100_UG05.PDOS.DrvToPLC.positionActualValue</Name>
-							<Comment><![CDATA[Actual position feedback]]></Comment>
-							<Type>DINT</Type>
-						</Var>
-						<Var>
-							<Name>.P1_100_UG05.PDOS.DrvToPLC.velocityActualValue</Name>
-							<Comment><![CDATA[Actual velocity feedback]]></Comment>
-							<Type>DINT</Type>
-						</Var>
-						<Var>
-							<Name>.P1_100_UG05.PDOS.DrvToPLC.torqueActualValue</Name>
-							<Comment><![CDATA[Actual torque feedback]]></Comment>
-							<Type>INT</Type>
-						</Var>
-						<Var>
-							<Name>.P1_300_UG06_TractionRoll.PDOS.DrvToPLC.statusWord</Name>
-							<Comment><![CDATA[Status word of the drive]]></Comment>
-							<Type>UINT</Type>
-						</Var>
-						<Var>
-							<Name>.P1_300_UG06_TractionRoll.PDOS.DrvToPLC.errorCode</Name>
-							<Comment><![CDATA[Error code of the drive]]></Comment>
-							<Type>UINT</Type>
-						</Var>
-						<Var>
-							<Name>.P1_300_UG06_TractionRoll.PDOS.DrvToPLC.modesOfOperationDisplay</Name>
-							<Comment><![CDATA[Current mode of operation]]></Comment>
-							<Type>SINT</Type>
-						</Var>
-						<Var>
-							<Name>.P1_300_UG06_TractionRoll.PDOS.DrvToPLC.positionActualValue</Name>
-							<Comment><![CDATA[Actual position feedback]]></Comment>
-							<Type>DINT</Type>
-						</Var>
-						<Var>
-							<Name>.P1_300_UG06_TractionRoll.PDOS.DrvToPLC.velocityActualValue</Name>
-							<Comment><![CDATA[Actual velocity feedback]]></Comment>
-							<Type>DINT</Type>
-						</Var>
-						<Var>
-							<Name>.P1_300_UG06_TractionRoll.PDOS.DrvToPLC.torqueActualValue</Name>
-							<Comment><![CDATA[Actual torque feedback]]></Comment>
-							<Type>INT</Type>
-						</Var>
-						<Var>
-							<Name>.P11_400_UG01_SecondPress.PDOS.DrvToPLC.statusWord</Name>
-							<Comment><![CDATA[Status word of the drive]]></Comment>
-							<Type>UINT</Type>
-						</Var>
-						<Var>
-							<Name>.P11_400_UG01_SecondPress.PDOS.DrvToPLC.errorCode</Name>
-							<Comment><![CDATA[Error code of the drive]]></Comment>
-							<Type>UINT</Type>
-						</Var>
-						<Var>
-							<Name>.P11_400_UG01_SecondPress.PDOS.DrvToPLC.modesOfOperationDisplay</Name>
-							<Comment><![CDATA[Current mode of operation]]></Comment>
-							<Type>SINT</Type>
-						</Var>
-						<Var>
-							<Name>.P11_400_UG01_SecondPress.PDOS.DrvToPLC.positionActualValue</Name>
-							<Comment><![CDATA[Actual position feedback]]></Comment>
-							<Type>DINT</Type>
-						</Var>
-						<Var>
-							<Name>.P11_400_UG01_SecondPress.PDOS.DrvToPLC.velocityActualValue</Name>
-							<Comment><![CDATA[Actual velocity feedback]]></Comment>
-							<Type>DINT</Type>
-						</Var>
-						<Var>
-							<Name>.P11_400_UG01_SecondPress.PDOS.DrvToPLC.torqueActualValue</Name>
-							<Comment><![CDATA[Actual torque feedback]]></Comment>
-							<Type>INT</Type>
-						</Var>
-						<Var>
-							<Name>.P12_400_UG01_FirstPress.PDOS.DrvToPLC.statusWord</Name>
-							<Comment><![CDATA[Status word of the drive]]></Comment>
-							<Type>UINT</Type>
-						</Var>
-						<Var>
-							<Name>.P12_400_UG01_FirstPress.PDOS.DrvToPLC.errorCode</Name>
-							<Comment><![CDATA[Error code of the drive]]></Comment>
-							<Type>UINT</Type>
-						</Var>
-						<Var>
-							<Name>.P12_400_UG01_FirstPress.PDOS.DrvToPLC.modesOfOperationDisplay</Name>
-							<Comment><![CDATA[Current mode of operation]]></Comment>
-							<Type>SINT</Type>
-						</Var>
-						<Var>
-							<Name>.P12_400_UG01_FirstPress.PDOS.DrvToPLC.positionActualValue</Name>
-							<Comment><![CDATA[Actual position feedback]]></Comment>
-							<Type>DINT</Type>
-						</Var>
-						<Var>
-							<Name>.P12_400_UG01_FirstPress.PDOS.DrvToPLC.velocityActualValue</Name>
-							<Comment><![CDATA[Actual velocity feedback]]></Comment>
-							<Type>DINT</Type>
-						</Var>
-						<Var>
-							<Name>.P12_400_UG01_FirstPress.PDOS.DrvToPLC.torqueActualValue</Name>
-							<Comment><![CDATA[Actual torque feedback]]></Comment>
-							<Type>INT</Type>
-						</Var>
-						<Var>
-							<Name>.P13_500_UG01_1GR_UpperSlave.PDOS.DrvToPLC.statusWord</Name>
-							<Comment><![CDATA[Status word of the drive]]></Comment>
-							<Type>UINT</Type>
-						</Var>
-						<Var>
-							<Name>.P13_500_UG01_1GR_UpperSlave.PDOS.DrvToPLC.errorCode</Name>
-							<Comment><![CDATA[Error code of the drive]]></Comment>
-							<Type>UINT</Type>
-						</Var>
-						<Var>
-							<Name>.P13_500_UG01_1GR_UpperSlave.PDOS.DrvToPLC.modesOfOperationDisplay</Name>
-							<Comment><![CDATA[Current mode of operation]]></Comment>
-							<Type>SINT</Type>
-						</Var>
-						<Var>
-							<Name>.P13_500_UG01_1GR_UpperSlave.PDOS.DrvToPLC.positionActualValue</Name>
-							<Comment><![CDATA[Actual position feedback]]></Comment>
-							<Type>DINT</Type>
-						</Var>
-						<Var>
-							<Name>.P13_500_UG01_1GR_UpperSlave.PDOS.DrvToPLC.velocityActualValue</Name>
-							<Comment><![CDATA[Actual velocity feedback]]></Comment>
-							<Type>DINT</Type>
-						</Var>
-						<Var>
-							<Name>.P13_500_UG01_1GR_UpperSlave.PDOS.DrvToPLC.torqueActualValue</Name>
-							<Comment><![CDATA[Actual torque feedback]]></Comment>
-							<Type>INT</Type>
-						</Var>
-						<Var>
-							<Name>.P13_500_UG02_1GR_LowerMaster.PDOS.DrvToPLC.statusWord</Name>
-							<Comment><![CDATA[Status word of the drive]]></Comment>
-							<Type>UINT</Type>
-						</Var>
-						<Var>
-							<Name>.P13_500_UG02_1GR_LowerMaster.PDOS.DrvToPLC.errorCode</Name>
-							<Comment><![CDATA[Error code of the drive]]></Comment>
-							<Type>UINT</Type>
-						</Var>
-						<Var>
-							<Name>.P13_500_UG02_1GR_LowerMaster.PDOS.DrvToPLC.modesOfOperationDisplay</Name>
-							<Comment><![CDATA[Current mode of operation]]></Comment>
-							<Type>SINT</Type>
-						</Var>
-						<Var>
-							<Name>.P13_500_UG02_1GR_LowerMaster.PDOS.DrvToPLC.positionActualValue</Name>
-							<Comment><![CDATA[Actual position feedback]]></Comment>
-							<Type>DINT</Type>
-						</Var>
-						<Var>
-							<Name>.P13_500_UG02_1GR_LowerMaster.PDOS.DrvToPLC.velocityActualValue</Name>
-							<Comment><![CDATA[Actual velocity feedback]]></Comment>
-							<Type>DINT</Type>
-						</Var>
-						<Var>
-							<Name>.P13_500_UG02_1GR_LowerMaster.PDOS.DrvToPLC.torqueActualValue</Name>
-							<Comment><![CDATA[Actual torque feedback]]></Comment>
-							<Type>INT</Type>
-						</Var>
-						<Var>
-							<Name>.P13_500_UG03_1GR_UpperMaster.PDOS.DrvToPLC.statusWord</Name>
-							<Comment><![CDATA[Status word of the drive]]></Comment>
-							<Type>UINT</Type>
-						</Var>
-						<Var>
-							<Name>.P13_500_UG03_1GR_UpperMaster.PDOS.DrvToPLC.errorCode</Name>
-							<Comment><![CDATA[Error code of the drive]]></Comment>
-							<Type>UINT</Type>
-						</Var>
-						<Var>
-							<Name>.P13_500_UG03_1GR_UpperMaster.PDOS.DrvToPLC.modesOfOperationDisplay</Name>
-							<Comment><![CDATA[Current mode of operation]]></Comment>
-							<Type>SINT</Type>
-						</Var>
-						<Var>
-							<Name>.P13_500_UG03_1GR_UpperMaster.PDOS.DrvToPLC.positionActualValue</Name>
-							<Comment><![CDATA[Actual position feedback]]></Comment>
-							<Type>DINT</Type>
-						</Var>
-						<Var>
-							<Name>.P13_500_UG03_1GR_UpperMaster.PDOS.DrvToPLC.velocityActualValue</Name>
-							<Comment><![CDATA[Actual velocity feedback]]></Comment>
-							<Type>DINT</Type>
-						</Var>
-						<Var>
-							<Name>.P13_500_UG03_1GR_UpperMaster.PDOS.DrvToPLC.torqueActualValue</Name>
-							<Comment><![CDATA[Actual torque feedback]]></Comment>
-							<Type>INT</Type>
-						</Var>
-						<Var>
-							<Name>.P13_501_UG01_2GR_LowerSlave.PDOS.DrvToPLC.statusWord</Name>
-							<Comment><![CDATA[Status word of the drive]]></Comment>
-							<Type>UINT</Type>
-						</Var>
-						<Var>
-							<Name>.P13_501_UG01_2GR_LowerSlave.PDOS.DrvToPLC.errorCode</Name>
-							<Comment><![CDATA[Error code of the drive]]></Comment>
-							<Type>UINT</Type>
-						</Var>
-						<Var>
-							<Name>.P13_501_UG01_2GR_LowerSlave.PDOS.DrvToPLC.modesOfOperationDisplay</Name>
-							<Comment><![CDATA[Current mode of operation]]></Comment>
-							<Type>SINT</Type>
-						</Var>
-						<Var>
-							<Name>.P13_501_UG01_2GR_LowerSlave.PDOS.DrvToPLC.positionActualValue</Name>
-							<Comment><![CDATA[Actual position feedback]]></Comment>
-							<Type>DINT</Type>
-						</Var>
-						<Var>
-							<Name>.P13_501_UG01_2GR_LowerSlave.PDOS.DrvToPLC.velocityActualValue</Name>
-							<Comment><![CDATA[Actual velocity feedback]]></Comment>
-							<Type>DINT</Type>
-						</Var>
-						<Var>
-							<Name>.P13_501_UG01_2GR_LowerSlave.PDOS.DrvToPLC.torqueActualValue</Name>
-							<Comment><![CDATA[Actual torque feedback]]></Comment>
-							<Type>INT</Type>
-						</Var>
-						<Var>
-							<Name>.P13_501_UG02_2GR_UpperSlave.PDOS.DrvToPLC.statusWord</Name>
-							<Comment><![CDATA[Status word of the drive]]></Comment>
-							<Type>UINT</Type>
-						</Var>
-						<Var>
-							<Name>.P13_501_UG02_2GR_UpperSlave.PDOS.DrvToPLC.errorCode</Name>
-							<Comment><![CDATA[Error code of the drive]]></Comment>
-							<Type>UINT</Type>
-						</Var>
-						<Var>
-							<Name>.P13_501_UG02_2GR_UpperSlave.PDOS.DrvToPLC.modesOfOperationDisplay</Name>
-							<Comment><![CDATA[Current mode of operation]]></Comment>
-							<Type>SINT</Type>
-						</Var>
-						<Var>
-							<Name>.P13_501_UG02_2GR_UpperSlave.PDOS.DrvToPLC.positionActualValue</Name>
-							<Comment><![CDATA[Actual position feedback]]></Comment>
-							<Type>DINT</Type>
-						</Var>
-						<Var>
-							<Name>.P13_501_UG02_2GR_UpperSlave.PDOS.DrvToPLC.velocityActualValue</Name>
-							<Comment><![CDATA[Actual velocity feedback]]></Comment>
-							<Type>DINT</Type>
-						</Var>
-						<Var>
-							<Name>.P13_501_UG02_2GR_UpperSlave.PDOS.DrvToPLC.torqueActualValue</Name>
-							<Comment><![CDATA[Actual torque feedback]]></Comment>
-							<Type>INT</Type>
-						</Var>
-						<Var>
-							<Name>.P13_501_UG03_2GR_LowerMaster.PDOS.DrvToPLC.statusWord</Name>
-							<Comment><![CDATA[Status word of the drive]]></Comment>
-							<Type>UINT</Type>
-						</Var>
-						<Var>
-							<Name>.P13_501_UG03_2GR_LowerMaster.PDOS.DrvToPLC.errorCode</Name>
-							<Comment><![CDATA[Error code of the drive]]></Comment>
-							<Type>UINT</Type>
-						</Var>
-						<Var>
-							<Name>.P13_501_UG03_2GR_LowerMaster.PDOS.DrvToPLC.modesOfOperationDisplay</Name>
-							<Comment><![CDATA[Current mode of operation]]></Comment>
-							<Type>SINT</Type>
-						</Var>
-						<Var>
-							<Name>.P13_501_UG03_2GR_LowerMaster.PDOS.DrvToPLC.positionActualValue</Name>
-							<Comment><![CDATA[Actual position feedback]]></Comment>
-							<Type>DINT</Type>
-						</Var>
-						<Var>
-							<Name>.P13_501_UG03_2GR_LowerMaster.PDOS.DrvToPLC.velocityActualValue</Name>
-							<Comment><![CDATA[Actual velocity feedback]]></Comment>
-							<Type>DINT</Type>
-						</Var>
-						<Var>
-							<Name>.P13_501_UG03_2GR_LowerMaster.PDOS.DrvToPLC.torqueActualValue</Name>
-							<Comment><![CDATA[Actual torque feedback]]></Comment>
-							<Type>INT</Type>
-						</Var>
-						<Var>
-							<Name>.P14_501_UG01_2GR_UpperMaster.PDOS.DrvToPLC.statusWord</Name>
-							<Comment><![CDATA[Status word of the drive]]></Comment>
-							<Type>UINT</Type>
-						</Var>
-						<Var>
-							<Name>.P14_501_UG01_2GR_UpperMaster.PDOS.DrvToPLC.errorCode</Name>
-							<Comment><![CDATA[Error code of the drive]]></Comment>
-							<Type>UINT</Type>
-						</Var>
-						<Var>
-							<Name>.P14_501_UG01_2GR_UpperMaster.PDOS.DrvToPLC.modesOfOperationDisplay</Name>
-							<Comment><![CDATA[Current mode of operation]]></Comment>
-							<Type>SINT</Type>
-						</Var>
-						<Var>
-							<Name>.P14_501_UG01_2GR_UpperMaster.PDOS.DrvToPLC.positionActualValue</Name>
-							<Comment><![CDATA[Actual position feedback]]></Comment>
-							<Type>DINT</Type>
-						</Var>
-						<Var>
-							<Name>.P14_501_UG01_2GR_UpperMaster.PDOS.DrvToPLC.velocityActualValue</Name>
-							<Comment><![CDATA[Actual velocity feedback]]></Comment>
-							<Type>DINT</Type>
-						</Var>
-						<Var>
-							<Name>.P14_501_UG01_2GR_UpperMaster.PDOS.DrvToPLC.torqueActualValue</Name>
-							<Comment><![CDATA[Actual torque feedback]]></Comment>
-							<Type>INT</Type>
-						</Var>
-						<Var>
-							<Name>.P14_502_UG01_3GR_LowerSlave.PDOS.DrvToPLC.statusWord</Name>
-							<Comment><![CDATA[Status word of the drive]]></Comment>
-							<Type>UINT</Type>
-						</Var>
-						<Var>
-							<Name>.P14_502_UG01_3GR_LowerSlave.PDOS.DrvToPLC.errorCode</Name>
-							<Comment><![CDATA[Error code of the drive]]></Comment>
-							<Type>UINT</Type>
-						</Var>
-						<Var>
-							<Name>.P14_502_UG01_3GR_LowerSlave.PDOS.DrvToPLC.modesOfOperationDisplay</Name>
-							<Comment><![CDATA[Current mode of operation]]></Comment>
-							<Type>SINT</Type>
-						</Var>
-						<Var>
-							<Name>.P14_502_UG01_3GR_LowerSlave.PDOS.DrvToPLC.positionActualValue</Name>
-							<Comment><![CDATA[Actual position feedback]]></Comment>
-							<Type>DINT</Type>
-						</Var>
-						<Var>
-							<Name>.P14_502_UG01_3GR_LowerSlave.PDOS.DrvToPLC.velocityActualValue</Name>
-							<Comment><![CDATA[Actual velocity feedback]]></Comment>
-							<Type>DINT</Type>
-						</Var>
-						<Var>
-							<Name>.P14_502_UG01_3GR_LowerSlave.PDOS.DrvToPLC.torqueActualValue</Name>
-							<Comment><![CDATA[Actual torque feedback]]></Comment>
-							<Type>INT</Type>
-						</Var>
-						<Var>
-							<Name>.P14_502_UG02_3GR_UpperSlave.PDOS.DrvToPLC.statusWord</Name>
-							<Comment><![CDATA[Status word of the drive]]></Comment>
-							<Type>UINT</Type>
-						</Var>
-						<Var>
-							<Name>.P14_502_UG02_3GR_UpperSlave.PDOS.DrvToPLC.errorCode</Name>
-							<Comment><![CDATA[Error code of the drive]]></Comment>
-							<Type>UINT</Type>
-						</Var>
-						<Var>
-							<Name>.P14_502_UG02_3GR_UpperSlave.PDOS.DrvToPLC.modesOfOperationDisplay</Name>
-							<Comment><![CDATA[Current mode of operation]]></Comment>
-							<Type>SINT</Type>
-						</Var>
-						<Var>
-							<Name>.P14_502_UG02_3GR_UpperSlave.PDOS.DrvToPLC.positionActualValue</Name>
-							<Comment><![CDATA[Actual position feedback]]></Comment>
-							<Type>DINT</Type>
-						</Var>
-						<Var>
-							<Name>.P14_502_UG02_3GR_UpperSlave.PDOS.DrvToPLC.velocityActualValue</Name>
-							<Comment><![CDATA[Actual velocity feedback]]></Comment>
-							<Type>DINT</Type>
-						</Var>
-						<Var>
-							<Name>.P14_502_UG02_3GR_UpperSlave.PDOS.DrvToPLC.torqueActualValue</Name>
-							<Comment><![CDATA[Actual torque feedback]]></Comment>
-							<Type>INT</Type>
-						</Var>
-						<Var>
-							<Name>.P14_502_UG03_3GR_LowerMaster.PDOS.DrvToPLC.statusWord</Name>
-							<Comment><![CDATA[Status word of the drive]]></Comment>
-							<Type>UINT</Type>
-						</Var>
-						<Var>
-							<Name>.P14_502_UG03_3GR_LowerMaster.PDOS.DrvToPLC.errorCode</Name>
-							<Comment><![CDATA[Error code of the drive]]></Comment>
-							<Type>UINT</Type>
-						</Var>
-						<Var>
-							<Name>.P14_502_UG03_3GR_LowerMaster.PDOS.DrvToPLC.modesOfOperationDisplay</Name>
-							<Comment><![CDATA[Current mode of operation]]></Comment>
-							<Type>SINT</Type>
-						</Var>
-						<Var>
-							<Name>.P14_502_UG03_3GR_LowerMaster.PDOS.DrvToPLC.positionActualValue</Name>
-							<Comment><![CDATA[Actual position feedback]]></Comment>
-							<Type>DINT</Type>
-						</Var>
-						<Var>
-							<Name>.P14_502_UG03_3GR_LowerMaster.PDOS.DrvToPLC.velocityActualValue</Name>
-							<Comment><![CDATA[Actual velocity feedback]]></Comment>
-							<Type>DINT</Type>
-						</Var>
-						<Var>
-							<Name>.P14_502_UG03_3GR_LowerMaster.PDOS.DrvToPLC.torqueActualValue</Name>
-							<Comment><![CDATA[Actual torque feedback]]></Comment>
-							<Type>INT</Type>
-						</Var>
-						<Var>
-							<Name>.P14_502_UG04_3GR_UpperMaster.PDOS.DrvToPLC.statusWord</Name>
-							<Comment><![CDATA[Status word of the drive]]></Comment>
-							<Type>UINT</Type>
-						</Var>
-						<Var>
-							<Name>.P14_502_UG04_3GR_UpperMaster.PDOS.DrvToPLC.errorCode</Name>
-							<Comment><![CDATA[Error code of the drive]]></Comment>
-							<Type>UINT</Type>
-						</Var>
-						<Var>
-							<Name>.P14_502_UG04_3GR_UpperMaster.PDOS.DrvToPLC.modesOfOperationDisplay</Name>
-							<Comment><![CDATA[Current mode of operation]]></Comment>
-							<Type>SINT</Type>
-						</Var>
-						<Var>
-							<Name>.P14_502_UG04_3GR_UpperMaster.PDOS.DrvToPLC.positionActualValue</Name>
-							<Comment><![CDATA[Actual position feedback]]></Comment>
-							<Type>DINT</Type>
-						</Var>
-						<Var>
-							<Name>.P14_502_UG04_3GR_UpperMaster.PDOS.DrvToPLC.velocityActualValue</Name>
-							<Comment><![CDATA[Actual velocity feedback]]></Comment>
-							<Type>DINT</Type>
-						</Var>
-						<Var>
-							<Name>.P14_502_UG04_3GR_UpperMaster.PDOS.DrvToPLC.torqueActualValue</Name>
-							<Comment><![CDATA[Actual torque feedback]]></Comment>
-							<Type>INT</Type>
-						</Var>
-						<Var>
-							<Name>.P15_600_UG01_Rewinder.PDOS.DrvToPLC.statusWord</Name>
-							<Comment><![CDATA[Status word of the drive]]></Comment>
-							<Type>UINT</Type>
-						</Var>
-						<Var>
-							<Name>.P15_600_UG01_Rewinder.PDOS.DrvToPLC.errorCode</Name>
-							<Comment><![CDATA[Error code of the drive]]></Comment>
-							<Type>UINT</Type>
-						</Var>
-						<Var>
-							<Name>.P15_600_UG01_Rewinder.PDOS.DrvToPLC.modesOfOperationDisplay</Name>
-							<Comment><![CDATA[Current mode of operation]]></Comment>
-							<Type>SINT</Type>
-						</Var>
-						<Var>
-							<Name>.P15_600_UG01_Rewinder.PDOS.DrvToPLC.positionActualValue</Name>
-							<Comment><![CDATA[Actual position feedback]]></Comment>
-							<Type>DINT</Type>
-						</Var>
-						<Var>
-							<Name>.P15_600_UG01_Rewinder.PDOS.DrvToPLC.velocityActualValue</Name>
-							<Comment><![CDATA[Actual velocity feedback]]></Comment>
-							<Type>DINT</Type>
-						</Var>
-						<Var>
-							<Name>.P15_600_UG01_Rewinder.PDOS.DrvToPLC.torqueActualValue</Name>
 							<Comment><![CDATA[Actual torque feedback]]></Comment>
 							<Type>INT</Type>
 						</Var>
@@ -2269,6 +1699,576 @@
 							<Name>.CP1_050_DI1.PDOS.digitalInput_16</Name>
 							<Type>BOOL</Type>
 						</Var>
+						<Var>
+							<Name>.P1_100_UG02.PDOS.DrvToPLC.statusWord</Name>
+							<Comment><![CDATA[Status word of the drive]]></Comment>
+							<Type>UINT</Type>
+						</Var>
+						<Var>
+							<Name>.P1_100_UG02.PDOS.DrvToPLC.errorCode</Name>
+							<Comment><![CDATA[Error code of the drive]]></Comment>
+							<Type>UINT</Type>
+						</Var>
+						<Var>
+							<Name>.P1_100_UG02.PDOS.DrvToPLC.modesOfOperationDisplay</Name>
+							<Comment><![CDATA[Current mode of operation]]></Comment>
+							<Type>SINT</Type>
+						</Var>
+						<Var>
+							<Name>.P1_100_UG02.PDOS.DrvToPLC.positionActualValue</Name>
+							<Comment><![CDATA[Actual position feedback]]></Comment>
+							<Type>DINT</Type>
+						</Var>
+						<Var>
+							<Name>.P1_100_UG02.PDOS.DrvToPLC.velocityActualValue</Name>
+							<Comment><![CDATA[Actual velocity feedback]]></Comment>
+							<Type>DINT</Type>
+						</Var>
+						<Var>
+							<Name>.P1_100_UG02.PDOS.DrvToPLC.torqueActualValue</Name>
+							<Comment><![CDATA[Actual torque feedback]]></Comment>
+							<Type>INT</Type>
+						</Var>
+						<Var>
+							<Name>.P1_100_UG03_SuctionRoll.PDOS.DrvToPLC.statusWord</Name>
+							<Comment><![CDATA[Status word of the drive]]></Comment>
+							<Type>UINT</Type>
+						</Var>
+						<Var>
+							<Name>.P1_100_UG03_SuctionRoll.PDOS.DrvToPLC.errorCode</Name>
+							<Comment><![CDATA[Error code of the drive]]></Comment>
+							<Type>UINT</Type>
+						</Var>
+						<Var>
+							<Name>.P1_100_UG03_SuctionRoll.PDOS.DrvToPLC.modesOfOperationDisplay</Name>
+							<Comment><![CDATA[Current mode of operation]]></Comment>
+							<Type>SINT</Type>
+						</Var>
+						<Var>
+							<Name>.P1_100_UG03_SuctionRoll.PDOS.DrvToPLC.positionActualValue</Name>
+							<Comment><![CDATA[Actual position feedback]]></Comment>
+							<Type>DINT</Type>
+						</Var>
+						<Var>
+							<Name>.P1_100_UG03_SuctionRoll.PDOS.DrvToPLC.velocityActualValue</Name>
+							<Comment><![CDATA[Actual velocity feedback]]></Comment>
+							<Type>DINT</Type>
+						</Var>
+						<Var>
+							<Name>.P1_100_UG03_SuctionRoll.PDOS.DrvToPLC.torqueActualValue</Name>
+							<Comment><![CDATA[Actual torque feedback]]></Comment>
+							<Type>INT</Type>
+						</Var>
+						<Var>
+							<Name>.P1_100_UG04.PDOS.DrvToPLC.statusWord</Name>
+							<Comment><![CDATA[Status word of the drive]]></Comment>
+							<Type>UINT</Type>
+						</Var>
+						<Var>
+							<Name>.P1_100_UG04.PDOS.DrvToPLC.errorCode</Name>
+							<Comment><![CDATA[Error code of the drive]]></Comment>
+							<Type>UINT</Type>
+						</Var>
+						<Var>
+							<Name>.P1_100_UG04.PDOS.DrvToPLC.modesOfOperationDisplay</Name>
+							<Comment><![CDATA[Current mode of operation]]></Comment>
+							<Type>SINT</Type>
+						</Var>
+						<Var>
+							<Name>.P1_100_UG04.PDOS.DrvToPLC.positionActualValue</Name>
+							<Comment><![CDATA[Actual position feedback]]></Comment>
+							<Type>DINT</Type>
+						</Var>
+						<Var>
+							<Name>.P1_100_UG04.PDOS.DrvToPLC.velocityActualValue</Name>
+							<Comment><![CDATA[Actual velocity feedback]]></Comment>
+							<Type>DINT</Type>
+						</Var>
+						<Var>
+							<Name>.P1_100_UG04.PDOS.DrvToPLC.torqueActualValue</Name>
+							<Comment><![CDATA[Actual torque feedback]]></Comment>
+							<Type>INT</Type>
+						</Var>
+						<Var>
+							<Name>.P1_100_UG05.PDOS.DrvToPLC.statusWord</Name>
+							<Comment><![CDATA[Status word of the drive]]></Comment>
+							<Type>UINT</Type>
+						</Var>
+						<Var>
+							<Name>.P1_100_UG05.PDOS.DrvToPLC.errorCode</Name>
+							<Comment><![CDATA[Error code of the drive]]></Comment>
+							<Type>UINT</Type>
+						</Var>
+						<Var>
+							<Name>.P1_100_UG05.PDOS.DrvToPLC.modesOfOperationDisplay</Name>
+							<Comment><![CDATA[Current mode of operation]]></Comment>
+							<Type>SINT</Type>
+						</Var>
+						<Var>
+							<Name>.P1_100_UG05.PDOS.DrvToPLC.positionActualValue</Name>
+							<Comment><![CDATA[Actual position feedback]]></Comment>
+							<Type>DINT</Type>
+						</Var>
+						<Var>
+							<Name>.P1_100_UG05.PDOS.DrvToPLC.velocityActualValue</Name>
+							<Comment><![CDATA[Actual velocity feedback]]></Comment>
+							<Type>DINT</Type>
+						</Var>
+						<Var>
+							<Name>.P1_100_UG05.PDOS.DrvToPLC.torqueActualValue</Name>
+							<Comment><![CDATA[Actual torque feedback]]></Comment>
+							<Type>INT</Type>
+						</Var>
+						<Var>
+							<Name>.P1_300_UG06_TractionRoll.PDOS.DrvToPLC.statusWord</Name>
+							<Comment><![CDATA[Status word of the drive]]></Comment>
+							<Type>UINT</Type>
+						</Var>
+						<Var>
+							<Name>.P1_300_UG06_TractionRoll.PDOS.DrvToPLC.errorCode</Name>
+							<Comment><![CDATA[Error code of the drive]]></Comment>
+							<Type>UINT</Type>
+						</Var>
+						<Var>
+							<Name>.P1_300_UG06_TractionRoll.PDOS.DrvToPLC.modesOfOperationDisplay</Name>
+							<Comment><![CDATA[Current mode of operation]]></Comment>
+							<Type>SINT</Type>
+						</Var>
+						<Var>
+							<Name>.P1_300_UG06_TractionRoll.PDOS.DrvToPLC.positionActualValue</Name>
+							<Comment><![CDATA[Actual position feedback]]></Comment>
+							<Type>DINT</Type>
+						</Var>
+						<Var>
+							<Name>.P1_300_UG06_TractionRoll.PDOS.DrvToPLC.velocityActualValue</Name>
+							<Comment><![CDATA[Actual velocity feedback]]></Comment>
+							<Type>DINT</Type>
+						</Var>
+						<Var>
+							<Name>.P1_300_UG06_TractionRoll.PDOS.DrvToPLC.torqueActualValue</Name>
+							<Comment><![CDATA[Actual torque feedback]]></Comment>
+							<Type>INT</Type>
+						</Var>
+						<Var>
+							<Name>.P11_400_UG01_SecondPress.PDOS.DrvToPLC.statusWord</Name>
+							<Comment><![CDATA[Status word of the drive]]></Comment>
+							<Type>UINT</Type>
+						</Var>
+						<Var>
+							<Name>.P11_400_UG01_SecondPress.PDOS.DrvToPLC.errorCode</Name>
+							<Comment><![CDATA[Error code of the drive]]></Comment>
+							<Type>UINT</Type>
+						</Var>
+						<Var>
+							<Name>.P11_400_UG01_SecondPress.PDOS.DrvToPLC.modesOfOperationDisplay</Name>
+							<Comment><![CDATA[Current mode of operation]]></Comment>
+							<Type>SINT</Type>
+						</Var>
+						<Var>
+							<Name>.P11_400_UG01_SecondPress.PDOS.DrvToPLC.positionActualValue</Name>
+							<Comment><![CDATA[Actual position feedback]]></Comment>
+							<Type>DINT</Type>
+						</Var>
+						<Var>
+							<Name>.P11_400_UG01_SecondPress.PDOS.DrvToPLC.velocityActualValue</Name>
+							<Comment><![CDATA[Actual velocity feedback]]></Comment>
+							<Type>DINT</Type>
+						</Var>
+						<Var>
+							<Name>.P11_400_UG01_SecondPress.PDOS.DrvToPLC.torqueActualValue</Name>
+							<Comment><![CDATA[Actual torque feedback]]></Comment>
+							<Type>INT</Type>
+						</Var>
+						<Var>
+							<Name>.P12_400_UG01_FirstPress.PDOS.DrvToPLC.statusWord</Name>
+							<Comment><![CDATA[Status word of the drive]]></Comment>
+							<Type>UINT</Type>
+						</Var>
+						<Var>
+							<Name>.P12_400_UG01_FirstPress.PDOS.DrvToPLC.errorCode</Name>
+							<Comment><![CDATA[Error code of the drive]]></Comment>
+							<Type>UINT</Type>
+						</Var>
+						<Var>
+							<Name>.P12_400_UG01_FirstPress.PDOS.DrvToPLC.modesOfOperationDisplay</Name>
+							<Comment><![CDATA[Current mode of operation]]></Comment>
+							<Type>SINT</Type>
+						</Var>
+						<Var>
+							<Name>.P12_400_UG01_FirstPress.PDOS.DrvToPLC.positionActualValue</Name>
+							<Comment><![CDATA[Actual position feedback]]></Comment>
+							<Type>DINT</Type>
+						</Var>
+						<Var>
+							<Name>.P12_400_UG01_FirstPress.PDOS.DrvToPLC.velocityActualValue</Name>
+							<Comment><![CDATA[Actual velocity feedback]]></Comment>
+							<Type>DINT</Type>
+						</Var>
+						<Var>
+							<Name>.P12_400_UG01_FirstPress.PDOS.DrvToPLC.torqueActualValue</Name>
+							<Comment><![CDATA[Actual torque feedback]]></Comment>
+							<Type>INT</Type>
+						</Var>
+						<Var>
+							<Name>.P13_500_UG01_1GR_UpperSlave.PDOS.DrvToPLC.statusWord</Name>
+							<Comment><![CDATA[Status word of the drive]]></Comment>
+							<Type>UINT</Type>
+						</Var>
+						<Var>
+							<Name>.P13_500_UG01_1GR_UpperSlave.PDOS.DrvToPLC.errorCode</Name>
+							<Comment><![CDATA[Error code of the drive]]></Comment>
+							<Type>UINT</Type>
+						</Var>
+						<Var>
+							<Name>.P13_500_UG01_1GR_UpperSlave.PDOS.DrvToPLC.modesOfOperationDisplay</Name>
+							<Comment><![CDATA[Current mode of operation]]></Comment>
+							<Type>SINT</Type>
+						</Var>
+						<Var>
+							<Name>.P13_500_UG01_1GR_UpperSlave.PDOS.DrvToPLC.positionActualValue</Name>
+							<Comment><![CDATA[Actual position feedback]]></Comment>
+							<Type>DINT</Type>
+						</Var>
+						<Var>
+							<Name>.P13_500_UG01_1GR_UpperSlave.PDOS.DrvToPLC.velocityActualValue</Name>
+							<Comment><![CDATA[Actual velocity feedback]]></Comment>
+							<Type>DINT</Type>
+						</Var>
+						<Var>
+							<Name>.P13_500_UG01_1GR_UpperSlave.PDOS.DrvToPLC.torqueActualValue</Name>
+							<Comment><![CDATA[Actual torque feedback]]></Comment>
+							<Type>INT</Type>
+						</Var>
+						<Var>
+							<Name>.P13_500_UG02_1GR_LowerMaster.PDOS.DrvToPLC.statusWord</Name>
+							<Comment><![CDATA[Status word of the drive]]></Comment>
+							<Type>UINT</Type>
+						</Var>
+						<Var>
+							<Name>.P13_500_UG02_1GR_LowerMaster.PDOS.DrvToPLC.errorCode</Name>
+							<Comment><![CDATA[Error code of the drive]]></Comment>
+							<Type>UINT</Type>
+						</Var>
+						<Var>
+							<Name>.P13_500_UG02_1GR_LowerMaster.PDOS.DrvToPLC.modesOfOperationDisplay</Name>
+							<Comment><![CDATA[Current mode of operation]]></Comment>
+							<Type>SINT</Type>
+						</Var>
+						<Var>
+							<Name>.P13_500_UG02_1GR_LowerMaster.PDOS.DrvToPLC.positionActualValue</Name>
+							<Comment><![CDATA[Actual position feedback]]></Comment>
+							<Type>DINT</Type>
+						</Var>
+						<Var>
+							<Name>.P13_500_UG02_1GR_LowerMaster.PDOS.DrvToPLC.velocityActualValue</Name>
+							<Comment><![CDATA[Actual velocity feedback]]></Comment>
+							<Type>DINT</Type>
+						</Var>
+						<Var>
+							<Name>.P13_500_UG02_1GR_LowerMaster.PDOS.DrvToPLC.torqueActualValue</Name>
+							<Comment><![CDATA[Actual torque feedback]]></Comment>
+							<Type>INT</Type>
+						</Var>
+						<Var>
+							<Name>.P13_500_UG03_1GR_UpperMaster.PDOS.DrvToPLC.statusWord</Name>
+							<Comment><![CDATA[Status word of the drive]]></Comment>
+							<Type>UINT</Type>
+						</Var>
+						<Var>
+							<Name>.P13_500_UG03_1GR_UpperMaster.PDOS.DrvToPLC.errorCode</Name>
+							<Comment><![CDATA[Error code of the drive]]></Comment>
+							<Type>UINT</Type>
+						</Var>
+						<Var>
+							<Name>.P13_500_UG03_1GR_UpperMaster.PDOS.DrvToPLC.modesOfOperationDisplay</Name>
+							<Comment><![CDATA[Current mode of operation]]></Comment>
+							<Type>SINT</Type>
+						</Var>
+						<Var>
+							<Name>.P13_500_UG03_1GR_UpperMaster.PDOS.DrvToPLC.positionActualValue</Name>
+							<Comment><![CDATA[Actual position feedback]]></Comment>
+							<Type>DINT</Type>
+						</Var>
+						<Var>
+							<Name>.P13_500_UG03_1GR_UpperMaster.PDOS.DrvToPLC.velocityActualValue</Name>
+							<Comment><![CDATA[Actual velocity feedback]]></Comment>
+							<Type>DINT</Type>
+						</Var>
+						<Var>
+							<Name>.P13_500_UG03_1GR_UpperMaster.PDOS.DrvToPLC.torqueActualValue</Name>
+							<Comment><![CDATA[Actual torque feedback]]></Comment>
+							<Type>INT</Type>
+						</Var>
+						<Var>
+							<Name>.P13_501_UG01_2GR_LowerSlave.PDOS.DrvToPLC.statusWord</Name>
+							<Comment><![CDATA[Status word of the drive]]></Comment>
+							<Type>UINT</Type>
+						</Var>
+						<Var>
+							<Name>.P13_501_UG01_2GR_LowerSlave.PDOS.DrvToPLC.errorCode</Name>
+							<Comment><![CDATA[Error code of the drive]]></Comment>
+							<Type>UINT</Type>
+						</Var>
+						<Var>
+							<Name>.P13_501_UG01_2GR_LowerSlave.PDOS.DrvToPLC.modesOfOperationDisplay</Name>
+							<Comment><![CDATA[Current mode of operation]]></Comment>
+							<Type>SINT</Type>
+						</Var>
+						<Var>
+							<Name>.P13_501_UG01_2GR_LowerSlave.PDOS.DrvToPLC.positionActualValue</Name>
+							<Comment><![CDATA[Actual position feedback]]></Comment>
+							<Type>DINT</Type>
+						</Var>
+						<Var>
+							<Name>.P13_501_UG01_2GR_LowerSlave.PDOS.DrvToPLC.velocityActualValue</Name>
+							<Comment><![CDATA[Actual velocity feedback]]></Comment>
+							<Type>DINT</Type>
+						</Var>
+						<Var>
+							<Name>.P13_501_UG01_2GR_LowerSlave.PDOS.DrvToPLC.torqueActualValue</Name>
+							<Comment><![CDATA[Actual torque feedback]]></Comment>
+							<Type>INT</Type>
+						</Var>
+						<Var>
+							<Name>.P13_501_UG02_2GR_UpperSlave.PDOS.DrvToPLC.statusWord</Name>
+							<Comment><![CDATA[Status word of the drive]]></Comment>
+							<Type>UINT</Type>
+						</Var>
+						<Var>
+							<Name>.P13_501_UG02_2GR_UpperSlave.PDOS.DrvToPLC.errorCode</Name>
+							<Comment><![CDATA[Error code of the drive]]></Comment>
+							<Type>UINT</Type>
+						</Var>
+						<Var>
+							<Name>.P13_501_UG02_2GR_UpperSlave.PDOS.DrvToPLC.modesOfOperationDisplay</Name>
+							<Comment><![CDATA[Current mode of operation]]></Comment>
+							<Type>SINT</Type>
+						</Var>
+						<Var>
+							<Name>.P13_501_UG02_2GR_UpperSlave.PDOS.DrvToPLC.positionActualValue</Name>
+							<Comment><![CDATA[Actual position feedback]]></Comment>
+							<Type>DINT</Type>
+						</Var>
+						<Var>
+							<Name>.P13_501_UG02_2GR_UpperSlave.PDOS.DrvToPLC.velocityActualValue</Name>
+							<Comment><![CDATA[Actual velocity feedback]]></Comment>
+							<Type>DINT</Type>
+						</Var>
+						<Var>
+							<Name>.P13_501_UG02_2GR_UpperSlave.PDOS.DrvToPLC.torqueActualValue</Name>
+							<Comment><![CDATA[Actual torque feedback]]></Comment>
+							<Type>INT</Type>
+						</Var>
+						<Var>
+							<Name>.P13_501_UG03_2GR_LowerMaster.PDOS.DrvToPLC.statusWord</Name>
+							<Comment><![CDATA[Status word of the drive]]></Comment>
+							<Type>UINT</Type>
+						</Var>
+						<Var>
+							<Name>.P13_501_UG03_2GR_LowerMaster.PDOS.DrvToPLC.errorCode</Name>
+							<Comment><![CDATA[Error code of the drive]]></Comment>
+							<Type>UINT</Type>
+						</Var>
+						<Var>
+							<Name>.P13_501_UG03_2GR_LowerMaster.PDOS.DrvToPLC.modesOfOperationDisplay</Name>
+							<Comment><![CDATA[Current mode of operation]]></Comment>
+							<Type>SINT</Type>
+						</Var>
+						<Var>
+							<Name>.P13_501_UG03_2GR_LowerMaster.PDOS.DrvToPLC.positionActualValue</Name>
+							<Comment><![CDATA[Actual position feedback]]></Comment>
+							<Type>DINT</Type>
+						</Var>
+						<Var>
+							<Name>.P13_501_UG03_2GR_LowerMaster.PDOS.DrvToPLC.velocityActualValue</Name>
+							<Comment><![CDATA[Actual velocity feedback]]></Comment>
+							<Type>DINT</Type>
+						</Var>
+						<Var>
+							<Name>.P13_501_UG03_2GR_LowerMaster.PDOS.DrvToPLC.torqueActualValue</Name>
+							<Comment><![CDATA[Actual torque feedback]]></Comment>
+							<Type>INT</Type>
+						</Var>
+						<Var>
+							<Name>.P14_501_UG01_2GR_UpperMaster.PDOS.DrvToPLC.statusWord</Name>
+							<Comment><![CDATA[Status word of the drive]]></Comment>
+							<Type>UINT</Type>
+						</Var>
+						<Var>
+							<Name>.P14_501_UG01_2GR_UpperMaster.PDOS.DrvToPLC.errorCode</Name>
+							<Comment><![CDATA[Error code of the drive]]></Comment>
+							<Type>UINT</Type>
+						</Var>
+						<Var>
+							<Name>.P14_501_UG01_2GR_UpperMaster.PDOS.DrvToPLC.modesOfOperationDisplay</Name>
+							<Comment><![CDATA[Current mode of operation]]></Comment>
+							<Type>SINT</Type>
+						</Var>
+						<Var>
+							<Name>.P14_501_UG01_2GR_UpperMaster.PDOS.DrvToPLC.positionActualValue</Name>
+							<Comment><![CDATA[Actual position feedback]]></Comment>
+							<Type>DINT</Type>
+						</Var>
+						<Var>
+							<Name>.P14_501_UG01_2GR_UpperMaster.PDOS.DrvToPLC.velocityActualValue</Name>
+							<Comment><![CDATA[Actual velocity feedback]]></Comment>
+							<Type>DINT</Type>
+						</Var>
+						<Var>
+							<Name>.P14_501_UG01_2GR_UpperMaster.PDOS.DrvToPLC.torqueActualValue</Name>
+							<Comment><![CDATA[Actual torque feedback]]></Comment>
+							<Type>INT</Type>
+						</Var>
+						<Var>
+							<Name>.P14_502_UG01_3GR_LowerSlave.PDOS.DrvToPLC.statusWord</Name>
+							<Comment><![CDATA[Status word of the drive]]></Comment>
+							<Type>UINT</Type>
+						</Var>
+						<Var>
+							<Name>.P14_502_UG01_3GR_LowerSlave.PDOS.DrvToPLC.errorCode</Name>
+							<Comment><![CDATA[Error code of the drive]]></Comment>
+							<Type>UINT</Type>
+						</Var>
+						<Var>
+							<Name>.P14_502_UG01_3GR_LowerSlave.PDOS.DrvToPLC.modesOfOperationDisplay</Name>
+							<Comment><![CDATA[Current mode of operation]]></Comment>
+							<Type>SINT</Type>
+						</Var>
+						<Var>
+							<Name>.P14_502_UG01_3GR_LowerSlave.PDOS.DrvToPLC.positionActualValue</Name>
+							<Comment><![CDATA[Actual position feedback]]></Comment>
+							<Type>DINT</Type>
+						</Var>
+						<Var>
+							<Name>.P14_502_UG01_3GR_LowerSlave.PDOS.DrvToPLC.velocityActualValue</Name>
+							<Comment><![CDATA[Actual velocity feedback]]></Comment>
+							<Type>DINT</Type>
+						</Var>
+						<Var>
+							<Name>.P14_502_UG01_3GR_LowerSlave.PDOS.DrvToPLC.torqueActualValue</Name>
+							<Comment><![CDATA[Actual torque feedback]]></Comment>
+							<Type>INT</Type>
+						</Var>
+						<Var>
+							<Name>.P14_502_UG02_3GR_UpperSlave.PDOS.DrvToPLC.statusWord</Name>
+							<Comment><![CDATA[Status word of the drive]]></Comment>
+							<Type>UINT</Type>
+						</Var>
+						<Var>
+							<Name>.P14_502_UG02_3GR_UpperSlave.PDOS.DrvToPLC.errorCode</Name>
+							<Comment><![CDATA[Error code of the drive]]></Comment>
+							<Type>UINT</Type>
+						</Var>
+						<Var>
+							<Name>.P14_502_UG02_3GR_UpperSlave.PDOS.DrvToPLC.modesOfOperationDisplay</Name>
+							<Comment><![CDATA[Current mode of operation]]></Comment>
+							<Type>SINT</Type>
+						</Var>
+						<Var>
+							<Name>.P14_502_UG02_3GR_UpperSlave.PDOS.DrvToPLC.positionActualValue</Name>
+							<Comment><![CDATA[Actual position feedback]]></Comment>
+							<Type>DINT</Type>
+						</Var>
+						<Var>
+							<Name>.P14_502_UG02_3GR_UpperSlave.PDOS.DrvToPLC.velocityActualValue</Name>
+							<Comment><![CDATA[Actual velocity feedback]]></Comment>
+							<Type>DINT</Type>
+						</Var>
+						<Var>
+							<Name>.P14_502_UG02_3GR_UpperSlave.PDOS.DrvToPLC.torqueActualValue</Name>
+							<Comment><![CDATA[Actual torque feedback]]></Comment>
+							<Type>INT</Type>
+						</Var>
+						<Var>
+							<Name>.P14_502_UG03_3GR_LowerMaster.PDOS.DrvToPLC.statusWord</Name>
+							<Comment><![CDATA[Status word of the drive]]></Comment>
+							<Type>UINT</Type>
+						</Var>
+						<Var>
+							<Name>.P14_502_UG03_3GR_LowerMaster.PDOS.DrvToPLC.errorCode</Name>
+							<Comment><![CDATA[Error code of the drive]]></Comment>
+							<Type>UINT</Type>
+						</Var>
+						<Var>
+							<Name>.P14_502_UG03_3GR_LowerMaster.PDOS.DrvToPLC.modesOfOperationDisplay</Name>
+							<Comment><![CDATA[Current mode of operation]]></Comment>
+							<Type>SINT</Type>
+						</Var>
+						<Var>
+							<Name>.P14_502_UG03_3GR_LowerMaster.PDOS.DrvToPLC.positionActualValue</Name>
+							<Comment><![CDATA[Actual position feedback]]></Comment>
+							<Type>DINT</Type>
+						</Var>
+						<Var>
+							<Name>.P14_502_UG03_3GR_LowerMaster.PDOS.DrvToPLC.velocityActualValue</Name>
+							<Comment><![CDATA[Actual velocity feedback]]></Comment>
+							<Type>DINT</Type>
+						</Var>
+						<Var>
+							<Name>.P14_502_UG03_3GR_LowerMaster.PDOS.DrvToPLC.torqueActualValue</Name>
+							<Comment><![CDATA[Actual torque feedback]]></Comment>
+							<Type>INT</Type>
+						</Var>
+						<Var>
+							<Name>.P14_502_UG04_3GR_UpperMaster.PDOS.DrvToPLC.statusWord</Name>
+							<Comment><![CDATA[Status word of the drive]]></Comment>
+							<Type>UINT</Type>
+						</Var>
+						<Var>
+							<Name>.P14_502_UG04_3GR_UpperMaster.PDOS.DrvToPLC.errorCode</Name>
+							<Comment><![CDATA[Error code of the drive]]></Comment>
+							<Type>UINT</Type>
+						</Var>
+						<Var>
+							<Name>.P14_502_UG04_3GR_UpperMaster.PDOS.DrvToPLC.modesOfOperationDisplay</Name>
+							<Comment><![CDATA[Current mode of operation]]></Comment>
+							<Type>SINT</Type>
+						</Var>
+						<Var>
+							<Name>.P14_502_UG04_3GR_UpperMaster.PDOS.DrvToPLC.positionActualValue</Name>
+							<Comment><![CDATA[Actual position feedback]]></Comment>
+							<Type>DINT</Type>
+						</Var>
+						<Var>
+							<Name>.P14_502_UG04_3GR_UpperMaster.PDOS.DrvToPLC.velocityActualValue</Name>
+							<Comment><![CDATA[Actual velocity feedback]]></Comment>
+							<Type>DINT</Type>
+						</Var>
+						<Var>
+							<Name>.P14_502_UG04_3GR_UpperMaster.PDOS.DrvToPLC.torqueActualValue</Name>
+							<Comment><![CDATA[Actual torque feedback]]></Comment>
+							<Type>INT</Type>
+						</Var>
+						<Var>
+							<Name>.P15_600_UG01_Rewinder.PDOS.DrvToPLC.statusWord</Name>
+							<Comment><![CDATA[Status word of the drive]]></Comment>
+							<Type>UINT</Type>
+						</Var>
+						<Var>
+							<Name>.P15_600_UG01_Rewinder.PDOS.DrvToPLC.errorCode</Name>
+							<Comment><![CDATA[Error code of the drive]]></Comment>
+							<Type>UINT</Type>
+						</Var>
+						<Var>
+							<Name>.P15_600_UG01_Rewinder.PDOS.DrvToPLC.modesOfOperationDisplay</Name>
+							<Comment><![CDATA[Current mode of operation]]></Comment>
+							<Type>SINT</Type>
+						</Var>
+						<Var>
+							<Name>.P15_600_UG01_Rewinder.PDOS.DrvToPLC.positionActualValue</Name>
+							<Comment><![CDATA[Actual position feedback]]></Comment>
+							<Type>DINT</Type>
+						</Var>
+						<Var>
+							<Name>.P15_600_UG01_Rewinder.PDOS.DrvToPLC.velocityActualValue</Name>
+							<Comment><![CDATA[Actual velocity feedback]]></Comment>
+							<Type>DINT</Type>
+						</Var>
+						<Var>
+							<Name>.P15_600_UG01_Rewinder.PDOS.DrvToPLC.torqueActualValue</Name>
+							<Comment><![CDATA[Actual torque feedback]]></Comment>
+							<Type>INT</Type>
+						</Var>
 					</Vars>
 					<Vars VarGrpType="2" AreaNo="1">
 						<Name>PlcTask Outputs</Name>
@@ -2294,481 +2294,6 @@
 						</Var>
 						<Var>
 							<Name>.P1_100_UG01.PDOS.PlcToDrv.maxMotorSpeed</Name>
-							<Comment><![CDATA[ Maximum motor speed limit]]></Comment>
-							<Type>UDINT</Type>
-						</Var>
-						<Var>
-							<Name>.P1_100_UG02.PDOS.PlcToDrv.controlWord</Name>
-							<Comment><![CDATA[ Control word to command the drive]]></Comment>
-							<Type>UINT</Type>
-						</Var>
-						<Var>
-							<Name>.P1_100_UG02.PDOS.PlcToDrv.vlTargetVelocity</Name>
-							<Comment><![CDATA[ Target velocity [vl = velocity]]]></Comment>
-							<Type>INT</Type>
-						</Var>
-						<Var>
-							<Name>.P1_100_UG02.PDOS.PlcToDrv.modesOfOperation</Name>
-							<Comment><![CDATA[ Mode of operation command]]></Comment>
-							<Type>SINT</Type>
-						</Var>
-						<Var>
-							<Name>.P1_100_UG02.PDOS.PlcToDrv.maxTorque</Name>
-							<Comment><![CDATA[ Maximum torque limit]]></Comment>
-							<Type>UINT</Type>
-						</Var>
-						<Var>
-							<Name>.P1_100_UG02.PDOS.PlcToDrv.maxMotorSpeed</Name>
-							<Comment><![CDATA[ Maximum motor speed limit]]></Comment>
-							<Type>UDINT</Type>
-						</Var>
-						<Var>
-							<Name>.P1_100_UG03_SuctionRoll.PDOS.PlcToDrv.controlWord</Name>
-							<Comment><![CDATA[ Control word to command the drive]]></Comment>
-							<Type>UINT</Type>
-						</Var>
-						<Var>
-							<Name>.P1_100_UG03_SuctionRoll.PDOS.PlcToDrv.vlTargetVelocity</Name>
-							<Comment><![CDATA[ Target velocity [vl = velocity]]]></Comment>
-							<Type>INT</Type>
-						</Var>
-						<Var>
-							<Name>.P1_100_UG03_SuctionRoll.PDOS.PlcToDrv.modesOfOperation</Name>
-							<Comment><![CDATA[ Mode of operation command]]></Comment>
-							<Type>SINT</Type>
-						</Var>
-						<Var>
-							<Name>.P1_100_UG03_SuctionRoll.PDOS.PlcToDrv.maxTorque</Name>
-							<Comment><![CDATA[ Maximum torque limit]]></Comment>
-							<Type>UINT</Type>
-						</Var>
-						<Var>
-							<Name>.P1_100_UG03_SuctionRoll.PDOS.PlcToDrv.maxMotorSpeed</Name>
-							<Comment><![CDATA[ Maximum motor speed limit]]></Comment>
-							<Type>UDINT</Type>
-						</Var>
-						<Var>
-							<Name>.P1_100_UG04.PDOS.PlcToDrv.controlWord</Name>
-							<Comment><![CDATA[ Control word to command the drive]]></Comment>
-							<Type>UINT</Type>
-						</Var>
-						<Var>
-							<Name>.P1_100_UG04.PDOS.PlcToDrv.vlTargetVelocity</Name>
-							<Comment><![CDATA[ Target velocity [vl = velocity]]]></Comment>
-							<Type>INT</Type>
-						</Var>
-						<Var>
-							<Name>.P1_100_UG04.PDOS.PlcToDrv.modesOfOperation</Name>
-							<Comment><![CDATA[ Mode of operation command]]></Comment>
-							<Type>SINT</Type>
-						</Var>
-						<Var>
-							<Name>.P1_100_UG04.PDOS.PlcToDrv.maxTorque</Name>
-							<Comment><![CDATA[ Maximum torque limit]]></Comment>
-							<Type>UINT</Type>
-						</Var>
-						<Var>
-							<Name>.P1_100_UG04.PDOS.PlcToDrv.maxMotorSpeed</Name>
-							<Comment><![CDATA[ Maximum motor speed limit]]></Comment>
-							<Type>UDINT</Type>
-						</Var>
-						<Var>
-							<Name>.P1_100_UG05.PDOS.PlcToDrv.controlWord</Name>
-							<Comment><![CDATA[ Control word to command the drive]]></Comment>
-							<Type>UINT</Type>
-						</Var>
-						<Var>
-							<Name>.P1_100_UG05.PDOS.PlcToDrv.vlTargetVelocity</Name>
-							<Comment><![CDATA[ Target velocity [vl = velocity]]]></Comment>
-							<Type>INT</Type>
-						</Var>
-						<Var>
-							<Name>.P1_100_UG05.PDOS.PlcToDrv.modesOfOperation</Name>
-							<Comment><![CDATA[ Mode of operation command]]></Comment>
-							<Type>SINT</Type>
-						</Var>
-						<Var>
-							<Name>.P1_100_UG05.PDOS.PlcToDrv.maxTorque</Name>
-							<Comment><![CDATA[ Maximum torque limit]]></Comment>
-							<Type>UINT</Type>
-						</Var>
-						<Var>
-							<Name>.P1_100_UG05.PDOS.PlcToDrv.maxMotorSpeed</Name>
-							<Comment><![CDATA[ Maximum motor speed limit]]></Comment>
-							<Type>UDINT</Type>
-						</Var>
-						<Var>
-							<Name>.P1_300_UG06_TractionRoll.PDOS.PlcToDrv.controlWord</Name>
-							<Comment><![CDATA[ Control word to command the drive]]></Comment>
-							<Type>UINT</Type>
-						</Var>
-						<Var>
-							<Name>.P1_300_UG06_TractionRoll.PDOS.PlcToDrv.vlTargetVelocity</Name>
-							<Comment><![CDATA[ Target velocity [vl = velocity]]]></Comment>
-							<Type>INT</Type>
-						</Var>
-						<Var>
-							<Name>.P1_300_UG06_TractionRoll.PDOS.PlcToDrv.modesOfOperation</Name>
-							<Comment><![CDATA[ Mode of operation command]]></Comment>
-							<Type>SINT</Type>
-						</Var>
-						<Var>
-							<Name>.P1_300_UG06_TractionRoll.PDOS.PlcToDrv.maxTorque</Name>
-							<Comment><![CDATA[ Maximum torque limit]]></Comment>
-							<Type>UINT</Type>
-						</Var>
-						<Var>
-							<Name>.P1_300_UG06_TractionRoll.PDOS.PlcToDrv.maxMotorSpeed</Name>
-							<Comment><![CDATA[ Maximum motor speed limit]]></Comment>
-							<Type>UDINT</Type>
-						</Var>
-						<Var>
-							<Name>.P11_400_UG01_SecondPress.PDOS.PlcToDrv.controlWord</Name>
-							<Comment><![CDATA[ Control word to command the drive]]></Comment>
-							<Type>UINT</Type>
-						</Var>
-						<Var>
-							<Name>.P11_400_UG01_SecondPress.PDOS.PlcToDrv.vlTargetVelocity</Name>
-							<Comment><![CDATA[ Target velocity [vl = velocity]]]></Comment>
-							<Type>INT</Type>
-						</Var>
-						<Var>
-							<Name>.P11_400_UG01_SecondPress.PDOS.PlcToDrv.modesOfOperation</Name>
-							<Comment><![CDATA[ Mode of operation command]]></Comment>
-							<Type>SINT</Type>
-						</Var>
-						<Var>
-							<Name>.P11_400_UG01_SecondPress.PDOS.PlcToDrv.maxTorque</Name>
-							<Comment><![CDATA[ Maximum torque limit]]></Comment>
-							<Type>UINT</Type>
-						</Var>
-						<Var>
-							<Name>.P11_400_UG01_SecondPress.PDOS.PlcToDrv.maxMotorSpeed</Name>
-							<Comment><![CDATA[ Maximum motor speed limit]]></Comment>
-							<Type>UDINT</Type>
-						</Var>
-						<Var>
-							<Name>.P12_400_UG01_FirstPress.PDOS.PlcToDrv.controlWord</Name>
-							<Comment><![CDATA[ Control word to command the drive]]></Comment>
-							<Type>UINT</Type>
-						</Var>
-						<Var>
-							<Name>.P12_400_UG01_FirstPress.PDOS.PlcToDrv.vlTargetVelocity</Name>
-							<Comment><![CDATA[ Target velocity [vl = velocity]]]></Comment>
-							<Type>INT</Type>
-						</Var>
-						<Var>
-							<Name>.P12_400_UG01_FirstPress.PDOS.PlcToDrv.modesOfOperation</Name>
-							<Comment><![CDATA[ Mode of operation command]]></Comment>
-							<Type>SINT</Type>
-						</Var>
-						<Var>
-							<Name>.P12_400_UG01_FirstPress.PDOS.PlcToDrv.maxTorque</Name>
-							<Comment><![CDATA[ Maximum torque limit]]></Comment>
-							<Type>UINT</Type>
-						</Var>
-						<Var>
-							<Name>.P12_400_UG01_FirstPress.PDOS.PlcToDrv.maxMotorSpeed</Name>
-							<Comment><![CDATA[ Maximum motor speed limit]]></Comment>
-							<Type>UDINT</Type>
-						</Var>
-						<Var>
-							<Name>.P13_500_UG01_1GR_UpperSlave.PDOS.PlcToDrv.controlWord</Name>
-							<Comment><![CDATA[ Control word to command the drive]]></Comment>
-							<Type>UINT</Type>
-						</Var>
-						<Var>
-							<Name>.P13_500_UG01_1GR_UpperSlave.PDOS.PlcToDrv.vlTargetVelocity</Name>
-							<Comment><![CDATA[ Target velocity [vl = velocity]]]></Comment>
-							<Type>INT</Type>
-						</Var>
-						<Var>
-							<Name>.P13_500_UG01_1GR_UpperSlave.PDOS.PlcToDrv.modesOfOperation</Name>
-							<Comment><![CDATA[ Mode of operation command]]></Comment>
-							<Type>SINT</Type>
-						</Var>
-						<Var>
-							<Name>.P13_500_UG01_1GR_UpperSlave.PDOS.PlcToDrv.maxTorque</Name>
-							<Comment><![CDATA[ Maximum torque limit]]></Comment>
-							<Type>UINT</Type>
-						</Var>
-						<Var>
-							<Name>.P13_500_UG01_1GR_UpperSlave.PDOS.PlcToDrv.maxMotorSpeed</Name>
-							<Comment><![CDATA[ Maximum motor speed limit]]></Comment>
-							<Type>UDINT</Type>
-						</Var>
-						<Var>
-							<Name>.P13_500_UG02_1GR_LowerMaster.PDOS.PlcToDrv.controlWord</Name>
-							<Comment><![CDATA[ Control word to command the drive]]></Comment>
-							<Type>UINT</Type>
-						</Var>
-						<Var>
-							<Name>.P13_500_UG02_1GR_LowerMaster.PDOS.PlcToDrv.vlTargetVelocity</Name>
-							<Comment><![CDATA[ Target velocity [vl = velocity]]]></Comment>
-							<Type>INT</Type>
-						</Var>
-						<Var>
-							<Name>.P13_500_UG02_1GR_LowerMaster.PDOS.PlcToDrv.modesOfOperation</Name>
-							<Comment><![CDATA[ Mode of operation command]]></Comment>
-							<Type>SINT</Type>
-						</Var>
-						<Var>
-							<Name>.P13_500_UG02_1GR_LowerMaster.PDOS.PlcToDrv.maxTorque</Name>
-							<Comment><![CDATA[ Maximum torque limit]]></Comment>
-							<Type>UINT</Type>
-						</Var>
-						<Var>
-							<Name>.P13_500_UG02_1GR_LowerMaster.PDOS.PlcToDrv.maxMotorSpeed</Name>
-							<Comment><![CDATA[ Maximum motor speed limit]]></Comment>
-							<Type>UDINT</Type>
-						</Var>
-						<Var>
-							<Name>.P13_500_UG03_1GR_UpperMaster.PDOS.PlcToDrv.controlWord</Name>
-							<Comment><![CDATA[ Control word to command the drive]]></Comment>
-							<Type>UINT</Type>
-						</Var>
-						<Var>
-							<Name>.P13_500_UG03_1GR_UpperMaster.PDOS.PlcToDrv.vlTargetVelocity</Name>
-							<Comment><![CDATA[ Target velocity [vl = velocity]]]></Comment>
-							<Type>INT</Type>
-						</Var>
-						<Var>
-							<Name>.P13_500_UG03_1GR_UpperMaster.PDOS.PlcToDrv.modesOfOperation</Name>
-							<Comment><![CDATA[ Mode of operation command]]></Comment>
-							<Type>SINT</Type>
-						</Var>
-						<Var>
-							<Name>.P13_500_UG03_1GR_UpperMaster.PDOS.PlcToDrv.maxTorque</Name>
-							<Comment><![CDATA[ Maximum torque limit]]></Comment>
-							<Type>UINT</Type>
-						</Var>
-						<Var>
-							<Name>.P13_500_UG03_1GR_UpperMaster.PDOS.PlcToDrv.maxMotorSpeed</Name>
-							<Comment><![CDATA[ Maximum motor speed limit]]></Comment>
-							<Type>UDINT</Type>
-						</Var>
-						<Var>
-							<Name>.P13_501_UG01_2GR_LowerSlave.PDOS.PlcToDrv.controlWord</Name>
-							<Comment><![CDATA[ Control word to command the drive]]></Comment>
-							<Type>UINT</Type>
-						</Var>
-						<Var>
-							<Name>.P13_501_UG01_2GR_LowerSlave.PDOS.PlcToDrv.vlTargetVelocity</Name>
-							<Comment><![CDATA[ Target velocity [vl = velocity]]]></Comment>
-							<Type>INT</Type>
-						</Var>
-						<Var>
-							<Name>.P13_501_UG01_2GR_LowerSlave.PDOS.PlcToDrv.modesOfOperation</Name>
-							<Comment><![CDATA[ Mode of operation command]]></Comment>
-							<Type>SINT</Type>
-						</Var>
-						<Var>
-							<Name>.P13_501_UG01_2GR_LowerSlave.PDOS.PlcToDrv.maxTorque</Name>
-							<Comment><![CDATA[ Maximum torque limit]]></Comment>
-							<Type>UINT</Type>
-						</Var>
-						<Var>
-							<Name>.P13_501_UG01_2GR_LowerSlave.PDOS.PlcToDrv.maxMotorSpeed</Name>
-							<Comment><![CDATA[ Maximum motor speed limit]]></Comment>
-							<Type>UDINT</Type>
-						</Var>
-						<Var>
-							<Name>.P13_501_UG02_2GR_UpperSlave.PDOS.PlcToDrv.controlWord</Name>
-							<Comment><![CDATA[ Control word to command the drive]]></Comment>
-							<Type>UINT</Type>
-						</Var>
-						<Var>
-							<Name>.P13_501_UG02_2GR_UpperSlave.PDOS.PlcToDrv.vlTargetVelocity</Name>
-							<Comment><![CDATA[ Target velocity [vl = velocity]]]></Comment>
-							<Type>INT</Type>
-						</Var>
-						<Var>
-							<Name>.P13_501_UG02_2GR_UpperSlave.PDOS.PlcToDrv.modesOfOperation</Name>
-							<Comment><![CDATA[ Mode of operation command]]></Comment>
-							<Type>SINT</Type>
-						</Var>
-						<Var>
-							<Name>.P13_501_UG02_2GR_UpperSlave.PDOS.PlcToDrv.maxTorque</Name>
-							<Comment><![CDATA[ Maximum torque limit]]></Comment>
-							<Type>UINT</Type>
-						</Var>
-						<Var>
-							<Name>.P13_501_UG02_2GR_UpperSlave.PDOS.PlcToDrv.maxMotorSpeed</Name>
-							<Comment><![CDATA[ Maximum motor speed limit]]></Comment>
-							<Type>UDINT</Type>
-						</Var>
-						<Var>
-							<Name>.P13_501_UG03_2GR_LowerMaster.PDOS.PlcToDrv.controlWord</Name>
-							<Comment><![CDATA[ Control word to command the drive]]></Comment>
-							<Type>UINT</Type>
-						</Var>
-						<Var>
-							<Name>.P13_501_UG03_2GR_LowerMaster.PDOS.PlcToDrv.vlTargetVelocity</Name>
-							<Comment><![CDATA[ Target velocity [vl = velocity]]]></Comment>
-							<Type>INT</Type>
-						</Var>
-						<Var>
-							<Name>.P13_501_UG03_2GR_LowerMaster.PDOS.PlcToDrv.modesOfOperation</Name>
-							<Comment><![CDATA[ Mode of operation command]]></Comment>
-							<Type>SINT</Type>
-						</Var>
-						<Var>
-							<Name>.P13_501_UG03_2GR_LowerMaster.PDOS.PlcToDrv.maxTorque</Name>
-							<Comment><![CDATA[ Maximum torque limit]]></Comment>
-							<Type>UINT</Type>
-						</Var>
-						<Var>
-							<Name>.P13_501_UG03_2GR_LowerMaster.PDOS.PlcToDrv.maxMotorSpeed</Name>
-							<Comment><![CDATA[ Maximum motor speed limit]]></Comment>
-							<Type>UDINT</Type>
-						</Var>
-						<Var>
-							<Name>.P14_501_UG01_2GR_UpperMaster.PDOS.PlcToDrv.controlWord</Name>
-							<Comment><![CDATA[ Control word to command the drive]]></Comment>
-							<Type>UINT</Type>
-						</Var>
-						<Var>
-							<Name>.P14_501_UG01_2GR_UpperMaster.PDOS.PlcToDrv.vlTargetVelocity</Name>
-							<Comment><![CDATA[ Target velocity [vl = velocity]]]></Comment>
-							<Type>INT</Type>
-						</Var>
-						<Var>
-							<Name>.P14_501_UG01_2GR_UpperMaster.PDOS.PlcToDrv.modesOfOperation</Name>
-							<Comment><![CDATA[ Mode of operation command]]></Comment>
-							<Type>SINT</Type>
-						</Var>
-						<Var>
-							<Name>.P14_501_UG01_2GR_UpperMaster.PDOS.PlcToDrv.maxTorque</Name>
-							<Comment><![CDATA[ Maximum torque limit]]></Comment>
-							<Type>UINT</Type>
-						</Var>
-						<Var>
-							<Name>.P14_501_UG01_2GR_UpperMaster.PDOS.PlcToDrv.maxMotorSpeed</Name>
-							<Comment><![CDATA[ Maximum motor speed limit]]></Comment>
-							<Type>UDINT</Type>
-						</Var>
-						<Var>
-							<Name>.P14_502_UG01_3GR_LowerSlave.PDOS.PlcToDrv.controlWord</Name>
-							<Comment><![CDATA[ Control word to command the drive]]></Comment>
-							<Type>UINT</Type>
-						</Var>
-						<Var>
-							<Name>.P14_502_UG01_3GR_LowerSlave.PDOS.PlcToDrv.vlTargetVelocity</Name>
-							<Comment><![CDATA[ Target velocity [vl = velocity]]]></Comment>
-							<Type>INT</Type>
-						</Var>
-						<Var>
-							<Name>.P14_502_UG01_3GR_LowerSlave.PDOS.PlcToDrv.modesOfOperation</Name>
-							<Comment><![CDATA[ Mode of operation command]]></Comment>
-							<Type>SINT</Type>
-						</Var>
-						<Var>
-							<Name>.P14_502_UG01_3GR_LowerSlave.PDOS.PlcToDrv.maxTorque</Name>
-							<Comment><![CDATA[ Maximum torque limit]]></Comment>
-							<Type>UINT</Type>
-						</Var>
-						<Var>
-							<Name>.P14_502_UG01_3GR_LowerSlave.PDOS.PlcToDrv.maxMotorSpeed</Name>
-							<Comment><![CDATA[ Maximum motor speed limit]]></Comment>
-							<Type>UDINT</Type>
-						</Var>
-						<Var>
-							<Name>.P14_502_UG02_3GR_UpperSlave.PDOS.PlcToDrv.controlWord</Name>
-							<Comment><![CDATA[ Control word to command the drive]]></Comment>
-							<Type>UINT</Type>
-						</Var>
-						<Var>
-							<Name>.P14_502_UG02_3GR_UpperSlave.PDOS.PlcToDrv.vlTargetVelocity</Name>
-							<Comment><![CDATA[ Target velocity [vl = velocity]]]></Comment>
-							<Type>INT</Type>
-						</Var>
-						<Var>
-							<Name>.P14_502_UG02_3GR_UpperSlave.PDOS.PlcToDrv.modesOfOperation</Name>
-							<Comment><![CDATA[ Mode of operation command]]></Comment>
-							<Type>SINT</Type>
-						</Var>
-						<Var>
-							<Name>.P14_502_UG02_3GR_UpperSlave.PDOS.PlcToDrv.maxTorque</Name>
-							<Comment><![CDATA[ Maximum torque limit]]></Comment>
-							<Type>UINT</Type>
-						</Var>
-						<Var>
-							<Name>.P14_502_UG02_3GR_UpperSlave.PDOS.PlcToDrv.maxMotorSpeed</Name>
-							<Comment><![CDATA[ Maximum motor speed limit]]></Comment>
-							<Type>UDINT</Type>
-						</Var>
-						<Var>
-							<Name>.P14_502_UG03_3GR_LowerMaster.PDOS.PlcToDrv.controlWord</Name>
-							<Comment><![CDATA[ Control word to command the drive]]></Comment>
-							<Type>UINT</Type>
-						</Var>
-						<Var>
-							<Name>.P14_502_UG03_3GR_LowerMaster.PDOS.PlcToDrv.vlTargetVelocity</Name>
-							<Comment><![CDATA[ Target velocity [vl = velocity]]]></Comment>
-							<Type>INT</Type>
-						</Var>
-						<Var>
-							<Name>.P14_502_UG03_3GR_LowerMaster.PDOS.PlcToDrv.modesOfOperation</Name>
-							<Comment><![CDATA[ Mode of operation command]]></Comment>
-							<Type>SINT</Type>
-						</Var>
-						<Var>
-							<Name>.P14_502_UG03_3GR_LowerMaster.PDOS.PlcToDrv.maxTorque</Name>
-							<Comment><![CDATA[ Maximum torque limit]]></Comment>
-							<Type>UINT</Type>
-						</Var>
-						<Var>
-							<Name>.P14_502_UG03_3GR_LowerMaster.PDOS.PlcToDrv.maxMotorSpeed</Name>
-							<Comment><![CDATA[ Maximum motor speed limit]]></Comment>
-							<Type>UDINT</Type>
-						</Var>
-						<Var>
-							<Name>.P14_502_UG04_3GR_UpperMaster.PDOS.PlcToDrv.controlWord</Name>
-							<Comment><![CDATA[ Control word to command the drive]]></Comment>
-							<Type>UINT</Type>
-						</Var>
-						<Var>
-							<Name>.P14_502_UG04_3GR_UpperMaster.PDOS.PlcToDrv.vlTargetVelocity</Name>
-							<Comment><![CDATA[ Target velocity [vl = velocity]]]></Comment>
-							<Type>INT</Type>
-						</Var>
-						<Var>
-							<Name>.P14_502_UG04_3GR_UpperMaster.PDOS.PlcToDrv.modesOfOperation</Name>
-							<Comment><![CDATA[ Mode of operation command]]></Comment>
-							<Type>SINT</Type>
-						</Var>
-						<Var>
-							<Name>.P14_502_UG04_3GR_UpperMaster.PDOS.PlcToDrv.maxTorque</Name>
-							<Comment><![CDATA[ Maximum torque limit]]></Comment>
-							<Type>UINT</Type>
-						</Var>
-						<Var>
-							<Name>.P14_502_UG04_3GR_UpperMaster.PDOS.PlcToDrv.maxMotorSpeed</Name>
-							<Comment><![CDATA[ Maximum motor speed limit]]></Comment>
-							<Type>UDINT</Type>
-						</Var>
-						<Var>
-							<Name>.P15_600_UG01_Rewinder.PDOS.PlcToDrv.controlWord</Name>
-							<Comment><![CDATA[ Control word to command the drive]]></Comment>
-							<Type>UINT</Type>
-						</Var>
-						<Var>
-							<Name>.P15_600_UG01_Rewinder.PDOS.PlcToDrv.vlTargetVelocity</Name>
-							<Comment><![CDATA[ Target velocity [vl = velocity]]]></Comment>
-							<Type>INT</Type>
-						</Var>
-						<Var>
-							<Name>.P15_600_UG01_Rewinder.PDOS.PlcToDrv.modesOfOperation</Name>
-							<Comment><![CDATA[ Mode of operation command]]></Comment>
-							<Type>SINT</Type>
-						</Var>
-						<Var>
-							<Name>.P15_600_UG01_Rewinder.PDOS.PlcToDrv.maxTorque</Name>
-							<Comment><![CDATA[ Maximum torque limit]]></Comment>
-							<Type>UINT</Type>
-						</Var>
-						<Var>
-							<Name>.P15_600_UG01_Rewinder.PDOS.PlcToDrv.maxMotorSpeed</Name>
 							<Comment><![CDATA[ Maximum motor speed limit]]></Comment>
 							<Type>UDINT</Type>
 						</Var>
@@ -3551,6 +3076,481 @@
 						<Var>
 							<Name>.CP1_050_AO1.PDOS.HwToPLC.Channel4</Name>
 							<Type>INT</Type>
+						</Var>
+						<Var>
+							<Name>.P1_100_UG02.PDOS.PlcToDrv.controlWord</Name>
+							<Comment><![CDATA[ Control word to command the drive]]></Comment>
+							<Type>UINT</Type>
+						</Var>
+						<Var>
+							<Name>.P1_100_UG02.PDOS.PlcToDrv.vlTargetVelocity</Name>
+							<Comment><![CDATA[ Target velocity [vl = velocity]]]></Comment>
+							<Type>INT</Type>
+						</Var>
+						<Var>
+							<Name>.P1_100_UG02.PDOS.PlcToDrv.modesOfOperation</Name>
+							<Comment><![CDATA[ Mode of operation command]]></Comment>
+							<Type>SINT</Type>
+						</Var>
+						<Var>
+							<Name>.P1_100_UG02.PDOS.PlcToDrv.maxTorque</Name>
+							<Comment><![CDATA[ Maximum torque limit]]></Comment>
+							<Type>UINT</Type>
+						</Var>
+						<Var>
+							<Name>.P1_100_UG02.PDOS.PlcToDrv.maxMotorSpeed</Name>
+							<Comment><![CDATA[ Maximum motor speed limit]]></Comment>
+							<Type>UDINT</Type>
+						</Var>
+						<Var>
+							<Name>.P1_100_UG03_SuctionRoll.PDOS.PlcToDrv.controlWord</Name>
+							<Comment><![CDATA[ Control word to command the drive]]></Comment>
+							<Type>UINT</Type>
+						</Var>
+						<Var>
+							<Name>.P1_100_UG03_SuctionRoll.PDOS.PlcToDrv.vlTargetVelocity</Name>
+							<Comment><![CDATA[ Target velocity [vl = velocity]]]></Comment>
+							<Type>INT</Type>
+						</Var>
+						<Var>
+							<Name>.P1_100_UG03_SuctionRoll.PDOS.PlcToDrv.modesOfOperation</Name>
+							<Comment><![CDATA[ Mode of operation command]]></Comment>
+							<Type>SINT</Type>
+						</Var>
+						<Var>
+							<Name>.P1_100_UG03_SuctionRoll.PDOS.PlcToDrv.maxTorque</Name>
+							<Comment><![CDATA[ Maximum torque limit]]></Comment>
+							<Type>UINT</Type>
+						</Var>
+						<Var>
+							<Name>.P1_100_UG03_SuctionRoll.PDOS.PlcToDrv.maxMotorSpeed</Name>
+							<Comment><![CDATA[ Maximum motor speed limit]]></Comment>
+							<Type>UDINT</Type>
+						</Var>
+						<Var>
+							<Name>.P1_100_UG04.PDOS.PlcToDrv.controlWord</Name>
+							<Comment><![CDATA[ Control word to command the drive]]></Comment>
+							<Type>UINT</Type>
+						</Var>
+						<Var>
+							<Name>.P1_100_UG04.PDOS.PlcToDrv.vlTargetVelocity</Name>
+							<Comment><![CDATA[ Target velocity [vl = velocity]]]></Comment>
+							<Type>INT</Type>
+						</Var>
+						<Var>
+							<Name>.P1_100_UG04.PDOS.PlcToDrv.modesOfOperation</Name>
+							<Comment><![CDATA[ Mode of operation command]]></Comment>
+							<Type>SINT</Type>
+						</Var>
+						<Var>
+							<Name>.P1_100_UG04.PDOS.PlcToDrv.maxTorque</Name>
+							<Comment><![CDATA[ Maximum torque limit]]></Comment>
+							<Type>UINT</Type>
+						</Var>
+						<Var>
+							<Name>.P1_100_UG04.PDOS.PlcToDrv.maxMotorSpeed</Name>
+							<Comment><![CDATA[ Maximum motor speed limit]]></Comment>
+							<Type>UDINT</Type>
+						</Var>
+						<Var>
+							<Name>.P1_100_UG05.PDOS.PlcToDrv.controlWord</Name>
+							<Comment><![CDATA[ Control word to command the drive]]></Comment>
+							<Type>UINT</Type>
+						</Var>
+						<Var>
+							<Name>.P1_100_UG05.PDOS.PlcToDrv.vlTargetVelocity</Name>
+							<Comment><![CDATA[ Target velocity [vl = velocity]]]></Comment>
+							<Type>INT</Type>
+						</Var>
+						<Var>
+							<Name>.P1_100_UG05.PDOS.PlcToDrv.modesOfOperation</Name>
+							<Comment><![CDATA[ Mode of operation command]]></Comment>
+							<Type>SINT</Type>
+						</Var>
+						<Var>
+							<Name>.P1_100_UG05.PDOS.PlcToDrv.maxTorque</Name>
+							<Comment><![CDATA[ Maximum torque limit]]></Comment>
+							<Type>UINT</Type>
+						</Var>
+						<Var>
+							<Name>.P1_100_UG05.PDOS.PlcToDrv.maxMotorSpeed</Name>
+							<Comment><![CDATA[ Maximum motor speed limit]]></Comment>
+							<Type>UDINT</Type>
+						</Var>
+						<Var>
+							<Name>.P1_300_UG06_TractionRoll.PDOS.PlcToDrv.controlWord</Name>
+							<Comment><![CDATA[ Control word to command the drive]]></Comment>
+							<Type>UINT</Type>
+						</Var>
+						<Var>
+							<Name>.P1_300_UG06_TractionRoll.PDOS.PlcToDrv.vlTargetVelocity</Name>
+							<Comment><![CDATA[ Target velocity [vl = velocity]]]></Comment>
+							<Type>INT</Type>
+						</Var>
+						<Var>
+							<Name>.P1_300_UG06_TractionRoll.PDOS.PlcToDrv.modesOfOperation</Name>
+							<Comment><![CDATA[ Mode of operation command]]></Comment>
+							<Type>SINT</Type>
+						</Var>
+						<Var>
+							<Name>.P1_300_UG06_TractionRoll.PDOS.PlcToDrv.maxTorque</Name>
+							<Comment><![CDATA[ Maximum torque limit]]></Comment>
+							<Type>UINT</Type>
+						</Var>
+						<Var>
+							<Name>.P1_300_UG06_TractionRoll.PDOS.PlcToDrv.maxMotorSpeed</Name>
+							<Comment><![CDATA[ Maximum motor speed limit]]></Comment>
+							<Type>UDINT</Type>
+						</Var>
+						<Var>
+							<Name>.P11_400_UG01_SecondPress.PDOS.PlcToDrv.controlWord</Name>
+							<Comment><![CDATA[ Control word to command the drive]]></Comment>
+							<Type>UINT</Type>
+						</Var>
+						<Var>
+							<Name>.P11_400_UG01_SecondPress.PDOS.PlcToDrv.vlTargetVelocity</Name>
+							<Comment><![CDATA[ Target velocity [vl = velocity]]]></Comment>
+							<Type>INT</Type>
+						</Var>
+						<Var>
+							<Name>.P11_400_UG01_SecondPress.PDOS.PlcToDrv.modesOfOperation</Name>
+							<Comment><![CDATA[ Mode of operation command]]></Comment>
+							<Type>SINT</Type>
+						</Var>
+						<Var>
+							<Name>.P11_400_UG01_SecondPress.PDOS.PlcToDrv.maxTorque</Name>
+							<Comment><![CDATA[ Maximum torque limit]]></Comment>
+							<Type>UINT</Type>
+						</Var>
+						<Var>
+							<Name>.P11_400_UG01_SecondPress.PDOS.PlcToDrv.maxMotorSpeed</Name>
+							<Comment><![CDATA[ Maximum motor speed limit]]></Comment>
+							<Type>UDINT</Type>
+						</Var>
+						<Var>
+							<Name>.P12_400_UG01_FirstPress.PDOS.PlcToDrv.controlWord</Name>
+							<Comment><![CDATA[ Control word to command the drive]]></Comment>
+							<Type>UINT</Type>
+						</Var>
+						<Var>
+							<Name>.P12_400_UG01_FirstPress.PDOS.PlcToDrv.vlTargetVelocity</Name>
+							<Comment><![CDATA[ Target velocity [vl = velocity]]]></Comment>
+							<Type>INT</Type>
+						</Var>
+						<Var>
+							<Name>.P12_400_UG01_FirstPress.PDOS.PlcToDrv.modesOfOperation</Name>
+							<Comment><![CDATA[ Mode of operation command]]></Comment>
+							<Type>SINT</Type>
+						</Var>
+						<Var>
+							<Name>.P12_400_UG01_FirstPress.PDOS.PlcToDrv.maxTorque</Name>
+							<Comment><![CDATA[ Maximum torque limit]]></Comment>
+							<Type>UINT</Type>
+						</Var>
+						<Var>
+							<Name>.P12_400_UG01_FirstPress.PDOS.PlcToDrv.maxMotorSpeed</Name>
+							<Comment><![CDATA[ Maximum motor speed limit]]></Comment>
+							<Type>UDINT</Type>
+						</Var>
+						<Var>
+							<Name>.P13_500_UG01_1GR_UpperSlave.PDOS.PlcToDrv.controlWord</Name>
+							<Comment><![CDATA[ Control word to command the drive]]></Comment>
+							<Type>UINT</Type>
+						</Var>
+						<Var>
+							<Name>.P13_500_UG01_1GR_UpperSlave.PDOS.PlcToDrv.vlTargetVelocity</Name>
+							<Comment><![CDATA[ Target velocity [vl = velocity]]]></Comment>
+							<Type>INT</Type>
+						</Var>
+						<Var>
+							<Name>.P13_500_UG01_1GR_UpperSlave.PDOS.PlcToDrv.modesOfOperation</Name>
+							<Comment><![CDATA[ Mode of operation command]]></Comment>
+							<Type>SINT</Type>
+						</Var>
+						<Var>
+							<Name>.P13_500_UG01_1GR_UpperSlave.PDOS.PlcToDrv.maxTorque</Name>
+							<Comment><![CDATA[ Maximum torque limit]]></Comment>
+							<Type>UINT</Type>
+						</Var>
+						<Var>
+							<Name>.P13_500_UG01_1GR_UpperSlave.PDOS.PlcToDrv.maxMotorSpeed</Name>
+							<Comment><![CDATA[ Maximum motor speed limit]]></Comment>
+							<Type>UDINT</Type>
+						</Var>
+						<Var>
+							<Name>.P13_500_UG02_1GR_LowerMaster.PDOS.PlcToDrv.controlWord</Name>
+							<Comment><![CDATA[ Control word to command the drive]]></Comment>
+							<Type>UINT</Type>
+						</Var>
+						<Var>
+							<Name>.P13_500_UG02_1GR_LowerMaster.PDOS.PlcToDrv.vlTargetVelocity</Name>
+							<Comment><![CDATA[ Target velocity [vl = velocity]]]></Comment>
+							<Type>INT</Type>
+						</Var>
+						<Var>
+							<Name>.P13_500_UG02_1GR_LowerMaster.PDOS.PlcToDrv.modesOfOperation</Name>
+							<Comment><![CDATA[ Mode of operation command]]></Comment>
+							<Type>SINT</Type>
+						</Var>
+						<Var>
+							<Name>.P13_500_UG02_1GR_LowerMaster.PDOS.PlcToDrv.maxTorque</Name>
+							<Comment><![CDATA[ Maximum torque limit]]></Comment>
+							<Type>UINT</Type>
+						</Var>
+						<Var>
+							<Name>.P13_500_UG02_1GR_LowerMaster.PDOS.PlcToDrv.maxMotorSpeed</Name>
+							<Comment><![CDATA[ Maximum motor speed limit]]></Comment>
+							<Type>UDINT</Type>
+						</Var>
+						<Var>
+							<Name>.P13_500_UG03_1GR_UpperMaster.PDOS.PlcToDrv.controlWord</Name>
+							<Comment><![CDATA[ Control word to command the drive]]></Comment>
+							<Type>UINT</Type>
+						</Var>
+						<Var>
+							<Name>.P13_500_UG03_1GR_UpperMaster.PDOS.PlcToDrv.vlTargetVelocity</Name>
+							<Comment><![CDATA[ Target velocity [vl = velocity]]]></Comment>
+							<Type>INT</Type>
+						</Var>
+						<Var>
+							<Name>.P13_500_UG03_1GR_UpperMaster.PDOS.PlcToDrv.modesOfOperation</Name>
+							<Comment><![CDATA[ Mode of operation command]]></Comment>
+							<Type>SINT</Type>
+						</Var>
+						<Var>
+							<Name>.P13_500_UG03_1GR_UpperMaster.PDOS.PlcToDrv.maxTorque</Name>
+							<Comment><![CDATA[ Maximum torque limit]]></Comment>
+							<Type>UINT</Type>
+						</Var>
+						<Var>
+							<Name>.P13_500_UG03_1GR_UpperMaster.PDOS.PlcToDrv.maxMotorSpeed</Name>
+							<Comment><![CDATA[ Maximum motor speed limit]]></Comment>
+							<Type>UDINT</Type>
+						</Var>
+						<Var>
+							<Name>.P13_501_UG01_2GR_LowerSlave.PDOS.PlcToDrv.controlWord</Name>
+							<Comment><![CDATA[ Control word to command the drive]]></Comment>
+							<Type>UINT</Type>
+						</Var>
+						<Var>
+							<Name>.P13_501_UG01_2GR_LowerSlave.PDOS.PlcToDrv.vlTargetVelocity</Name>
+							<Comment><![CDATA[ Target velocity [vl = velocity]]]></Comment>
+							<Type>INT</Type>
+						</Var>
+						<Var>
+							<Name>.P13_501_UG01_2GR_LowerSlave.PDOS.PlcToDrv.modesOfOperation</Name>
+							<Comment><![CDATA[ Mode of operation command]]></Comment>
+							<Type>SINT</Type>
+						</Var>
+						<Var>
+							<Name>.P13_501_UG01_2GR_LowerSlave.PDOS.PlcToDrv.maxTorque</Name>
+							<Comment><![CDATA[ Maximum torque limit]]></Comment>
+							<Type>UINT</Type>
+						</Var>
+						<Var>
+							<Name>.P13_501_UG01_2GR_LowerSlave.PDOS.PlcToDrv.maxMotorSpeed</Name>
+							<Comment><![CDATA[ Maximum motor speed limit]]></Comment>
+							<Type>UDINT</Type>
+						</Var>
+						<Var>
+							<Name>.P13_501_UG02_2GR_UpperSlave.PDOS.PlcToDrv.controlWord</Name>
+							<Comment><![CDATA[ Control word to command the drive]]></Comment>
+							<Type>UINT</Type>
+						</Var>
+						<Var>
+							<Name>.P13_501_UG02_2GR_UpperSlave.PDOS.PlcToDrv.vlTargetVelocity</Name>
+							<Comment><![CDATA[ Target velocity [vl = velocity]]]></Comment>
+							<Type>INT</Type>
+						</Var>
+						<Var>
+							<Name>.P13_501_UG02_2GR_UpperSlave.PDOS.PlcToDrv.modesOfOperation</Name>
+							<Comment><![CDATA[ Mode of operation command]]></Comment>
+							<Type>SINT</Type>
+						</Var>
+						<Var>
+							<Name>.P13_501_UG02_2GR_UpperSlave.PDOS.PlcToDrv.maxTorque</Name>
+							<Comment><![CDATA[ Maximum torque limit]]></Comment>
+							<Type>UINT</Type>
+						</Var>
+						<Var>
+							<Name>.P13_501_UG02_2GR_UpperSlave.PDOS.PlcToDrv.maxMotorSpeed</Name>
+							<Comment><![CDATA[ Maximum motor speed limit]]></Comment>
+							<Type>UDINT</Type>
+						</Var>
+						<Var>
+							<Name>.P13_501_UG03_2GR_LowerMaster.PDOS.PlcToDrv.controlWord</Name>
+							<Comment><![CDATA[ Control word to command the drive]]></Comment>
+							<Type>UINT</Type>
+						</Var>
+						<Var>
+							<Name>.P13_501_UG03_2GR_LowerMaster.PDOS.PlcToDrv.vlTargetVelocity</Name>
+							<Comment><![CDATA[ Target velocity [vl = velocity]]]></Comment>
+							<Type>INT</Type>
+						</Var>
+						<Var>
+							<Name>.P13_501_UG03_2GR_LowerMaster.PDOS.PlcToDrv.modesOfOperation</Name>
+							<Comment><![CDATA[ Mode of operation command]]></Comment>
+							<Type>SINT</Type>
+						</Var>
+						<Var>
+							<Name>.P13_501_UG03_2GR_LowerMaster.PDOS.PlcToDrv.maxTorque</Name>
+							<Comment><![CDATA[ Maximum torque limit]]></Comment>
+							<Type>UINT</Type>
+						</Var>
+						<Var>
+							<Name>.P13_501_UG03_2GR_LowerMaster.PDOS.PlcToDrv.maxMotorSpeed</Name>
+							<Comment><![CDATA[ Maximum motor speed limit]]></Comment>
+							<Type>UDINT</Type>
+						</Var>
+						<Var>
+							<Name>.P14_501_UG01_2GR_UpperMaster.PDOS.PlcToDrv.controlWord</Name>
+							<Comment><![CDATA[ Control word to command the drive]]></Comment>
+							<Type>UINT</Type>
+						</Var>
+						<Var>
+							<Name>.P14_501_UG01_2GR_UpperMaster.PDOS.PlcToDrv.vlTargetVelocity</Name>
+							<Comment><![CDATA[ Target velocity [vl = velocity]]]></Comment>
+							<Type>INT</Type>
+						</Var>
+						<Var>
+							<Name>.P14_501_UG01_2GR_UpperMaster.PDOS.PlcToDrv.modesOfOperation</Name>
+							<Comment><![CDATA[ Mode of operation command]]></Comment>
+							<Type>SINT</Type>
+						</Var>
+						<Var>
+							<Name>.P14_501_UG01_2GR_UpperMaster.PDOS.PlcToDrv.maxTorque</Name>
+							<Comment><![CDATA[ Maximum torque limit]]></Comment>
+							<Type>UINT</Type>
+						</Var>
+						<Var>
+							<Name>.P14_501_UG01_2GR_UpperMaster.PDOS.PlcToDrv.maxMotorSpeed</Name>
+							<Comment><![CDATA[ Maximum motor speed limit]]></Comment>
+							<Type>UDINT</Type>
+						</Var>
+						<Var>
+							<Name>.P14_502_UG01_3GR_LowerSlave.PDOS.PlcToDrv.controlWord</Name>
+							<Comment><![CDATA[ Control word to command the drive]]></Comment>
+							<Type>UINT</Type>
+						</Var>
+						<Var>
+							<Name>.P14_502_UG01_3GR_LowerSlave.PDOS.PlcToDrv.vlTargetVelocity</Name>
+							<Comment><![CDATA[ Target velocity [vl = velocity]]]></Comment>
+							<Type>INT</Type>
+						</Var>
+						<Var>
+							<Name>.P14_502_UG01_3GR_LowerSlave.PDOS.PlcToDrv.modesOfOperation</Name>
+							<Comment><![CDATA[ Mode of operation command]]></Comment>
+							<Type>SINT</Type>
+						</Var>
+						<Var>
+							<Name>.P14_502_UG01_3GR_LowerSlave.PDOS.PlcToDrv.maxTorque</Name>
+							<Comment><![CDATA[ Maximum torque limit]]></Comment>
+							<Type>UINT</Type>
+						</Var>
+						<Var>
+							<Name>.P14_502_UG01_3GR_LowerSlave.PDOS.PlcToDrv.maxMotorSpeed</Name>
+							<Comment><![CDATA[ Maximum motor speed limit]]></Comment>
+							<Type>UDINT</Type>
+						</Var>
+						<Var>
+							<Name>.P14_502_UG02_3GR_UpperSlave.PDOS.PlcToDrv.controlWord</Name>
+							<Comment><![CDATA[ Control word to command the drive]]></Comment>
+							<Type>UINT</Type>
+						</Var>
+						<Var>
+							<Name>.P14_502_UG02_3GR_UpperSlave.PDOS.PlcToDrv.vlTargetVelocity</Name>
+							<Comment><![CDATA[ Target velocity [vl = velocity]]]></Comment>
+							<Type>INT</Type>
+						</Var>
+						<Var>
+							<Name>.P14_502_UG02_3GR_UpperSlave.PDOS.PlcToDrv.modesOfOperation</Name>
+							<Comment><![CDATA[ Mode of operation command]]></Comment>
+							<Type>SINT</Type>
+						</Var>
+						<Var>
+							<Name>.P14_502_UG02_3GR_UpperSlave.PDOS.PlcToDrv.maxTorque</Name>
+							<Comment><![CDATA[ Maximum torque limit]]></Comment>
+							<Type>UINT</Type>
+						</Var>
+						<Var>
+							<Name>.P14_502_UG02_3GR_UpperSlave.PDOS.PlcToDrv.maxMotorSpeed</Name>
+							<Comment><![CDATA[ Maximum motor speed limit]]></Comment>
+							<Type>UDINT</Type>
+						</Var>
+						<Var>
+							<Name>.P14_502_UG03_3GR_LowerMaster.PDOS.PlcToDrv.controlWord</Name>
+							<Comment><![CDATA[ Control word to command the drive]]></Comment>
+							<Type>UINT</Type>
+						</Var>
+						<Var>
+							<Name>.P14_502_UG03_3GR_LowerMaster.PDOS.PlcToDrv.vlTargetVelocity</Name>
+							<Comment><![CDATA[ Target velocity [vl = velocity]]]></Comment>
+							<Type>INT</Type>
+						</Var>
+						<Var>
+							<Name>.P14_502_UG03_3GR_LowerMaster.PDOS.PlcToDrv.modesOfOperation</Name>
+							<Comment><![CDATA[ Mode of operation command]]></Comment>
+							<Type>SINT</Type>
+						</Var>
+						<Var>
+							<Name>.P14_502_UG03_3GR_LowerMaster.PDOS.PlcToDrv.maxTorque</Name>
+							<Comment><![CDATA[ Maximum torque limit]]></Comment>
+							<Type>UINT</Type>
+						</Var>
+						<Var>
+							<Name>.P14_502_UG03_3GR_LowerMaster.PDOS.PlcToDrv.maxMotorSpeed</Name>
+							<Comment><![CDATA[ Maximum motor speed limit]]></Comment>
+							<Type>UDINT</Type>
+						</Var>
+						<Var>
+							<Name>.P14_502_UG04_3GR_UpperMaster.PDOS.PlcToDrv.controlWord</Name>
+							<Comment><![CDATA[ Control word to command the drive]]></Comment>
+							<Type>UINT</Type>
+						</Var>
+						<Var>
+							<Name>.P14_502_UG04_3GR_UpperMaster.PDOS.PlcToDrv.vlTargetVelocity</Name>
+							<Comment><![CDATA[ Target velocity [vl = velocity]]]></Comment>
+							<Type>INT</Type>
+						</Var>
+						<Var>
+							<Name>.P14_502_UG04_3GR_UpperMaster.PDOS.PlcToDrv.modesOfOperation</Name>
+							<Comment><![CDATA[ Mode of operation command]]></Comment>
+							<Type>SINT</Type>
+						</Var>
+						<Var>
+							<Name>.P14_502_UG04_3GR_UpperMaster.PDOS.PlcToDrv.maxTorque</Name>
+							<Comment><![CDATA[ Maximum torque limit]]></Comment>
+							<Type>UINT</Type>
+						</Var>
+						<Var>
+							<Name>.P14_502_UG04_3GR_UpperMaster.PDOS.PlcToDrv.maxMotorSpeed</Name>
+							<Comment><![CDATA[ Maximum motor speed limit]]></Comment>
+							<Type>UDINT</Type>
+						</Var>
+						<Var>
+							<Name>.P15_600_UG01_Rewinder.PDOS.PlcToDrv.controlWord</Name>
+							<Comment><![CDATA[ Control word to command the drive]]></Comment>
+							<Type>UINT</Type>
+						</Var>
+						<Var>
+							<Name>.P15_600_UG01_Rewinder.PDOS.PlcToDrv.vlTargetVelocity</Name>
+							<Comment><![CDATA[ Target velocity [vl = velocity]]]></Comment>
+							<Type>INT</Type>
+						</Var>
+						<Var>
+							<Name>.P15_600_UG01_Rewinder.PDOS.PlcToDrv.modesOfOperation</Name>
+							<Comment><![CDATA[ Mode of operation command]]></Comment>
+							<Type>SINT</Type>
+						</Var>
+						<Var>
+							<Name>.P15_600_UG01_Rewinder.PDOS.PlcToDrv.maxTorque</Name>
+							<Comment><![CDATA[ Maximum torque limit]]></Comment>
+							<Type>UINT</Type>
+						</Var>
+						<Var>
+							<Name>.P15_600_UG01_Rewinder.PDOS.PlcToDrv.maxMotorSpeed</Name>
+							<Comment><![CDATA[ Maximum motor speed limit]]></Comment>
+							<Type>UDINT</Type>
 						</Var>
 					</Vars>
 					<Contexts>

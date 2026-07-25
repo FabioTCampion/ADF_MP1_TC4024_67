@@ -39,6 +39,10 @@ VAR_OUTPUT
     motorSpeedEng             : REAL;                   // Actual motor speed read from drive in enginering units scaled
     outputCurrent           : REAL;                   // Output current read from drive
     outputTorque            : REAL;                   // Output torque read from drive
+    currentErrorCode        : UINT;                   // Current C2000 Plus error code (CiA 402 object 603Fh)
+    faultCodeAtTrip         : UINT;                   // Error code latched when the fault is detected
+    faultTorqueAtTrip       : REAL;                   // Scaled output torque latched with the fault
+    faultEventCounter       : UDINT;                  // Increments for each new fault/code while faulted
 	
 	
 	pdoSpeedSet			: INT;
@@ -67,6 +71,7 @@ VAR
     resetSeqActive    : BOOL;     // TRUE while running either phase
     resetClearPt      : TIME := T#500MS;    // adjust if your drive needs longer clear
     resetPulsePt      : TIME := T#1000ms;  // 1 second fault-reset pulse	
+    faultWasActive    : BOOL;     // Previous-cycle state used by the diagnostic latch
 
 END_VAR
 
@@ -103,6 +108,7 @@ _DigitalOutputs();   // Method to manage the status of digital outputs
 _AnalogOutputs();    // Method to handle analog output values
 _SetOperationMode();
 _FeedBackVariables(); // Method to process feedback variables from the drive
+_FaultSnapshot();     // Latch code and torque at the instant of a drive fault
 _SpeedReference();         // Method to set or process the setpoint values
 _TorqueReference();]]></ST>
     </Implementation>
@@ -353,6 +359,27 @@ END_VAR
 ]]></Declaration>
       <Implementation>
         <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_FaultSnapshot" Id="{ceab550e-0011-4358-97fe-9cf54bb37e18}">
+      <Declaration><![CDATA[METHOD PRIVATE _FaultSnapshot
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[currentErrorCode := PDOS.DrvToPLC.errorCode;
+
+// Capture the first fault cycle and any subsequent error-code change while
+// the drive remains faulted. The values stay latched after a drive reset so
+// the historian cannot lose a short-lived diagnostic between ADS polls.
+IF statusWord.fault AND
+   ((NOT faultWasActive) OR (currentErrorCode <> faultCodeAtTrip)) THEN
+    faultCodeAtTrip := currentErrorCode;
+    faultTorqueAtTrip := outputTorque;
+    faultEventCounter := faultEventCounter + 1;
+END_IF;
+
+faultWasActive := statusWord.fault;]]></ST>
       </Implementation>
     </Method>
     <Method Name="_FeedBackVariables" Id="{7111ba05-eac4-0a06-3f22-f91bad671040}">

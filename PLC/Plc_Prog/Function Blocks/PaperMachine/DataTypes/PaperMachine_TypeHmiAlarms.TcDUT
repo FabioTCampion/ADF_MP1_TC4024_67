@@ -166,6 +166,9 @@ STRUCT
     // ─────────────── LOW VACUUM EXHAUST FAN ───────────────
     lowVacuumFanFaultAlarm                   : BOOL;  // Low vacuum exhaust fan fault / trip
 
+    // ─────────────── WINDER DRIVE ───────────────
+    winderDriveFaultAlarm                    : BOOL;  // Winder C2000 Plus fault / trip
+
     // ─────────────── LUBRIFICATION PUMPS ───────────────
     lubricationPump1FaultAlarm              : BOOL;  // Lubrication pump 1 fault / trip
     lubricationPump2FaultAlarm              : BOOL;  // Lubrication pump 2 fault / trip

@@ -251,6 +251,7 @@ _550_DryingSectionLubrification();
 _600_WinderGroup();
 
 _888_Alarms();
+_900_DriveFaultDiagnostics();
 
 
 // Headbox / Stock Prep / Wet End Auxiliary Systems
@@ -19502,7 +19503,7 @@ FB_AlarmControl
                             </o>
                             <o t="BoxTreeOperand">
                               <o n="Operand" t="Operand">
-                                <v n="Operand">"P1_100_UG03_SuctionRoll.statusWord.readyToSwitchOn"</v>
+                                <v n="Operand">"P1_100_UG03_SuctionRoll.statusWord.fault"</v>
                                 <v n="Type">"BOOL"</v>
                                 <v n="Comment">""</v>
                                 <v n="SymbolComment">""</v>
@@ -19540,7 +19541,7 @@ FB_AlarmControl
                             </o>
                             <o t="BoxTreeOperand">
                               <o n="Operand" t="Operand">
-                                <v n="Operand">"P1_300_UG06_TractionRoll.statusWord.readyToSwitchOn"</v>
+                                <v n="Operand">"P1_300_UG06_TractionRoll.statusWord.fault"</v>
                                 <v n="Type">"BOOL"</v>
                                 <v n="Comment">""</v>
                                 <v n="SymbolComment">""</v>
@@ -19673,7 +19674,7 @@ FB_AlarmControl
                             </o>
                             <o t="BoxTreeOperand">
                               <o n="Operand" t="Operand">
-                                <v n="Operand">"P12_400_UG01_FirstPress.statusWord.readyToSwitchOn"</v>
+                                <v n="Operand">"P12_400_UG01_FirstPress.statusWord.fault"</v>
                                 <v n="Type">"BOOL"</v>
                                 <v n="Comment">""</v>
                                 <v n="SymbolComment">""</v>
@@ -19692,8 +19693,8 @@ FB_AlarmControl
                             </o>
                             <o t="BoxTreeOperand">
                               <o n="Operand" t="Operand">
-                                <v n="Operand">"P11_400_UG01_SecondPress.statusWord.readyToSwitchOn"</v>
-                                <v n="Type">"BOOL"</v>
+                                <v n="Operand">""</v>
+                                <n n="Type" />
                                 <v n="Comment">""</v>
                                 <v n="SymbolComment">""</v>
                                 <v n="Address">""</v>
@@ -19711,8 +19712,8 @@ FB_AlarmControl
                             </o>
                             <o t="BoxTreeOperand">
                               <o n="Operand" t="Operand">
-                                <v n="Operand">""</v>
-                                <n n="Type" />
+                                <v n="Operand">"P11_400_UG01_SecondPress.statusWord.fault"</v>
+                                <v n="Type">"BOOL"</v>
                                 <v n="Comment">""</v>
                                 <v n="SymbolComment">""</v>
                                 <v n="Address">""</v>
@@ -19958,7 +19959,7 @@ FB_AlarmControl
                             </o>
                             <o t="BoxTreeOperand">
                               <o n="Operand" t="Operand">
-                                <v n="Operand">"P13_500_UG03_1GR_UpperMaster.statusWord.readyToSwitchOn"</v>
+                                <v n="Operand">"P13_500_UG03_1GR_UpperMaster.statusWord.fault"</v>
                                 <v n="Type">"BOOL"</v>
                                 <v n="Comment">""</v>
                                 <v n="SymbolComment">""</v>
@@ -19996,7 +19997,7 @@ FB_AlarmControl
                             </o>
                             <o t="BoxTreeOperand">
                               <o n="Operand" t="Operand">
-                                <v n="Operand">"P13_500_UG01_1GR_UpperSlave.statusWord.readyToSwitchOn"</v>
+                                <v n="Operand">"P13_500_UG01_1GR_UpperSlave.statusWord.fault"</v>
                                 <v n="Type">"BOOL"</v>
                                 <v n="Comment">""</v>
                                 <v n="SymbolComment">""</v>
@@ -20072,7 +20073,7 @@ FB_AlarmControl
                             </o>
                             <o t="BoxTreeOperand">
                               <o n="Operand" t="Operand">
-                                <v n="Operand">"P13_500_UG02_1GR_LowerMaster.statusWord.readyToSwitchOn"</v>
+                                <v n="Operand">"P13_500_UG02_1GR_LowerMaster.statusWord.fault"</v>
                                 <v n="Type">"BOOL"</v>
                                 <v n="Comment">""</v>
                                 <v n="SymbolComment">""</v>
@@ -20395,7 +20396,7 @@ FB_AlarmControl
                             </o>
                             <o t="BoxTreeOperand">
                               <o n="Operand" t="Operand">
-                                <v n="Operand">"P14_501_UG01_2GR_UpperMaster.statusWord.readyToSwitchOn"</v>
+                                <v n="Operand">"P14_501_UG01_2GR_UpperMaster.statusWord.fault"</v>
                                 <v n="Type">"BOOL"</v>
                                 <v n="Comment">""</v>
                                 <v n="SymbolComment">""</v>
@@ -20433,7 +20434,7 @@ FB_AlarmControl
                             </o>
                             <o t="BoxTreeOperand">
                               <o n="Operand" t="Operand">
-                                <v n="Operand">"P13_501_UG02_2GR_UpperSlave.statusWord.readyToSwitchOn"</v>
+                                <v n="Operand">"P13_501_UG02_2GR_UpperSlave.statusWord.fault"</v>
                                 <v n="Type">"BOOL"</v>
                                 <v n="Comment">""</v>
                                 <v n="SymbolComment">""</v>
@@ -20509,7 +20510,7 @@ FB_AlarmControl
                             </o>
                             <o t="BoxTreeOperand">
                               <o n="Operand" t="Operand">
-                                <v n="Operand">"P13_501_UG03_2GR_LowerMaster.statusWord.readyToSwitchOn"</v>
+                                <v n="Operand">"P13_501_UG03_2GR_LowerMaster.statusWord.fault"</v>
                                 <v n="Type">"BOOL"</v>
                                 <v n="Comment">""</v>
                                 <v n="SymbolComment">""</v>
@@ -20547,7 +20548,7 @@ FB_AlarmControl
                             </o>
                             <o t="BoxTreeOperand">
                               <o n="Operand" t="Operand">
-                                <v n="Operand">"P13_501_UG01_2GR_LowerSlave.statusWord.readyToSwitchOn"</v>
+                                <v n="Operand">"P13_501_UG01_2GR_LowerSlave.statusWord.fault"</v>
                                 <v n="Type">"BOOL"</v>
                                 <v n="Comment">""</v>
                                 <v n="SymbolComment">""</v>
@@ -20832,7 +20833,7 @@ FB_AlarmControl
                             </o>
                             <o t="BoxTreeOperand">
                               <o n="Operand" t="Operand">
-                                <v n="Operand">"P14_502_UG04_3GR_UpperMaster.statusWord.readyToSwitchOn"</v>
+                                <v n="Operand">"P14_502_UG04_3GR_UpperMaster.statusWord.fault"</v>
                                 <v n="Type">"BOOL"</v>
                                 <v n="Comment">""</v>
                                 <v n="SymbolComment">""</v>
@@ -20870,7 +20871,7 @@ FB_AlarmControl
                             </o>
                             <o t="BoxTreeOperand">
                               <o n="Operand" t="Operand">
-                                <v n="Operand">"P14_502_UG02_3GR_UpperSlave.statusWord.readyToSwitchOn"</v>
+                                <v n="Operand">"P14_502_UG02_3GR_UpperSlave.statusWord.fault"</v>
                                 <v n="Type">"BOOL"</v>
                                 <v n="Comment">""</v>
                                 <v n="SymbolComment">""</v>
@@ -20946,7 +20947,7 @@ FB_AlarmControl
                             </o>
                             <o t="BoxTreeOperand">
                               <o n="Operand" t="Operand">
-                                <v n="Operand">"P14_502_UG03_3GR_LowerMaster.statusWord.readyToSwitchOn"</v>
+                                <v n="Operand">"P14_502_UG03_3GR_LowerMaster.statusWord.fault"</v>
                                 <v n="Type">"BOOL"</v>
                                 <v n="Comment">""</v>
                                 <v n="SymbolComment">""</v>
@@ -20984,7 +20985,7 @@ FB_AlarmControl
                             </o>
                             <o t="BoxTreeOperand">
                               <o n="Operand" t="Operand">
-                                <v n="Operand">"P14_502_UG01_3GR_LowerSlave.statusWord.readyToSwitchOn"</v>
+                                <v n="Operand">"P14_502_UG01_3GR_LowerSlave.statusWord.fault"</v>
                                 <v n="Type">"BOOL"</v>
                                 <v n="Comment">""</v>
                                 <v n="SymbolComment">""</v>
@@ -21288,8 +21289,8 @@ FB_AlarmControl
                             </o>
                             <o t="BoxTreeOperand">
                               <o n="Operand" t="Operand">
-                                <v n="Operand">""</v>
-                                <n n="Type" />
+                                <v n="Operand">"P1_100_UG04.statusWord.fault"</v>
+                                <v n="Type">"BOOL"</v>
                                 <v n="Comment">""</v>
                                 <v n="SymbolComment">""</v>
                                 <v n="Address">""</v>
@@ -21307,8 +21308,8 @@ FB_AlarmControl
                             </o>
                             <o t="BoxTreeOperand">
                               <o n="Operand" t="Operand">
-                                <v n="Operand">""</v>
-                                <n n="Type" />
+                                <v n="Operand">"P1_100_UG02.statusWord.fault"</v>
+                                <v n="Type">"BOOL"</v>
                                 <v n="Comment">""</v>
                                 <v n="SymbolComment">""</v>
                                 <v n="Address">""</v>
@@ -21326,8 +21327,8 @@ FB_AlarmControl
                             </o>
                             <o t="BoxTreeOperand">
                               <o n="Operand" t="Operand">
-                                <v n="Operand">""</v>
-                                <n n="Type" />
+                                <v n="Operand">"P1_100_UG05.statusWord.fault"</v>
+                                <v n="Type">"BOOL"</v>
                                 <v n="Comment">""</v>
                                 <v n="SymbolComment">""</v>
                                 <v n="Address">""</v>
@@ -21345,8 +21346,8 @@ FB_AlarmControl
                             </o>
                             <o t="BoxTreeOperand">
                               <o n="Operand" t="Operand">
-                                <v n="Operand">""</v>
-                                <n n="Type" />
+                                <v n="Operand">"P1_100_UG01.statusWord.fault"</v>
+                                <v n="Type">"BOOL"</v>
                                 <v n="Comment">""</v>
                                 <v n="SymbolComment">""</v>
                                 <v n="Address">""</v>
@@ -39119,6 +39120,100 @@ paperMachineHmiCommands.wirePitSetpointAuto
             </TypeList>
           </XmlArchive>
         </NWL>
+      </Implementation>
+    </Method>
+    <Method Name="_900_DriveFaultDiagnostics" Id="{a7232a3a-7045-4ad4-87db-050a923ee00e}">
+      <Declaration><![CDATA[METHOD PRIVATE _900_DriveFaultDiagnostics
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// Wet end and process drives
+paperMachineHmiStatus.formingBoardSuctionRollFaultCode := P1_100_UG03_SuctionRoll.faultCodeAtTrip;
+paperMachineHmiStatus.formingBoardSuctionRollFaultTorque := P1_100_UG03_SuctionRoll.faultTorqueAtTrip;
+paperMachineHmiStatus.formingBoardSuctionRollFaultEventCounter := P1_100_UG03_SuctionRoll.faultEventCounter;
+
+paperMachineHmiStatus.formingBoardTractionRollFaultCode := P1_300_UG06_TractionRoll.faultCodeAtTrip;
+paperMachineHmiStatus.formingBoardTractionRollFaultTorque := P1_300_UG06_TractionRoll.faultTorqueAtTrip;
+paperMachineHmiStatus.formingBoardTractionRollFaultEventCounter := P1_300_UG06_TractionRoll.faultEventCounter;
+
+paperMachineHmiStatus.mixingPumpFaultCode := P1_100_UG01.faultCodeAtTrip;
+paperMachineHmiStatus.mixingPumpFaultTorque := P1_100_UG01.faultTorqueAtTrip;
+paperMachineHmiStatus.mixingPumpFaultEventCounter := P1_100_UG01.faultEventCounter;
+
+paperMachineHmiStatus.wirePitPumpFaultCode := P1_100_UG02.faultCodeAtTrip;
+paperMachineHmiStatus.wirePitPumpFaultTorque := P1_100_UG02.faultTorqueAtTrip;
+paperMachineHmiStatus.wirePitPumpFaultEventCounter := P1_100_UG02.faultEventCounter;
+
+paperMachineHmiStatus.couchPitPumpFaultCode := P1_100_UG04.faultCodeAtTrip;
+paperMachineHmiStatus.couchPitPumpFaultTorque := P1_100_UG04.faultTorqueAtTrip;
+paperMachineHmiStatus.couchPitPumpFaultEventCounter := P1_100_UG04.faultEventCounter;
+
+paperMachineHmiStatus.stockPumpFaultCode := P1_100_UG05.faultCodeAtTrip;
+paperMachineHmiStatus.stockPumpFaultTorque := P1_100_UG05.faultTorqueAtTrip;
+paperMachineHmiStatus.stockPumpFaultEventCounter := P1_100_UG05.faultEventCounter;
+
+// Press section
+paperMachineHmiStatus.pressSectionFirstPressFaultCode := P12_400_UG01_FirstPress.faultCodeAtTrip;
+paperMachineHmiStatus.pressSectionFirstPressFaultTorque := P12_400_UG01_FirstPress.faultTorqueAtTrip;
+paperMachineHmiStatus.pressSectionFirstPressFaultEventCounter := P12_400_UG01_FirstPress.faultEventCounter;
+
+paperMachineHmiStatus.pressSectionSecondPressFaultCode := P11_400_UG01_SecondPress.faultCodeAtTrip;
+paperMachineHmiStatus.pressSectionSecondPressFaultTorque := P11_400_UG01_SecondPress.faultTorqueAtTrip;
+paperMachineHmiStatus.pressSectionSecondPressFaultEventCounter := P11_400_UG01_SecondPress.faultEventCounter;
+
+// Drying section - group 1
+paperMachineHmiStatus.dryingSectionGroup1UpperMasterFaultCode := P13_500_UG03_1GR_UpperMaster.faultCodeAtTrip;
+paperMachineHmiStatus.dryingSectionGroup1UpperMasterFaultTorque := P13_500_UG03_1GR_UpperMaster.faultTorqueAtTrip;
+paperMachineHmiStatus.dryingSectionGroup1UpperMasterFaultEventCounter := P13_500_UG03_1GR_UpperMaster.faultEventCounter;
+
+paperMachineHmiStatus.dryingSectionGroup1UpperSlave1FaultCode := P13_500_UG01_1GR_UpperSlave.faultCodeAtTrip;
+paperMachineHmiStatus.dryingSectionGroup1UpperSlave1FaultTorque := P13_500_UG01_1GR_UpperSlave.faultTorqueAtTrip;
+paperMachineHmiStatus.dryingSectionGroup1UpperSlave1FaultEventCounter := P13_500_UG01_1GR_UpperSlave.faultEventCounter;
+
+paperMachineHmiStatus.dryingSectionGroup1LowerMasterFaultCode := P13_500_UG02_1GR_LowerMaster.faultCodeAtTrip;
+paperMachineHmiStatus.dryingSectionGroup1LowerMasterFaultTorque := P13_500_UG02_1GR_LowerMaster.faultTorqueAtTrip;
+paperMachineHmiStatus.dryingSectionGroup1LowerMasterFaultEventCounter := P13_500_UG02_1GR_LowerMaster.faultEventCounter;
+
+// Drying section - group 2
+paperMachineHmiStatus.dryingSectionGroup2UpperMasterFaultCode := P14_501_UG01_2GR_UpperMaster.faultCodeAtTrip;
+paperMachineHmiStatus.dryingSectionGroup2UpperMasterFaultTorque := P14_501_UG01_2GR_UpperMaster.faultTorqueAtTrip;
+paperMachineHmiStatus.dryingSectionGroup2UpperMasterFaultEventCounter := P14_501_UG01_2GR_UpperMaster.faultEventCounter;
+
+paperMachineHmiStatus.dryingSectionGroup2UpperSlave1FaultCode := P13_501_UG02_2GR_UpperSlave.faultCodeAtTrip;
+paperMachineHmiStatus.dryingSectionGroup2UpperSlave1FaultTorque := P13_501_UG02_2GR_UpperSlave.faultTorqueAtTrip;
+paperMachineHmiStatus.dryingSectionGroup2UpperSlave1FaultEventCounter := P13_501_UG02_2GR_UpperSlave.faultEventCounter;
+
+paperMachineHmiStatus.dryingSectionGroup2LowerMasterFaultCode := P13_501_UG03_2GR_LowerMaster.faultCodeAtTrip;
+paperMachineHmiStatus.dryingSectionGroup2LowerMasterFaultTorque := P13_501_UG03_2GR_LowerMaster.faultTorqueAtTrip;
+paperMachineHmiStatus.dryingSectionGroup2LowerMasterFaultEventCounter := P13_501_UG03_2GR_LowerMaster.faultEventCounter;
+
+paperMachineHmiStatus.dryingSectionGroup2LowerSlave1FaultCode := P13_501_UG01_2GR_LowerSlave.faultCodeAtTrip;
+paperMachineHmiStatus.dryingSectionGroup2LowerSlave1FaultTorque := P13_501_UG01_2GR_LowerSlave.faultTorqueAtTrip;
+paperMachineHmiStatus.dryingSectionGroup2LowerSlave1FaultEventCounter := P13_501_UG01_2GR_LowerSlave.faultEventCounter;
+
+// Drying section - group 3
+paperMachineHmiStatus.dryingSectionGroup3UpperMasterFaultCode := P14_502_UG04_3GR_UpperMaster.faultCodeAtTrip;
+paperMachineHmiStatus.dryingSectionGroup3UpperMasterFaultTorque := P14_502_UG04_3GR_UpperMaster.faultTorqueAtTrip;
+paperMachineHmiStatus.dryingSectionGroup3UpperMasterFaultEventCounter := P14_502_UG04_3GR_UpperMaster.faultEventCounter;
+
+paperMachineHmiStatus.dryingSectionGroup3UpperSlave1FaultCode := P14_502_UG02_3GR_UpperSlave.faultCodeAtTrip;
+paperMachineHmiStatus.dryingSectionGroup3UpperSlave1FaultTorque := P14_502_UG02_3GR_UpperSlave.faultTorqueAtTrip;
+paperMachineHmiStatus.dryingSectionGroup3UpperSlave1FaultEventCounter := P14_502_UG02_3GR_UpperSlave.faultEventCounter;
+
+paperMachineHmiStatus.dryingSectionGroup3LowerMasterFaultCode := P14_502_UG03_3GR_LowerMaster.faultCodeAtTrip;
+paperMachineHmiStatus.dryingSectionGroup3LowerMasterFaultTorque := P14_502_UG03_3GR_LowerMaster.faultTorqueAtTrip;
+paperMachineHmiStatus.dryingSectionGroup3LowerMasterFaultEventCounter := P14_502_UG03_3GR_LowerMaster.faultEventCounter;
+
+paperMachineHmiStatus.dryingSectionGroup3LowerSlave1FaultCode := P14_502_UG01_3GR_LowerSlave.faultCodeAtTrip;
+paperMachineHmiStatus.dryingSectionGroup3LowerSlave1FaultTorque := P14_502_UG01_3GR_LowerSlave.faultTorqueAtTrip;
+paperMachineHmiStatus.dryingSectionGroup3LowerSlave1FaultEventCounter := P14_502_UG01_3GR_LowerSlave.faultEventCounter;
+
+// Winder
+paperMachineHmiStatus.winderFaultCode := P15_600_UG01_Rewinder.faultCodeAtTrip;
+paperMachineHmiStatus.winderFaultTorque := P15_600_UG01_Rewinder.faultTorqueAtTrip;
+paperMachineHmiStatus.winderFaultEventCounter := P15_600_UG01_Rewinder.faultEventCounter;
+paperMachineHmiAlarms.winderDriveFaultAlarm := P15_600_UG01_Rewinder.statusWord.fault;]]></ST>
       </Implementation>
     </Method>
     <Method Name="machineReset" Id="{02d7d166-7912-45b0-ae8c-bd34367b2eb6}">
