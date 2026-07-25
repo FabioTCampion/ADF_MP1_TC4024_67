@@ -50,14 +50,15 @@ public sealed class HistorianProcessorTests
 
         var cycle = processor.Process(CreateSnapshot(
             firstAt.AddSeconds(1),
-            """{"speed":13.0,"running":true}""",
+            """{"speed":13.0,"running":false}""",
             """{"start":true,"setpoint":15.0}""",
             """{"driveFault":true}"""));
 
         var status = Assert.Single(cycle.StatusChanges);
-        Assert.Equal("speed", status.FieldName);
-        Assert.Equal("12.5", status.PreviousValueJson);
-        Assert.Equal("13.0", status.CurrentValueJson);
+        Assert.Equal("running", status.FieldName);
+        Assert.Equal("true", status.PreviousValueJson);
+        Assert.Equal("false", status.CurrentValueJson);
+        Assert.DoesNotContain(cycle.StatusChanges, item => item.FieldName == "speed");
 
         var command = Assert.Single(cycle.CommandChanges);
         Assert.Equal("start", command.FieldName);
@@ -84,6 +85,66 @@ public sealed class HistorianProcessorTests
 
         Assert.False(beforeInterval.SaveStatusSnapshot);
         Assert.True(atInterval.SaveStatusSnapshot);
+    }
+
+    [Fact]
+    public void TelemetryUsesDedicatedIntervalAndIgnoresAnalogStatusNoise()
+    {
+        var processor = new HistorianProcessor(new HistorianOptions
+        {
+            TelemetrySampleIntervalSeconds = 5,
+            StatusSnapshotIntervalSeconds = 60
+        });
+        var firstAt = new DateTimeOffset(2026, 7, 24, 12, 0, 0, TimeSpan.Zero);
+        var initial = CreateSnapshot(
+            firstAt,
+            """{"dryingSectionGroup3UpperMasterSpeedMPM":100.0,"running":true}""",
+            """{"start":false}""",
+            """{"fault":false}""");
+        var first = processor.Process(initial);
+        var beforeInterval = processor.Process(CreateSnapshot(
+            firstAt.AddSeconds(4),
+            """{"dryingSectionGroup3UpperMasterSpeedMPM":101.0,"running":true}""",
+            """{"start":false}""",
+            """{"fault":false}"""));
+        var atInterval = processor.Process(CreateSnapshot(
+            firstAt.AddSeconds(5),
+            """{"dryingSectionGroup3UpperMasterSpeedMPM":102.0,"running":true}""",
+            """{"start":false}""",
+            """{"fault":false}"""));
+
+        Assert.True(first.SaveTelemetrySample);
+        Assert.False(beforeInterval.SaveTelemetrySample);
+        Assert.True(atInterval.SaveTelemetrySample);
+        Assert.Empty(beforeInterval.StatusChanges);
+        Assert.Empty(atInterval.StatusChanges);
+    }
+
+    [Fact]
+    public void PaperBreakIsCreatedAndClosedFromGroupThreeReference()
+    {
+        var processor = CreateProcessor();
+        var firstAt = new DateTimeOffset(2026, 7, 24, 12, 0, 0, TimeSpan.Zero);
+        var baseline = processor.Process(CreateSnapshot(
+            firstAt,
+            """{"dryingSectionGroup3UpperMasterSpeedMPM":120.0,"dryingSectionGroup3PaperPresence":true}""",
+            """{"start":false}""",
+            """{"fault":false}"""));
+        var started = processor.Process(CreateSnapshot(
+            firstAt.AddSeconds(1),
+            """{"dryingSectionGroup3UpperMasterSpeedMPM":119.0,"dryingSectionGroup3PaperPresence":false}""",
+            """{"start":false}""",
+            """{"fault":false}"""));
+        var ended = processor.Process(CreateSnapshot(
+            firstAt.AddSeconds(8),
+            """{"dryingSectionGroup3UpperMasterSpeedMPM":121.0,"dryingSectionGroup3PaperPresence":true}""",
+            """{"start":false}""",
+            """{"fault":false}"""));
+
+        Assert.Single(baseline.PaperBreakTransitions);
+        Assert.False(baseline.PaperBreakTransitions[0].IsActive);
+        Assert.True(Assert.Single(started.PaperBreakTransitions).IsActive);
+        Assert.False(Assert.Single(ended.PaperBreakTransitions).IsActive);
     }
 
     [Fact]

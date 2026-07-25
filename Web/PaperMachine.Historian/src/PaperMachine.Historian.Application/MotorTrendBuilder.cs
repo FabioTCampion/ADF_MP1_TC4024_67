@@ -4,6 +4,46 @@ namespace PaperMachine.Historian.Application;
 
 public static class MotorTrendBuilder
 {
+    public static MotorTrend Build(IReadOnlyList<TelemetrySampleRow> rows)
+    {
+        var motors = TelemetryCatalog.Motors
+            .Where(motor => rows.Any(row =>
+                row.NumericValues.GetValueOrDefault(motor.SpeedField).HasValue ||
+                row.NumericValues.GetValueOrDefault(motor.TorqueField).HasValue))
+            .Select(motor => new MotorTrendMotor(
+                motor.Key,
+                motor.SpeedField,
+                motor.TorqueField,
+                motor.SpeedUnit,
+                motor.TorqueUnit))
+            .ToArray();
+        var steamPressures = TelemetryCatalog.SteamPressures
+            .Where(pressure => rows.Any(row =>
+                row.NumericValues.GetValueOrDefault(pressure.Field).HasValue))
+            .Select(pressure => new SteamPressureTrend(
+                pressure.Key,
+                pressure.Label,
+                pressure.Field,
+                pressure.Unit))
+            .ToArray();
+        var samples = rows
+            .Select(row => new MotorTrendSample(
+                row.CapturedAtUtc,
+                motors.ToDictionary(
+                    motor => motor.Key,
+                    motor => new MotorTrendValue(
+                        row.NumericValues.GetValueOrDefault(motor.SpeedField),
+                        row.NumericValues.GetValueOrDefault(motor.TorqueField)),
+                    StringComparer.Ordinal),
+                steamPressures.ToDictionary(
+                    pressure => pressure.Key,
+                    pressure => row.NumericValues.GetValueOrDefault(pressure.Field),
+                    StringComparer.Ordinal)))
+            .ToArray();
+
+        return new MotorTrend(motors, steamPressures, samples);
+    }
+
     public static MotorTrend Build(IReadOnlyList<StatusSnapshotRow> rows)
     {
         var parsedRows = rows
@@ -19,6 +59,14 @@ public static class MotorTrendBuilder
             .Select(definition => definition!)
             .OrderBy(definition => definition.Key, StringComparer.Ordinal)
             .ToArray();
+        var steamPressures = new[]
+        {
+            new SteamPressureTrend("drying-1", "Grupo 1", "dryingSectionGroup1SteamPressure", "bar"),
+            new SteamPressureTrend("drying-2", "Grupo 2", "dryingSectionGroup2SteamPressure", "bar"),
+            new SteamPressureTrend("drying-3", "Grupo 3", "dryingSectionGroup3SteamPressure", "bar")
+        }
+        .Where(definition => allFieldNames.Contains(definition.Field))
+        .ToArray();
         var samples = parsedRows
             .Select(row => new MotorTrendSample(
                 row.CapturedAtUtc,
@@ -27,10 +75,14 @@ public static class MotorTrendBuilder
                     motor => new MotorTrendValue(
                         row.Values.GetValueOrDefault(motor.SpeedField),
                         row.Values.GetValueOrDefault(motor.TorqueField)),
+                    StringComparer.Ordinal),
+                steamPressures.ToDictionary(
+                    pressure => pressure.Key,
+                    pressure => row.Values.GetValueOrDefault(pressure.Field),
                     StringComparer.Ordinal)))
             .ToArray();
 
-        return new MotorTrend(motors, samples);
+        return new MotorTrend(motors, steamPressures, samples);
     }
 
     private static MotorTrendMotor? CreateDefinition(
@@ -76,6 +128,7 @@ public static class MotorTrendBuilder
 
 public sealed record MotorTrend(
     IReadOnlyList<MotorTrendMotor> Motors,
+    IReadOnlyList<SteamPressureTrend> SteamPressures,
     IReadOnlyList<MotorTrendSample> Samples);
 
 public sealed record MotorTrendMotor(
@@ -87,6 +140,13 @@ public sealed record MotorTrendMotor(
 
 public sealed record MotorTrendSample(
     DateTimeOffset CapturedAtUtc,
-    IReadOnlyDictionary<string, MotorTrendValue> Values);
+    IReadOnlyDictionary<string, MotorTrendValue> Values,
+    IReadOnlyDictionary<string, double?> SteamPressures);
 
 public sealed record MotorTrendValue(double? Speed, double? Torque);
+
+public sealed record SteamPressureTrend(
+    string Key,
+    string Label,
+    string Field,
+    string Unit);

@@ -18,5 +18,6 @@
     <ProjectReference Include="..\..\src\PaperMachine.Historian.Application\PaperMachine.Historian.Application.csproj" />
     <ProjectReference Include="..\..\src\PaperMachine.Historian.Domain\PaperMachine.Historian.Domain.csproj" />
     <ProjectReference Include="..\..\src\PaperMachine.Historian.Infrastructure.Database\PaperMachine.Historian.Infrastructure.Database.csproj" />
+    <ProjectReference Include="..\..\src\PaperMachine.Historian.Web\PaperMachine.Historian.Web.csproj" />
   </ItemGroup>
 </Project>

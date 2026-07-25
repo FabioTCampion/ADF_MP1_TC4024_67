@@ -12,6 +12,9 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
 $service = Get-Service -Name $ServiceName -ErrorAction Stop
+$updaterTask = Get-ScheduledTask `
+    -TaskName 'CPNTeckPaperMachineHistorianUpdater' `
+    -ErrorAction Stop
 $health = Invoke-WebRequest `
     -Uri "http://127.0.0.1:$HttpPort/health" `
     -UseBasicParsing `
@@ -29,6 +32,9 @@ if ($service.Status -ne [ServiceProcess.ServiceControllerStatus]::Running) {
 }
 if ($service.StartType -ne [ServiceProcess.ServiceStartMode]::Automatic) {
     throw "Inicio do servico nao esta automatico: $($service.StartType)"
+}
+if ($updaterTask.State -eq 'Disabled') {
+    throw 'A tarefa de atualizacao esta desabilitada.'
 }
 if ($health.StatusCode -ne 200) {
     throw "Health retornou HTTP $($health.StatusCode)."
@@ -53,5 +59,6 @@ Write-Host '[OK] Instalacao validada.' -ForegroundColor Green
     StartType = $service.StartType
     Version = $version.version
     ReadOnly = $version.readOnly
+    UpdaterTask = $updaterTask.TaskName
     Url = "http://127.0.0.1:$HttpPort"
 }

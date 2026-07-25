@@ -1,5 +1,7 @@
 using System.Text.Json;
+using System.Security.Claims;
 using System.Threading.RateLimiting;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Identity;
@@ -44,9 +46,16 @@ if (!Path.IsPathRooted(databaseOptions.FilePath))
     databaseOptions.FilePath = Path.Combine(builder.Environment.ContentRootPath, databaseOptions.FilePath);
 databaseOptions.Validate();
 
+var updateOptions = builder.Configuration
+    .GetSection(UpdateOptions.SectionName)
+    .Get<UpdateOptions>() ?? new UpdateOptions();
+updateOptions.ResolvePaths(databaseOptions);
+updateOptions.Validate();
+
 builder.Services.AddSingleton(adsOptions);
 builder.Services.AddSingleton(historianOptions);
 builder.Services.AddSingleton(databaseOptions);
+builder.Services.AddSingleton(updateOptions);
 builder.Services.AddSingleton<IPaperMachineReader, AdsPaperMachineReader>();
 builder.Services.AddSingleton<IHistorianRepository, SqliteHistorianRepository>();
 builder.Services.AddSingleton<IUserRepository, SqliteUserRepository>();
@@ -54,7 +63,10 @@ builder.Services.AddSingleton<IPasswordHasher<ApplicationUser>, PasswordHasher<A
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddSingleton<HistorianProcessor>();
 builder.Services.AddSingleton<HistorianRuntimeState>();
+builder.Services.AddSingleton<GitHubReleaseClient>();
+builder.Services.AddSingleton<ApplicationUpdateService>();
 builder.Services.AddHostedService<HistorianWorker>();
+builder.Services.AddHostedService<UpdateCheckWorker>();
 builder.Services.AddHealthChecks();
 var keyPath = Path.Combine(
     Path.GetDirectoryName(databaseOptions.FilePath)!,
@@ -83,9 +95,25 @@ builder.Services
             context.Response.StatusCode = StatusCodes.Status403Forbidden;
             return Task.CompletedTask;
         };
+        options.Events.OnValidatePrincipal = async context =>
+        {
+            var identifier = context.Principal?.FindFirstValue(ClaimTypes.NameIdentifier);
+            var users = context.HttpContext.RequestServices.GetRequiredService<IUserRepository>();
+            var user = long.TryParse(identifier, out var id)
+                ? await users.FindByIdAsync(id, context.HttpContext.RequestAborted)
+                : null;
+            var sessionRole = context.Principal?.FindFirstValue(ClaimTypes.Role);
+            if (user is null || !user.IsActive || sessionRole != user.Role)
+            {
+                context.RejectPrincipal();
+                await context.HttpContext.SignOutAsync(
+                    CookieAuthenticationDefaults.AuthenticationScheme);
+            }
+        };
     });
 builder.Services.AddAuthorization();
 builder.Services.AddRateLimiter(options =>
+{
     options.AddFixedWindowLimiter(
         "authentication",
         limiter =>
@@ -94,7 +122,17 @@ builder.Services.AddRateLimiter(options =>
             limiter.Window = TimeSpan.FromMinutes(1);
             limiter.QueueLimit = 0;
             limiter.AutoReplenishment = true;
-        }));
+        });
+    options.AddFixedWindowLimiter(
+        "updates",
+        limiter =>
+        {
+            limiter.PermitLimit = 10;
+            limiter.Window = TimeSpan.FromMinutes(1);
+            limiter.QueueLimit = 0;
+            limiter.AutoReplenishment = true;
+        });
+});
 
 var app = builder.Build();
 
@@ -134,6 +172,7 @@ app.MapGet("/api/version", () =>
     });
 });
 app.MapHistorianAuthentication();
+app.MapHistorianUpdates();
 
 var api = app.MapGroup("/api").RequireAuthorization();
 
@@ -206,7 +245,7 @@ api.MapGet(
         if (requestedPoints is < 100 or > 2_000)
             return Results.BadRequest(new { error = "maxPoints deve estar entre 100 e 2000." });
 
-        var rows = await repository.GetStatusTrendSamplesAsync(
+        var rows = await repository.GetTelemetryTrendSamplesAsync(
             from,
             to,
             requestedPoints,
@@ -265,6 +304,27 @@ api.MapGet(
             active,
             limit ?? 250,
             cancellationToken)));
+
+api.MapGet(
+    "/history/breaks",
+    async (
+        DateTimeOffset? fromUtc,
+        DateTimeOffset? toUtc,
+        int? limit,
+        IHistorianRepository repository,
+        CancellationToken cancellationToken) =>
+        Results.Ok(await repository.GetPaperBreakEventsAsync(
+            fromUtc,
+            toUtc,
+            limit ?? 250,
+            cancellationToken)));
+
+api.MapGet(
+    "/storage",
+    async (
+        IHistorianRepository repository,
+        CancellationToken cancellationToken) =>
+        Results.Ok(await repository.GetStorageStatusAsync(cancellationToken)));
 
 app.MapFallbackToFile("index.html");
 

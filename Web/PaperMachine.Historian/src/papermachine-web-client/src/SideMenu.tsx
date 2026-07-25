@@ -1,9 +1,9 @@
-export type PageId = "dashboard" | "metrics" | "status" | "graphs" | "alarms" | "commands" | "history";
+export type PageId = "dashboard" | "metrics" | "status" | "graphs" | "alarms" | "commands" | "history" | "users" | "updates";
 
 export type NavigationItem = {
   id: PageId;
   label: string;
-  icon: "dashboard" | "metrics" | "status" | "graphs" | "alarm" | "command" | "history";
+  icon: "dashboard" | "metrics" | "status" | "graphs" | "alarm" | "command" | "history" | "users" | "updates";
 };
 
 type Props = {
@@ -33,6 +33,12 @@ function Icon({ name }: { name: NavigationItem["icon"] }) {
   }
   if (name === "command") {
     return <svg viewBox="0 0 24 24"><path d="M12 2v8M7 5.5A8 8 0 1 0 17 5.5" /><path d="M8 14h8M8 18h5" /></svg>;
+  }
+  if (name === "users") {
+    return <svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8" /></svg>;
+  }
+  if (name === "updates") {
+    return <svg viewBox="0 0 24 24"><path d="M12 3v12M7 10l5 5 5-5" /><path d="M5 20h14" /><path d="M19 8a7 7 0 0 0-13.8-1.5" /></svg>;
   }
   return <svg viewBox="0 0 24 24"><path d="M4 12a8 8 0 1 0 2.3-5.7L4 8.6" /><path d="M4 4v4.6h4.6M12 8v5l3 2" /></svg>;
 }

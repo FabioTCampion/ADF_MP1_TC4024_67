@@ -5,16 +5,22 @@ namespace PaperMachine.Historian.Application;
 
 public sealed class HistorianProcessor
 {
+    private readonly TimeSpan _telemetrySampleInterval;
     private readonly TimeSpan _statusSnapshotInterval;
+    private readonly double _paperBreakMinimumSpeedMpm;
     private JsonElement? _lastStatus;
     private JsonElement? _lastCommands;
     private JsonElement? _lastAlarms;
+    private DateTimeOffset? _lastTelemetrySampleAtUtc;
     private DateTimeOffset? _lastStatusSnapshotAtUtc;
+    private bool? _lastPaperBreakActive;
 
     public HistorianProcessor(HistorianOptions options)
     {
         options.Validate();
+        _telemetrySampleInterval = TimeSpan.FromSeconds(options.TelemetrySampleIntervalSeconds);
         _statusSnapshotInterval = TimeSpan.FromSeconds(options.StatusSnapshotIntervalSeconds);
+        _paperBreakMinimumSpeedMpm = options.PaperBreakMinimumSpeedMpm;
     }
 
     public HistorianCycle Process(PaperMachineSnapshot snapshot)
@@ -24,19 +30,34 @@ public sealed class HistorianProcessor
         EnsureObject(snapshot.Alarms, nameof(snapshot.Alarms));
 
         var initialObservation = _lastStatus is null;
+        var saveTelemetrySample = initialObservation ||
+            !_lastTelemetrySampleAtUtc.HasValue ||
+            snapshot.CapturedAtUtc - _lastTelemetrySampleAtUtc.Value >= _telemetrySampleInterval;
         var saveStatusSnapshot = initialObservation ||
             !_lastStatusSnapshotAtUtc.HasValue ||
             snapshot.CapturedAtUtc - _lastStatusSnapshotAtUtc.Value >= _statusSnapshotInterval;
 
         var statusChanges = initialObservation
             ? []
-            : FindChanges(_lastStatus!.Value, snapshot.Status, snapshot.CapturedAtUtc);
+            : FindChanges(
+                _lastStatus!.Value,
+                snapshot.Status,
+                snapshot.CapturedAtUtc,
+                TelemetryCatalog.IsDiscreteStatusField);
         var commandChanges = initialObservation
             ? []
-            : FindChanges(_lastCommands!.Value, snapshot.Commands, snapshot.CapturedAtUtc);
+            : FindChanges(
+                _lastCommands!.Value,
+                snapshot.Commands,
+                snapshot.CapturedAtUtc,
+                static (_, _) => true);
         var alarmTransitions = FindAlarmTransitions(
             _lastAlarms,
             snapshot.Alarms,
+            snapshot.Status,
+            snapshot.CapturedAtUtc,
+            initialObservation);
+        var paperBreakTransitions = FindPaperBreakTransitions(
             snapshot.Status,
             snapshot.CapturedAtUtc,
             initialObservation);
@@ -44,21 +65,26 @@ public sealed class HistorianProcessor
         _lastStatus = snapshot.Status.Clone();
         _lastCommands = snapshot.Commands.Clone();
         _lastAlarms = snapshot.Alarms.Clone();
+        if (saveTelemetrySample)
+            _lastTelemetrySampleAtUtc = snapshot.CapturedAtUtc;
         if (saveStatusSnapshot)
             _lastStatusSnapshotAtUtc = snapshot.CapturedAtUtc;
 
         return new HistorianCycle(
             snapshot,
+            saveTelemetrySample,
             saveStatusSnapshot,
             statusChanges,
             commandChanges,
-            alarmTransitions);
+            alarmTransitions,
+            paperBreakTransitions);
     }
 
     private static IReadOnlyList<FieldChange> FindChanges(
         JsonElement previous,
         JsonElement current,
-        DateTimeOffset observedAtUtc)
+        DateTimeOffset observedAtUtc,
+        Func<string, JsonElement, bool> shouldPersist)
     {
         var before = previous.EnumerateObject()
             .ToDictionary(item => item.Name, item => item.Value.Clone(), StringComparer.OrdinalIgnoreCase);
@@ -66,6 +92,9 @@ public sealed class HistorianProcessor
 
         foreach (var item in current.EnumerateObject())
         {
+            if (!shouldPersist(item.Name, item.Value))
+                continue;
+
             var currentJson = item.Value.GetRawText();
             if (!before.TryGetValue(item.Name, out var previousValue))
             {
@@ -79,6 +108,35 @@ public sealed class HistorianProcessor
         }
 
         return changes;
+    }
+
+    private IReadOnlyList<PaperBreakTransition> FindPaperBreakTransitions(
+        JsonElement status,
+        DateTimeOffset observedAtUtc,
+        bool initialObservation)
+    {
+        var paperPresent = TryReadBoolean(status, TelemetryCatalog.PaperPresenceField);
+        var speedMpm = TryReadNumber(status, TelemetryCatalog.MachineSpeedField) ?? 0;
+        if (!paperPresent.HasValue)
+            return [];
+
+        var isActive = !paperPresent.Value && speedMpm >= _paperBreakMinimumSpeedMpm;
+        if (initialObservation || !_lastPaperBreakActive.HasValue ||
+            _lastPaperBreakActive.Value != isActive)
+        {
+            _lastPaperBreakActive = isActive;
+            return
+            [
+                new PaperBreakTransition(
+                    isActive,
+                    observedAtUtc,
+                    initialObservation,
+                    speedMpm)
+            ];
+        }
+
+        _lastPaperBreakActive = isActive;
+        return [];
     }
 
     private static IReadOnlyList<AlarmTransition> FindAlarmTransitions(
@@ -142,5 +200,34 @@ public sealed class HistorianProcessor
     {
         if (value.ValueKind != JsonValueKind.Object)
             throw new InvalidOperationException($"{name} must be a JSON object.");
+    }
+
+    private static bool? TryReadBoolean(JsonElement value, string fieldName)
+    {
+        foreach (var property in value.EnumerateObject())
+        {
+            if (string.Equals(property.Name, fieldName, StringComparison.OrdinalIgnoreCase) &&
+                property.Value.ValueKind is JsonValueKind.True or JsonValueKind.False)
+            {
+                return property.Value.GetBoolean();
+            }
+        }
+
+        return null;
+    }
+
+    private static double? TryReadNumber(JsonElement value, string fieldName)
+    {
+        foreach (var property in value.EnumerateObject())
+        {
+            if (string.Equals(property.Name, fieldName, StringComparison.OrdinalIgnoreCase) &&
+                property.Value.ValueKind == JsonValueKind.Number &&
+                property.Value.TryGetDouble(out var number))
+            {
+                return number;
+            }
+        }
+
+        return null;
     }
 }

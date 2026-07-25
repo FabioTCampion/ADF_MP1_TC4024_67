@@ -32,6 +32,39 @@ public sealed class SqliteUserRepository : IUserRepository
             CultureInfo.InvariantCulture);
     }
 
+    public async Task<int> CountActiveAdministratorsAsync(CancellationToken cancellationToken)
+    {
+        await using var connection = await OpenAsync(cancellationToken);
+        await using var command = connection.CreateCommand();
+        command.CommandText = """
+            SELECT COUNT(*)
+            FROM ApplicationUsers
+            WHERE IsActive = 1 AND Role = @Role;
+            """;
+        command.Parameters.AddWithValue("@Role", HistorianRoles.Administrator);
+        return Convert.ToInt32(
+            await command.ExecuteScalarAsync(cancellationToken),
+            CultureInfo.InvariantCulture);
+    }
+
+    public async Task<IReadOnlyList<ApplicationUser>> ListAsync(
+        CancellationToken cancellationToken)
+    {
+        await using var connection = await OpenAsync(cancellationToken);
+        await using var command = connection.CreateCommand();
+        command.CommandText = """
+            SELECT Id, UserName, DisplayName, PasswordHash, Role, IsActive,
+                   CreatedAtUtc, LastLoginAtUtc
+            FROM ApplicationUsers
+            ORDER BY IsActive DESC, DisplayName COLLATE NOCASE, UserName COLLATE NOCASE;
+            """;
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        var users = new List<ApplicationUser>();
+        while (await reader.ReadAsync(cancellationToken))
+            users.Add(ReadUser(reader));
+        return users;
+    }
+
     public Task<ApplicationUser?> FindByUserNameAsync(
         string userName,
         CancellationToken cancellationToken) =>
@@ -84,6 +117,46 @@ public sealed class SqliteUserRepository : IUserRepository
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
+    public async Task<bool> UpdateAsync(
+        long id,
+        string displayName,
+        string role,
+        bool isActive,
+        CancellationToken cancellationToken)
+    {
+        await using var connection = await OpenAsync(cancellationToken);
+        await using var command = connection.CreateCommand();
+        command.CommandText = """
+            UPDATE ApplicationUsers
+            SET DisplayName = @DisplayName,
+                Role = @Role,
+                IsActive = @IsActive
+            WHERE Id = @Id;
+            """;
+        command.Parameters.AddWithValue("@Id", id);
+        command.Parameters.AddWithValue("@DisplayName", displayName.Trim());
+        command.Parameters.AddWithValue("@Role", role);
+        command.Parameters.AddWithValue("@IsActive", isActive ? 1 : 0);
+        return await command.ExecuteNonQueryAsync(cancellationToken) == 1;
+    }
+
+    public async Task<bool> UpdatePasswordHashAsync(
+        long id,
+        string passwordHash,
+        CancellationToken cancellationToken)
+    {
+        await using var connection = await OpenAsync(cancellationToken);
+        await using var command = connection.CreateCommand();
+        command.CommandText = """
+            UPDATE ApplicationUsers
+            SET PasswordHash = @PasswordHash
+            WHERE Id = @Id;
+            """;
+        command.Parameters.AddWithValue("@Id", id);
+        command.Parameters.AddWithValue("@PasswordHash", passwordHash);
+        return await command.ExecuteNonQueryAsync(cancellationToken) == 1;
+    }
+
     private async Task<ApplicationUser?> FindAsync(
         string predicate,
         object value,
@@ -103,7 +176,11 @@ public sealed class SqliteUserRepository : IUserRepository
         if (!await reader.ReadAsync(cancellationToken))
             return null;
 
-        return new ApplicationUser(
+        return ReadUser(reader);
+    }
+
+    private static ApplicationUser ReadUser(SqliteDataReader reader) =>
+        new(
             reader.GetInt64(0),
             reader.GetString(1),
             reader.GetString(2),
@@ -112,7 +189,6 @@ public sealed class SqliteUserRepository : IUserRepository
             reader.GetInt64(5) == 1,
             ParseTimestamp(reader.GetString(6)),
             reader.IsDBNull(7) ? null : ParseTimestamp(reader.GetString(7)));
-    }
 
     private async Task<SqliteConnection> OpenAsync(CancellationToken cancellationToken)
     {

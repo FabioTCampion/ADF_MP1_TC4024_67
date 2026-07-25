@@ -13,6 +13,8 @@ import SideMenu, { type NavigationItem, type PageId } from "./SideMenu";
 
 const InteractiveChart = lazy(() => import("./InteractiveChart"));
 const MetricsScreen = lazy(() => import("./MetricsScreen"));
+const UsersScreen = lazy(() => import("./UsersScreen"));
+const UpdatesScreen = lazy(() => import("./UpdatesScreen"));
 
 type RuntimeStatus = {
   adsConnected: boolean;
@@ -27,6 +29,21 @@ type CurrentSnapshot = {
   commands: Record<string, unknown>;
   alarms: Record<string, boolean>;
   mappingVersion: string;
+};
+
+type StorageStatus = {
+  databaseBytes: number;
+  walBytes: number;
+  sharedMemoryBytes: number;
+  reusableBytes: number;
+  freeDiskBytes: number;
+  totalDiskBytes: number;
+  telemetrySampleCount: number;
+  diagnosticSnapshotCount: number;
+  statusChangeCount: number;
+  oldestTelemetryAtUtc: string | null;
+  newestTelemetryAtUtc: string | null;
+  lastMaintenanceAtUtc: string | null;
 };
 
 type AlarmEvent = {
@@ -82,10 +99,17 @@ type MotorTrendMotor = {
 type MotorTrendSample = {
   capturedAtUtc: string;
   values: Record<string, { speed: number | null; torque: number | null }>;
+  steamPressures: Record<string, number | null>;
 };
 
 type MotorTrend = {
   motors: MotorTrendMotor[];
+  steamPressures: {
+    key: string;
+    label: string;
+    field: string;
+    unit: string;
+  }[];
   samples: MotorTrendSample[];
 };
 
@@ -97,6 +121,8 @@ const navigation: readonly NavigationItem[] = [
   { id: "alarms", label: "Alarmes", icon: "alarm" },
   { id: "commands", label: "Comandos", icon: "command" },
   { id: "history", label: "Histórico de status", icon: "history" },
+  { id: "users", label: "Usuários", icon: "users" },
+  { id: "updates", label: "Atualizações", icon: "updates" },
 ];
 
 const dateFormatter = new Intl.DateTimeFormat("pt-BR", {
@@ -106,6 +132,11 @@ const dateFormatter = new Intl.DateTimeFormat("pt-BR", {
 
 const machineSpeedField = "dryingSectionGroup3UpperMasterSpeedMPM";
 const paperPresenceField = "dryingSectionGroup3PaperPresence";
+const steamPressureCatalog = [
+  { key: "drying-1", shortLabel: "G1", label: "Grupo 1", field: "dryingSectionGroup1SteamPressure" },
+  { key: "drying-2", shortLabel: "G2", label: "Grupo 2", field: "dryingSectionGroup2SteamPressure" },
+  { key: "drying-3", shortLabel: "G3", label: "Grupo 3", field: "dryingSectionGroup3SteamPressure" },
+] as const;
 const groupRunningSpeedMpm = 1;
 
 const machineGroupCatalog = [
@@ -178,6 +209,27 @@ const formatMachineSpeed = (speed: number | null) =>
     maximumFractionDigits: 1,
   });
 
+const formatSteamPressure = (pressure: number | null) =>
+  pressure === null ? "—" : pressure.toLocaleString("pt-BR", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+
+const formatBytes = (bytes: number | null | undefined) => {
+  if (bytes === null || bytes === undefined || !Number.isFinite(bytes)) return "—";
+  const units = ["B", "KB", "MB", "GB", "TB"];
+  let value = Math.max(0, bytes);
+  let unit = 0;
+  while (value >= 1024 && unit < units.length - 1) {
+    value /= 1024;
+    unit++;
+  }
+  return `${value.toLocaleString("pt-BR", {
+    minimumFractionDigits: unit >= 2 ? 1 : 0,
+    maximumFractionDigits: unit >= 2 ? 1 : 0,
+  })} ${units[unit]}`;
+};
+
 const paperPresenceLabel = (paperPresent: boolean | null) => {
   if (paperPresent === null) return "Sem leitura";
   return paperPresent ? "Papel presente" : "Sem papel";
@@ -229,7 +281,10 @@ const formatValue = (value: unknown) => {
 };
 
 async function fetchJson<T>(url: string): Promise<T> {
-  const response = await fetch(url, { headers: { Accept: "application/json" } });
+  const response = await fetch(url, {
+    cache: "no-store",
+    headers: { Accept: "application/json" },
+  });
   if (response.status === 401) {
     window.location.reload();
     throw new Error("Sessão expirada.");
@@ -246,15 +301,28 @@ export default function App() {
   );
   const [runtime, setRuntime] = useState<RuntimeStatus | null>(null);
   const [current, setCurrent] = useState<CurrentSnapshot | null>(null);
+  const [storage, setStorage] = useState<StorageStatus | null>(null);
   const [clock, setClock] = useState(new Date());
   const machineSpeed = readStatusNumber(current, machineSpeedField);
   const paperPresent = readStatusBoolean(current, paperPresenceField);
+  const steamPressures = steamPressureCatalog.map((pressure) => ({
+    ...pressure,
+    value: readStatusNumber(current, pressure.field),
+  }));
+  const visibleNavigation = useMemo(
+    () => navigation.filter((item) => {
+      if (item.id === "users") return user.permissions.includes("users.view");
+      if (item.id === "updates") return user.permissions.includes("updates.view");
+      return true;
+    }),
+    [user.permissions],
+  );
 
   useEffect(() => {
     const pageTitle =
-      navigation.find((item) => item.id === page)?.label ?? "Paper Machine";
+      visibleNavigation.find((item) => item.id === page)?.label ?? "Paper Machine";
     document.title = `CPNTeck | ${pageTitle}`;
-  }, [page]);
+  }, [page, visibleNavigation]);
 
   const refreshLiveData = useCallback(async () => {
     const [runtimeResult, currentResult] = await Promise.allSettled([
@@ -274,6 +342,17 @@ export default function App() {
       window.clearInterval(clockTimer);
     };
   }, [refreshLiveData]);
+
+  useEffect(() => {
+    const refreshStorage = () => {
+      void fetchJson<StorageStatus>("/api/storage")
+        .then(setStorage)
+        .catch(() => undefined);
+    };
+    refreshStorage();
+    const timer = window.setInterval(refreshStorage, 60_000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   const toggleMenu = () => {
     setCollapsed((value) => {
@@ -300,7 +379,7 @@ export default function App() {
     <div className={`app-shell${collapsed ? " app-shell--collapsed" : ""}`}>
       <SideMenu
         currentPage={page}
-        items={navigation}
+        items={visibleNavigation}
         collapsed={collapsed}
         online={runtime?.adsConnected ?? false}
         onSelect={setPage}
@@ -318,7 +397,7 @@ export default function App() {
           </button>
           <div className="top-context">
             <span>Paper Machine Historian</span>
-            <b>{navigation.find((item) => item.id === page)?.label}</b>
+            <b>{visibleNavigation.find((item) => item.id === page)?.label}</b>
           </div>
           <div className="top-spacer" />
           <div className="top-machine-state" aria-label="Estado atual da máquina">
@@ -328,6 +407,18 @@ export default function App() {
                 {formatMachineSpeed(machineSpeed)}
                 <small>m/min</small>
               </b>
+            </div>
+            <div className="top-steam-pressure">
+              <span>Pressão de vapor</span>
+              <div className="top-steam-values">
+                {steamPressures.map((pressure) => (
+                  <b key={pressure.key}>
+                    <small>{pressure.shortLabel}</small>
+                    {formatSteamPressure(pressure.value)}
+                  </b>
+                ))}
+                <em>bar</em>
+              </div>
             </div>
             <div className={`top-paper-state top-paper-state--${paperPresenceClass(paperPresent)}`}>
               <i />
@@ -352,7 +443,9 @@ export default function App() {
         </header>
 
         <div className="screen-content">
-          {page === "dashboard" && <Dashboard runtime={runtime} current={current} />}
+          {page === "dashboard" && (
+            <Dashboard runtime={runtime} current={current} storage={storage} />
+          )}
           {page === "metrics" && (
             <Suspense fallback={<EmptyState text="Preparando métricas…" />}>
               <MetricsScreen />
@@ -363,6 +456,16 @@ export default function App() {
           {page === "alarms" && <AlarmHistory />}
           {page === "commands" && <CommandHistory />}
           {page === "history" && <StatusHistory />}
+          {page === "users" && (
+            <Suspense fallback={<EmptyState text="Preparando gestão de usuários…" />}>
+              <UsersScreen />
+            </Suspense>
+          )}
+          {page === "updates" && (
+            <Suspense fallback={<EmptyState text="Preparando atualizações…" />}>
+              <UpdatesScreen />
+            </Suspense>
+          )}
         </div>
       </main>
     </div>
@@ -395,9 +498,11 @@ function ScreenTitle({
 function Dashboard({
   runtime,
   current,
+  storage,
 }: {
   runtime: RuntimeStatus | null;
   current: CurrentSnapshot | null;
+  storage: StorageStatus | null;
 }) {
   const [alarms, setAlarms] = useState<AlarmEvent[]>([]);
   const [commands, setCommands] = useState<CommandEvent[]>([]);
@@ -420,6 +525,13 @@ function Dashboard({
     : 0;
   const machineSpeed = readStatusNumber(current, machineSpeedField);
   const paperPresent = readStatusBoolean(current, paperPresenceField);
+  const steamPressures = steamPressureCatalog.map((pressure) => ({
+    ...pressure,
+    value: readStatusNumber(current, pressure.field),
+  }));
+  const freeDiskPercent = storage && storage.totalDiskBytes > 0
+    ? storage.freeDiskBytes / storage.totalDiskBytes * 100
+    : null;
 
   return (
     <>
@@ -441,6 +553,18 @@ function Dashboard({
           <strong>{formatMachineSpeed(machineSpeed)}</strong>
           <small>m/min</small>
         </div>
+        <div className="machine-steam-readout">
+          <span>Pressão de vapor</span>
+          <div>
+            {steamPressures.map((pressure) => (
+              <b key={pressure.key}>
+                <small>{pressure.label}</small>
+                <strong>{formatSteamPressure(pressure.value)}</strong>
+              </b>
+            ))}
+          </div>
+          <em>bar</em>
+        </div>
         <div className={`machine-paper-readout machine-paper-readout--${paperPresenceClass(paperPresent)}`}>
           <i />
           <div>
@@ -461,6 +585,16 @@ function Dashboard({
         <MetricCard label="Alarmes ativos" value={String(activeAlarmCount)} accent={activeAlarmCount ? "red" : "green"} detail="Estado atual no PLC" />
         <MetricCard label="Sinais ativos" value={String(trueStatusCount)} accent="blue" detail={`${Object.keys(current?.status ?? {}).length} campos monitorados`} />
         <MetricCard label="Última leitura" value={formatDate(runtime?.lastSuccessfulReadAtUtc)} accent="neutral" detail={runtime?.mappingVersion ?? "Sem mapeamento"} />
+        <MetricCard
+          label="Banco de dados"
+          value={formatBytes(storage?.databaseBytes)}
+          accent={freeDiskPercent !== null && freeDiskPercent < 15 ? "red" : "blue"}
+          detail={
+            storage
+              ? `${formatBytes(storage.freeDiskBytes)} livres · WAL ${formatBytes(storage.walBytes)}`
+              : "Consultando armazenamento"
+          }
+        />
       </section>
 
       {runtime?.lastError && <div className="error-banner">{runtime.lastError}</div>}
@@ -713,9 +847,14 @@ function formatMotorMember(key: string) {
 
 function MotorGraphs() {
   const range = useDefaultRange();
-  const [trend, setTrend] = useState<MotorTrend>({ motors: [], samples: [] });
+  const [trend, setTrend] = useState<MotorTrend>({
+    motors: [],
+    steamPressures: [],
+    samples: [],
+  });
   const [selectedGroup, setSelectedGroup] = useState("drying-1");
   const [selectedMotors, setSelectedMotors] = useState<string[]>([]);
+  const [selectedSteamPressures, setSelectedSteamPressures] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -751,6 +890,16 @@ function MotorGraphs() {
     });
   }, [activeGroup, selectedGroup]);
 
+  useEffect(() => {
+    setSelectedSteamPressures((current) => {
+      const validSelection = current.filter((key) =>
+        trend.steamPressures.some((pressure) => pressure.key === key));
+      return validSelection.length > 0
+        ? validSelection
+        : trend.steamPressures.map((pressure) => pressure.key);
+    });
+  }, [trend.steamPressures]);
+
   const toggleMotor = (key: string) => {
     setSelectedMotors((current) =>
       current.includes(key)
@@ -761,6 +910,12 @@ function MotorGraphs() {
     const group = groups.find((item) => item.key === key);
     setSelectedGroup(key);
     setSelectedMotors(group?.motors.map((motor) => motor.key) ?? []);
+  };
+  const toggleSteamPressure = (key: string) => {
+    setSelectedSteamPressures((current) =>
+      current.includes(key)
+        ? current.filter((selectedKey) => selectedKey !== key)
+        : [...current, key]);
   };
   const buildSeries = (metric: "speed" | "torque"): TrendSeries[] =>
     (activeGroup?.motors ?? [])
@@ -778,6 +933,19 @@ function MotorGraphs() {
       .filter((series) => selectedMotors.includes(series.key));
   const speedSeries = buildSeries("speed");
   const torqueSeries = buildSeries("torque");
+  const steamPressureSeries: TrendSeries[] = trend.steamPressures
+    .map((pressure, index) => ({
+      key: pressure.key,
+      label: pressure.label,
+      field: pressure.field,
+      unit: pressure.unit,
+      color: trendColors[(index + 2) % trendColors.length],
+      rows: trend.samples
+        .map((sample) =>
+          [sample.capturedAtUtc, sample.steamPressures?.[pressure.key]] as const)
+        .filter((row): row is readonly [string, number] => typeof row[1] === "number"),
+    }))
+    .filter((series) => selectedSteamPressures.includes(series.key));
   const latestSample = trend.samples[trend.samples.length - 1];
   const applyPeriod = (hours: number) => {
     const now = new Date();
@@ -792,9 +960,9 @@ function MotorGraphs() {
   return (
     <>
       <ScreenTitle
-        eyebrow="Tendências de acionamentos"
-        title="Velocidade e torque"
-        subtitle="Compare os motores de cada grupo no mesmo eixo e oculte séries individualmente."
+        eyebrow="Tendências de processo"
+        title="Velocidade, torque e vapor"
+        subtitle="Compare os motores e as pressões de vapor dos três grupos de secagem no mesmo período."
         action={<span className="result-count">{trend.samples.length} amostras</span>}
       />
 
@@ -870,21 +1038,64 @@ function MotorGraphs() {
         </section>
       )}
 
+      {trend.steamPressures.length > 0 && (
+        <section className="motor-selection steam-selection">
+          <div className="motor-selection-heading">
+            <div>
+              <p className="eyebrow">Séries visíveis</p>
+              <h2>Pressão de vapor</h2>
+            </div>
+            <div>
+              <button type="button" onClick={() => setSelectedSteamPressures(trend.steamPressures.map((pressure) => pressure.key))}>Todos</button>
+              <button type="button" onClick={() => setSelectedSteamPressures([])}>Nenhum</button>
+            </div>
+          </div>
+          <div className="motor-checks steam-checks">
+            {trend.steamPressures.map((pressure, index) => (
+              <label key={pressure.key}>
+                <input
+                  type="checkbox"
+                  checked={selectedSteamPressures.includes(pressure.key)}
+                  onChange={() => toggleSteamPressure(pressure.key)}
+                />
+                <i
+                  style={{
+                    backgroundColor: trendColors[(index + 2) % trendColors.length],
+                    color: trendColors[(index + 2) % trendColors.length],
+                  }}
+                />
+                <span>
+                  <b>{pressure.label}</b>
+                  <small>
+                    {formatSteamPressure(latestSample?.steamPressures?.[pressure.key] ?? null)} {pressure.unit}
+                  </small>
+                </span>
+              </label>
+            ))}
+          </div>
+        </section>
+      )}
+
       {error && <div className="error-banner">{error}</div>}
-      {!loading && trend.motors.length === 0 && (
+      {!loading && trend.motors.length === 0 && trend.steamPressures.length === 0 && (
         <div className="graph-empty">
-          Nenhum par de velocidade e torque foi encontrado no período selecionado.
+          Nenhuma tendência de motor ou pressão de vapor foi encontrada no período selecionado.
         </div>
       )}
-      {activeGroup && (
+      {(activeGroup || trend.steamPressures.length > 0) && (
         <section className="trend-grid">
-          <TrendChart title="Velocidade" series={speedSeries} />
-          <TrendChart title="Torque" series={torqueSeries} />
+          {activeGroup && <TrendChart title="Velocidade" series={speedSeries} />}
+          {activeGroup && <TrendChart title="Torque" series={torqueSeries} />}
+          {trend.steamPressures.length > 0 && (
+            <TrendChart title="Pressão de vapor" series={steamPressureSeries} />
+          )}
         </section>
       )}
       <p className="graph-note">
-        Resolução atual: um snapshot a cada 10 segundos. Velocidades dos acionamentos
-        sincronizados são exibidas em m/min; velocidades das bombas e todos os torques, em %.
+        Resolução atual: telemetria a cada 5 segundos; períodos acima de 12 horas usam
+        médias de 1 minuto. Velocidades dos acionamentos
+        sincronizados são exibidas em m/min; velocidades das bombas e todos os torques, em %;
+        pressões de vapor, em bar.
       </p>
     </>
   );

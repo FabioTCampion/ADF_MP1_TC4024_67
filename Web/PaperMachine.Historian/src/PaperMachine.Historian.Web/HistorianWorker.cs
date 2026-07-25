@@ -18,6 +18,8 @@ public sealed class HistorianWorker(
         var retryDelay = adsOptions.ReconnectMinimumDelayMilliseconds;
         var communicationState = "Starting";
         var commandPersistenceTask = PersistCommandChangesAsync(stoppingToken);
+        var nextMaintenanceAtUtc =
+            DateTimeOffset.UtcNow.AddMinutes(Math.Min(1, historianOptions.MaintenanceIntervalMinutes));
 
         while (!stoppingToken.IsCancellationRequested)
         {
@@ -39,6 +41,13 @@ public sealed class HistorianWorker(
                 var cycle = processor.Process(snapshot) with { CommandChanges = [] };
                 await repository.PersistCycleAsync(cycle, stoppingToken);
                 runtimeState.SetConnected(snapshot);
+
+                if (snapshot.CapturedAtUtc >= nextMaintenanceAtUtc)
+                {
+                    await TryRunMaintenanceAsync(snapshot.CapturedAtUtc, stoppingToken);
+                    nextMaintenanceAtUtc = snapshot.CapturedAtUtc.AddMinutes(
+                        historianOptions.MaintenanceIntervalMinutes);
+                }
 
                 await Task.Delay(historianOptions.PollIntervalMilliseconds, stoppingToken);
             }
@@ -139,6 +148,41 @@ public sealed class HistorianWorker(
             logger.LogError(
                 persistenceException,
                 "Could not persist the ADS communication failure.");
+        }
+    }
+
+    private async Task TryRunMaintenanceAsync(
+        DateTimeOffset nowUtc,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var result = await repository.RunMaintenanceAsync(
+                nowUtc,
+                historianOptions,
+                cancellationToken);
+            var deleted = result.DeletedDiagnosticSnapshots +
+                result.DeletedRawTelemetrySamples +
+                result.DeletedMinuteAggregates +
+                result.DeletedStatusChanges +
+                result.DeletedAnalogStatusChanges +
+                result.DeletedCommunicationEvents;
+            if (deleted > 0)
+            {
+                logger.LogInformation(
+                    "Historian maintenance deleted {DeletedRows} expired rows in small batches.",
+                    deleted);
+            }
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception exception)
+        {
+            logger.LogWarning(
+                exception,
+                "Historian maintenance failed; PLC acquisition will continue.");
         }
     }
 

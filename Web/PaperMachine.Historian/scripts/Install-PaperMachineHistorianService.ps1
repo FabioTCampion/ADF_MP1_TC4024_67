@@ -85,6 +85,68 @@ function Stop-ExistingService {
     return $wasRunning
 }
 
+function New-DeploymentBackup {
+    param(
+        [Parameter(Mandatory = $true)][string]$Root,
+        [string]$PreviousVersion
+    )
+
+    $databasePath = Join-Path $Root 'data\PaperMachineHistorian.db'
+    if (-not (Test-Path -LiteralPath $databasePath -PathType Leaf)) {
+        return
+    }
+
+    $versionLabel = if ([string]::IsNullOrWhiteSpace($PreviousVersion)) {
+        'unknown'
+    }
+    else {
+        $PreviousVersion -replace '[^0-9A-Za-z._-]', '_'
+    }
+    $backupRoot = Join-Path `
+        (Join-Path $Root 'backups') `
+        ('before-{0}-{1}' -f $versionLabel, (Get-Date -Format 'yyyyMMdd-HHmmss'))
+    New-Item -ItemType Directory -Path $backupRoot -Force | Out-Null
+    New-Item -ItemType Directory -Path (Join-Path $backupRoot 'data') -Force | Out-Null
+
+    foreach ($databaseFile in @(
+            $databasePath,
+            "$databasePath-wal",
+            "$databasePath-shm")) {
+        if (Test-Path -LiteralPath $databaseFile -PathType Leaf) {
+            Copy-Item `
+                -LiteralPath $databaseFile `
+                -Destination (Join-Path $backupRoot 'data') `
+                -Force
+        }
+    }
+    $configPath = Join-Path $Root 'appsettings.Production.json'
+    if (Test-Path -LiteralPath $configPath -PathType Leaf) {
+        Copy-Item -LiteralPath $configPath -Destination $backupRoot -Force
+    }
+    $keysPath = Join-Path $Root 'keys'
+    if (Test-Path -LiteralPath $keysPath -PathType Container) {
+        Copy-Item -LiteralPath $keysPath -Destination $backupRoot -Recurse -Force
+    }
+
+    $oldBackups = @(
+        Get-ChildItem `
+            -LiteralPath (Join-Path $Root 'backups') `
+            -Directory `
+            -Filter 'before-*' |
+            Sort-Object LastWriteTime -Descending |
+            Select-Object -Skip 5
+    )
+    foreach ($oldBackup in $oldBackups) {
+        $resolvedBackup = [IO.Path]::GetFullPath($oldBackup.FullName)
+        $backupsRoot = [IO.Path]::GetFullPath((Join-Path $Root 'backups')).TrimEnd('\') + '\'
+        if ($resolvedBackup.StartsWith(
+                $backupsRoot,
+                [StringComparison]::OrdinalIgnoreCase)) {
+            Remove-Item -LiteralPath $resolvedBackup -Recurse -Force
+        }
+    }
+}
+
 function Set-ServiceBinaryPath {
     param(
         [Parameter(Mandatory = $true)][string]$Name,
@@ -194,6 +256,8 @@ $applicationConfigPath = Join-Path $DataRoot 'appsettings.Production.json'
 $statePath = Join-Path $DataRoot 'deployment-state.json'
 $databaseDirectory = Join-Path $DataRoot 'data'
 $databasePath = Join-Path $databaseDirectory 'PaperMachineHistorian.db'
+$updatesRoot = Join-Path $DataRoot 'updates'
+$updateTokenPath = Join-Path $updatesRoot 'github-token.txt'
 
 if (-not $releaseRoot.StartsWith(
         [IO.Path]::GetFullPath($releasesRoot),
@@ -205,12 +269,62 @@ New-Item -ItemType Directory -Path $releasesRoot -Force | Out-Null
 New-Item -ItemType Directory -Path $DataRoot -Force | Out-Null
 New-Item -ItemType Directory -Path $databaseDirectory -Force | Out-Null
 New-Item -ItemType Directory -Path (Join-Path $DataRoot 'backups') -Force | Out-Null
+New-Item -ItemType Directory -Path $updatesRoot -Force | Out-Null
 
 if (-not (Test-Path -LiteralPath $applicationConfigPath -PathType Leaf)) {
     Copy-Item -LiteralPath $packageConfigPath -Destination $applicationConfigPath
 }
 
 $configuration = Get-Content -LiteralPath $applicationConfigPath -Raw | ConvertFrom-Json
+$packageConfiguration = Get-Content -LiteralPath $packageConfigPath -Raw | ConvertFrom-Json
+
+# A configuracao persistida pode ter sido criada por uma versao anterior. Sob
+# Set-StrictMode, acessar diretamente uma propriedade raiz ausente gera uma
+# excecao antes que seja possivel inclui-la, portanto consulte PSObject primeiro.
+$historianProperty = $configuration.PSObject.Properties['Historian']
+$packageHistorianProperty = $packageConfiguration.PSObject.Properties['Historian']
+if ($null -eq $packageHistorianProperty -or $null -eq $packageHistorianProperty.Value) {
+    throw "A configuracao do pacote nao possui a secao obrigatoria 'Historian'."
+}
+if ($null -eq $historianProperty -or $null -eq $historianProperty.Value) {
+    $configuration |
+        Add-Member -NotePropertyName Historian -NotePropertyValue $packageHistorianProperty.Value -Force
+    $historianProperty = $configuration.PSObject.Properties['Historian']
+} else {
+    foreach ($property in $packageHistorianProperty.Value.PSObject.Properties) {
+        if ($null -eq $historianProperty.Value.PSObject.Properties[$property.Name]) {
+            $historianProperty.Value |
+                Add-Member -NotePropertyName $property.Name -NotePropertyValue $property.Value
+        }
+    }
+
+    # Versoes anteriores usavam snapshots JSON a cada 10 segundos. Na primeira
+    # atualizacao otimizada, migra apenas esse valor legado conhecido; valores
+    # personalizados diferentes de 10 segundos permanecem intactos.
+    if ([int]$historianProperty.Value.StatusSnapshotIntervalSeconds -eq 10) {
+        $historianProperty.Value.StatusSnapshotIntervalSeconds =
+            [int]$packageHistorianProperty.Value.StatusSnapshotIntervalSeconds
+    }
+}
+
+$updatesProperty = $configuration.PSObject.Properties['Updates']
+$packageUpdatesProperty = $packageConfiguration.PSObject.Properties['Updates']
+if ($null -eq $packageUpdatesProperty -or $null -eq $packageUpdatesProperty.Value) {
+    throw "A configuracao do pacote nao possui a secao obrigatoria 'Updates'."
+}
+if ($null -eq $updatesProperty -or $null -eq $updatesProperty.Value) {
+    $configuration |
+        Add-Member -NotePropertyName Updates -NotePropertyValue $packageUpdatesProperty.Value -Force
+    $updatesProperty = $configuration.PSObject.Properties['Updates']
+}
+else {
+    foreach ($property in $packageUpdatesProperty.Value.PSObject.Properties) {
+        if ($null -eq $updatesProperty.Value.PSObject.Properties[$property.Name]) {
+            $updatesProperty.Value |
+                Add-Member -NotePropertyName $property.Name -NotePropertyValue $property.Value
+        }
+    }
+}
 if (-not [string]::IsNullOrWhiteSpace($AmsNetId)) {
     $configuration.Ads.AmsNetId = $AmsNetId.Trim()
 }
@@ -218,6 +332,9 @@ if (-not [string]::IsNullOrWhiteSpace($RemoteIp)) {
     $configuration.Ads.RemoteIp = $RemoteIp.Trim()
 }
 $configuration.Database.FilePath = $databasePath
+$updatesProperty.Value.WorkingDirectory = $updatesRoot
+$updatesProperty.Value.TokenFilePath = $updateTokenPath
+$updatesProperty.Value.UpdaterTaskName = 'CPNTeckPaperMachineHistorianUpdater'
 
 if ([string]::IsNullOrWhiteSpace([string]$configuration.Ads.AmsNetId)) {
     throw 'AMS Net ID vazio. Informe -AmsNetId ou PAPERHISTORIAN_AMS_NET_ID.'
@@ -291,6 +408,8 @@ $service = Get-Service -Name $ServiceName -ErrorAction SilentlyContinue
 $serviceWasRunning = Stop-ExistingService -Name $ServiceName
 
 try {
+    New-DeploymentBackup -Root $DataRoot -PreviousVersion $previousVersion
+
     if ($null -eq $service) {
         $quotedPath = '"' + $newExecutablePath + '"'
         Invoke-ServiceControl -Arguments @(
@@ -328,6 +447,19 @@ try {
         -Value $serviceEnvironment `
         -PropertyType MultiString `
         -Force | Out-Null
+
+    $updaterInstallerPath = Join-Path `
+        $packageRoot `
+        'Install-PaperMachineHistorianUpdater.ps1'
+    if (-not (Test-Path -LiteralPath $updaterInstallerPath -PathType Leaf)) {
+        throw 'O instalador da tarefa de atualizacao nao foi encontrado no pacote.'
+    }
+    & $updaterInstallerPath `
+        -DataRoot $DataRoot `
+        -InstallRoot $InstallRoot `
+        -ServiceName $ServiceName `
+        -TaskName ([string]$updatesProperty.Value.UpdaterTaskName) `
+        -HttpPort $HttpPort
 
     Start-AndValidateService `
         -Name $ServiceName `

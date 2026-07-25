@@ -1,0 +1,58 @@
+using System.IO.Compression;
+using PaperMachine.Historian.Web;
+
+namespace PaperMachine.Historian.Tests;
+
+public sealed class ApplicationUpdateTests
+{
+    [Theory]
+    [InlineData("v0.1.3", "0.1.2", true)]
+    [InlineData("0.1.2", "0.1.2", false)]
+    [InlineData("0.1.1", "0.1.2", false)]
+    [InlineData("0.2.0-beta", "0.1.9", true)]
+    public void ComparesReleaseVersions(
+        string candidate,
+        string current,
+        bool expected)
+    {
+        Assert.Equal(expected, UpdateVersion.IsNewer(candidate, current));
+    }
+
+    [Fact]
+    public void ParsesSha256Sidecar()
+    {
+        const string hash =
+            "306642EA3E1311657911DF462C5DACF8BFAFED1B4580825455F952EEF85FBE6B";
+        Assert.Equal(
+            hash,
+            UpdatePackageValidator.ParseSha256($"{hash.ToLowerInvariant()}  package.zip"));
+    }
+
+    [Fact]
+    public void ReadsVersionFromPackagedDeploymentManifest()
+    {
+        var directory = Path.Combine(
+            Path.GetTempPath(),
+            "PaperMachine.Historian.UpdateTests",
+            Guid.NewGuid().ToString("N"));
+        var zipPath = Path.Combine(directory, "update.zip");
+        Directory.CreateDirectory(directory);
+        try
+        {
+            using (var archive = ZipFile.Open(zipPath, ZipArchiveMode.Create))
+            {
+                var entry = archive.CreateEntry(
+                    "CPNTeck-PaperMachineHistorian-0.1.3-win-x64/deployment-manifest.json");
+                using var writer = new StreamWriter(entry.Open());
+                writer.Write("""{"Version":"0.1.3"}""");
+            }
+
+            Assert.Equal("0.1.3", UpdatePackageValidator.ReadManifestVersion(zipPath));
+        }
+        finally
+        {
+            if (Directory.Exists(directory))
+                Directory.Delete(directory, recursive: true);
+        }
+    }
+}

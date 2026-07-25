@@ -39,6 +39,7 @@ $packageName = "CPNTeck-PaperMachineHistorian-$Version-$RuntimeIdentifier"
 $packageRoot = [IO.Path]::GetFullPath((Join-Path $artifactsRoot $packageName))
 $publishRoot = Join-Path $packageRoot 'app'
 $zipPath = Join-Path $artifactsRoot "$packageName.zip"
+$zipHashPath = "$zipPath.sha256"
 
 if (-not $packageRoot.StartsWith($artifactsRoot, [StringComparison]::OrdinalIgnoreCase)) {
     throw 'Calculated package path is outside the artifacts directory.'
@@ -53,6 +54,9 @@ if (Test-Path -LiteralPath $packageRoot) {
 }
 if (Test-Path -LiteralPath $zipPath) {
     Remove-Item -LiteralPath $zipPath -Force
+}
+if (Test-Path -LiteralPath $zipHashPath) {
+    Remove-Item -LiteralPath $zipHashPath -Force
 }
 New-Item -ItemType Directory -Path $publishRoot -Force | Out-Null
 
@@ -82,7 +86,10 @@ $deploymentScripts = @(
     'Install-PaperMachineHistorianService.ps1',
     'Update-PaperMachineHistorianService.ps1',
     'Rollback-PaperMachineHistorianService.ps1',
-    'Test-PaperMachineHistorianInstallation.ps1'
+    'Test-PaperMachineHistorianInstallation.ps1',
+    'Install-PaperMachineHistorianUpdater.ps1',
+    'Invoke-PaperMachineHistorianPendingUpdate.ps1',
+    'Set-PaperMachineHistorianUpdateToken.ps1'
 )
 foreach ($scriptName in $deploymentScripts) {
     Copy-Item -LiteralPath (Join-Path $PSScriptRoot $scriptName) -Destination $packageRoot
@@ -125,7 +132,11 @@ $manifest | ConvertTo-Json -Depth 5 | Set-Content `
     -Encoding UTF8
 
 Compress-Archive -LiteralPath $packageRoot -DestinationPath $zipPath -CompressionLevel Optimal
+$zipHash = (Get-FileHash -LiteralPath $zipPath -Algorithm SHA256).Hash
+"$zipHash  $([IO.Path]::GetFileName($zipPath))" |
+    Set-Content -LiteralPath $zipHashPath -Encoding ASCII
 
 Write-Host ''
 Write-Host '[OK] Pacote de implantacao criado.' -ForegroundColor Green
 Write-Host $zipPath
+Write-Host $zipHashPath

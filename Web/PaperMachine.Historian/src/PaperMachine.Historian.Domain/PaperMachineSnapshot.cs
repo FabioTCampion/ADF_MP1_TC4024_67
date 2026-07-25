@@ -23,6 +23,12 @@ public sealed record AlarmTransition(
     AlarmDefinition Definition,
     DriveFaultContext? DriveFault);
 
+public sealed record PaperBreakTransition(
+    bool IsActive,
+    DateTimeOffset ObservedAtUtc,
+    bool InitialObservation,
+    double SpeedMpm);
+
 public sealed record AlarmDefinition(
     string DisplayName,
     string Description,
@@ -45,10 +51,12 @@ public sealed record DriveFaultContext(
 
 public sealed record HistorianCycle(
     PaperMachineSnapshot Snapshot,
+    bool SaveTelemetrySample,
     bool SaveStatusSnapshot,
     IReadOnlyList<FieldChange> StatusChanges,
     IReadOnlyList<FieldChange> CommandChanges,
-    IReadOnlyList<AlarmTransition> AlarmTransitions);
+    IReadOnlyList<AlarmTransition> AlarmTransitions,
+    IReadOnlyList<PaperBreakTransition> PaperBreakTransitions);
 
 public sealed record CommunicationEvent(
     DateTimeOffset ObservedAtUtc,

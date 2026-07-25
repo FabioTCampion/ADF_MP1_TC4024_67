@@ -63,6 +63,16 @@ public sealed class SqliteHistorianRepositoryTests
                 100,
                 CancellationToken.None);
             Assert.Single(trendSamples);
+            var optimizedTrend = await repository.GetTelemetryTrendSamplesAsync(
+                firstAt,
+                firstAt.AddMinutes(1),
+                100,
+                CancellationToken.None);
+            Assert.Single(optimizedTrend);
+            Assert.Equal(
+                336.7,
+                optimizedTrend[0].NumericValues[
+                    TelemetryCatalog.MachineSpeedField]);
             var productivitySample = Assert.Single(
                 await repository.GetMachineProductivitySamplesAsync(
                     firstAt,
@@ -86,6 +96,27 @@ public sealed class SqliteHistorianRepositoryTests
             Assert.Equal(1, alarm.DriveFaultCode);
             Assert.Equal("ocA", alarm.DriveFaultMnemonic);
             Assert.Equal(12.3, alarm.DriveFaultTorque);
+
+            var storage = await repository.GetStorageStatusAsync(CancellationToken.None);
+            Assert.Equal(1, storage.TelemetrySampleCount);
+            Assert.True(storage.DatabaseBytes > 0);
+            Assert.True(storage.FreeDiskBytes > 0);
+            Assert.True(storage.TotalDiskBytes >= storage.FreeDiskBytes);
+
+            var maintenanceAt = firstAt.AddHours(1);
+            var maintenance = await repository.RunMaintenanceAsync(
+                maintenanceAt,
+                new HistorianOptions
+                {
+                    RetentionEnabled = false,
+                    MaintenanceBatchSize = 100,
+                },
+                CancellationToken.None);
+            Assert.Equal(maintenanceAt, maintenance.CompletedAtUtc);
+
+            var storageAfterMaintenance =
+                await repository.GetStorageStatusAsync(CancellationToken.None);
+            Assert.Equal(maintenanceAt, storageAfterMaintenance.LastMaintenanceAtUtc);
         }
         finally
         {

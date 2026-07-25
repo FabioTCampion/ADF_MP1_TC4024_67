@@ -32,17 +32,29 @@ src/PaperMachine.Historian.Web/data/PaperMachineHistorian.db
 
 O arquivo, seu WAL e arquivos temporários estão ignorados pelo Git. O banco usa:
 
-- `StatusSnapshots`: payload completo de status a cada 10 segundos;
-- `StatusChanges`: uma linha por campo de status alterado;
+- `TelemetrySamples`: telemetria numérica larga a cada 5 segundos, sem repetir
+  nomes de variáveis em cada amostra;
+- `TelemetryMinuteAggregates`: médias por minuto para gráficos e métricas de
+  períodos longos;
+- `StatusSnapshots`: payload completo de diagnóstico a cada 60 segundos;
+- `StatusChanges`: somente mudanças discretas (booleanos, estados e códigos);
 - `CommandEvents`: eventos ADS `on-change` da estrutura de comandos, independentes
   do ciclo periódico dos snapshots;
 - `AlarmEvents`: ativação, normalização, duração, mensagem didática em português
   e contexto C2000 Plus (código, descrição, torque retido e referência do manual);
+- `PaperBreakEvents`: início, fim, duração e velocidade das quebras detectadas
+  pelo terceiro grupo de secagem;
 - `AdsCommunicationEvents`: conexão e falhas de aquisição;
+- `HistorianMaintenanceState`: progresso da migração e última manutenção;
 - `ApplicationUsers`: usuários locais e hashes de senha;
 - `SchemaMigrations`: versão aplicada ao banco.
 
 Datas são armazenadas em UTC. Alarmes encontrados ativos na primeira leitura ficam marcados como `ActiveAtStartup`, pois o horário real de ativação anterior ao início do serviço é desconhecido.
+
+O histórico legado em JSON é convertido progressivamente em agregados por minuto
+antes de ser removido pela retenção. A limpeza ocorre em pequenos lotes e só é
+habilitada depois de existir pelo menos 24 horas de telemetria no formato novo.
+Alarmes, comandos, quebras e usuários não são removidos pela retenção automática.
 
 ## Diagnóstico dos drives C2000 Plus
 
@@ -110,11 +122,60 @@ Configurações relevantes:
 - `Ads:RemoteIp` (documentação da rota);
 - `Ads:OperationTimeoutMilliseconds`;
 - `Historian:PollIntervalMilliseconds`;
+- `Historian:TelemetrySampleIntervalSeconds`;
 - `Historian:StatusSnapshotIntervalSeconds`;
+- `Historian:DiagnosticSnapshotRetentionDays`;
+- `Historian:RawTelemetryRetentionDays`;
+- `Historian:AggregateRetentionDays`;
+- `Historian:StatusChangeRetentionDays`;
+- `Historian:CommunicationEventRetentionDays`;
+- `Historian:MaintenanceIntervalMinutes`;
+- `Historian:MaintenanceBatchSize`;
+- `Historian:PaperBreakMinimumSpeedMpm`;
+- `Historian:RetentionEnabled`;
 - `Historian:MappingVersion`;
-- `Database:FilePath`.
+- `Database:FilePath`;
+- `Updates:Enabled`;
+- `Updates:RepositoryOwner`;
+- `Updates:RepositoryName`;
+- `Updates:CheckIntervalMinutes`;
+- `Updates:AutoDownload`;
+- `Updates:WorkingDirectory`;
+- `Updates:TokenFilePath`;
+- `Updates:UpdaterTaskName`.
 
 Mudanças na estrutura PLC devem incrementar `Historian:MappingVersion`.
+
+## Atualização privada pelo GitHub
+
+O servidor consulta a última **Release estável** do repositório privado
+`FabioTCampion/ADF_MP1_TC4024_67`. Ele não executa `git pull`, não recebe
+código-fonte e não precisa de Git, Node.js ou SDK .NET. A cada 30 minutos, o
+serviço:
+
+1. consulta os metadados da Release usando um token somente leitura;
+2. compara a versão da tag com `deployment-state.json`;
+3. baixa automaticamente o ZIP e o arquivo `.sha256` quando existe versão nova;
+4. valida SHA-256 e a versão do manifesto interno;
+5. mantém o pacote em `updates/pending` até um administrador confirmar a
+   instalação pela página **Atualizações**.
+
+A aplicação Web apenas grava uma solicitação validada e aciona a tarefa fixa
+`CPNTeckPaperMachineHistorianUpdater`. Essa tarefa executa como `SYSTEM`, cria
+backup consistente, chama o instalador versionado, valida HTTP, banco e ADS e
+mantém o rollback automático. Nenhum endpoint aceita comandos ou caminhos
+arbitrários.
+
+O token não fica no `appsettings`. No servidor, ele é gravado em arquivo com ACL
+restrita a `SYSTEM` e Administradores pelo script:
+
+```powershell
+.\Set-PaperMachineHistorianUpdateToken.ps1
+```
+
+Use um fine-grained personal access token com acesso somente ao repositório e
+permissão **Contents: Read**. Consulte [DEPLOYMENT.md](DEPLOYMENT.md) para o
+fluxo completo de publicação da Release e instalação inicial do atualizador.
 
 ## API inicial
 
@@ -126,7 +187,13 @@ Mudanças na estrutura PLC devem incrementar `Historian:MappingVersion`.
 - `GET /api/history/motors`;
 - `GET /api/history/productivity`;
 - `GET /api/history/commands`;
-- `GET /api/history/alarms`.
+- `GET /api/history/alarms`;
+- `GET /api/history/breaks`;
+- `GET /api/storage`;
+- `GET /api/updates/status`;
+- `POST /api/updates/check`;
+- `POST /api/updates/download`;
+- `POST /api/updates/install`.
 
 Os históricos aceitam `fromUtc`, `toUtc` e `limit`. Alarmes também aceitam `active=true|false`.
 O endpoint de motores aceita `fromUtc`, `toUtc` e `maxPoints` entre 100 e 2.000,
@@ -143,15 +210,17 @@ A análise de correlação relaciona cada quebra a comandos e mudanças discreta
 de estado ocorridos entre cinco minutos antes e um minuto depois do seu início.
 Ela destaca recorrência temporal, mas não atribui causalidade automaticamente.
 As APIs do Historian exigem autenticação por cookie; `/health` e o fluxo inicial de autenticação permanecem públicos.
+As APIs de atualização exigem o perfil `Administrator`. A instalação exige que
+a versão confirmada corresponda exatamente ao pacote validado e preparado.
 
 ## Limites desta versão
 
 - não escreve comandos no PLC;
 - mudança em `paperMachineHmiCommands` é capturada por notificação ADS imediata,
   mas significa **comando observado**, não confirmação de execução;
-- os gráficos usam os snapshots de status gravados a cada 10 segundos e não representam picos mais rápidos;
+- a telemetria histórica padrão é gravada a cada 5 segundos e não representa
+  picos analógicos mais rápidos; o torque exato de falha continua retido no PLC;
 - correlações de quebra são indícios temporais e precisam de confirmação por
   alarme, diagnóstico do drive ou análise técnica;
 - campos sem unidade inequívoca no DUT são exibidos como `unidade PLC`;
-- ainda não há relatórios PDF, retenção automática ou agregação;
-- a administração completa de usuários e grupos será incorporada em uma próxima evolução.
+- ainda não há relatórios PDF.

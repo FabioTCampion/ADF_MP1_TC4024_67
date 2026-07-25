@@ -30,6 +30,11 @@ public interface IHistorianRepository
         DateTimeOffset toUtc,
         int maximumPoints,
         CancellationToken cancellationToken);
+    Task<IReadOnlyList<TelemetrySampleRow>> GetTelemetryTrendSamplesAsync(
+        DateTimeOffset fromUtc,
+        DateTimeOffset toUtc,
+        int maximumPoints,
+        CancellationToken cancellationToken);
     Task<IReadOnlyList<MachineProductivitySampleRow>> GetMachineProductivitySamplesAsync(
         DateTimeOffset fromUtc,
         DateTimeOffset toUtc,
@@ -50,11 +55,23 @@ public interface IHistorianRepository
         bool? active,
         int limit,
         CancellationToken cancellationToken);
+    Task<IReadOnlyList<PaperBreakEventRow>> GetPaperBreakEventsAsync(
+        DateTimeOffset? fromUtc,
+        DateTimeOffset? toUtc,
+        int limit,
+        CancellationToken cancellationToken);
+    Task<HistorianMaintenanceResult> RunMaintenanceAsync(
+        DateTimeOffset nowUtc,
+        HistorianOptions options,
+        CancellationToken cancellationToken);
+    Task<HistorianStorageStatus> GetStorageStatusAsync(CancellationToken cancellationToken);
 }
 
 public interface IUserRepository
 {
     Task<int> CountAsync(CancellationToken cancellationToken);
+    Task<int> CountActiveAdministratorsAsync(CancellationToken cancellationToken);
+    Task<IReadOnlyList<ApplicationUser>> ListAsync(CancellationToken cancellationToken);
     Task<ApplicationUser?> FindByUserNameAsync(string userName, CancellationToken cancellationToken);
     Task<ApplicationUser?> FindByIdAsync(long id, CancellationToken cancellationToken);
     Task<long> CreateAsync(
@@ -63,6 +80,16 @@ public interface IUserRepository
         string passwordHash,
         string role,
         DateTimeOffset createdAtUtc,
+        CancellationToken cancellationToken);
+    Task<bool> UpdateAsync(
+        long id,
+        string displayName,
+        string role,
+        bool isActive,
+        CancellationToken cancellationToken);
+    Task<bool> UpdatePasswordHashAsync(
+        long id,
+        string passwordHash,
         CancellationToken cancellationToken);
     Task MarkLoginAsync(long id, DateTimeOffset loggedInAtUtc, CancellationToken cancellationToken);
 }
@@ -78,6 +105,13 @@ public sealed record MachineProductivitySampleRow(
     DateTimeOffset CapturedAtUtc,
     double? SpeedMpm,
     bool? PaperPresent,
+    string Quality);
+
+public sealed record TelemetrySampleRow(
+    DateTimeOffset CapturedAtUtc,
+    IReadOnlyDictionary<string, double?> NumericValues,
+    IReadOnlyDictionary<string, bool?> BooleanValues,
+    string MappingVersion,
     string Quality);
 
 public sealed record CommandEventRow(
@@ -121,3 +155,36 @@ public sealed record AlarmEventRow(
     double? DriveFaultTorque,
     long? DriveFaultEventCounter,
     string? ManualReference);
+
+public sealed record PaperBreakEventRow(
+    long Id,
+    DateTimeOffset StartedAtUtc,
+    DateTimeOffset? EndedAtUtc,
+    long? DurationMilliseconds,
+    bool ActiveAtStartup,
+    double SpeedAtStartMpm,
+    double? SpeedAtEndMpm,
+    string MappingVersion);
+
+public sealed record HistorianMaintenanceResult(
+    int DeletedDiagnosticSnapshots,
+    int DeletedRawTelemetrySamples,
+    int DeletedMinuteAggregates,
+    int DeletedStatusChanges,
+    int DeletedAnalogStatusChanges,
+    int DeletedCommunicationEvents,
+    DateTimeOffset CompletedAtUtc);
+
+public sealed record HistorianStorageStatus(
+    long DatabaseBytes,
+    long WalBytes,
+    long SharedMemoryBytes,
+    long ReusableBytes,
+    long FreeDiskBytes,
+    long TotalDiskBytes,
+    long TelemetrySampleCount,
+    long DiagnosticSnapshotCount,
+    long StatusChangeCount,
+    DateTimeOffset? OldestTelemetryAtUtc,
+    DateTimeOffset? NewestTelemetryAtUtc,
+    DateTimeOffset? LastMaintenanceAtUtc);
