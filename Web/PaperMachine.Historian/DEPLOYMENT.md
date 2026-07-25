@@ -4,6 +4,9 @@ O pacote de producao contem o backend ASP.NET, o frontend React compilado e o
 runtime .NET para Windows x64. O computador de producao nao precisa de Node.js,
 Visual Studio, IIS ou SDK .NET.
 
+O fluxo completo do atualizador, sua avaliação de segurança e o checklist para
+replicação estão em [UPDATE-SYSTEM.md](UPDATE-SYSTEM.md).
+
 ## 1. Gerar o pacote
 
 No computador de desenvolvimento, abra o PowerShell na pasta

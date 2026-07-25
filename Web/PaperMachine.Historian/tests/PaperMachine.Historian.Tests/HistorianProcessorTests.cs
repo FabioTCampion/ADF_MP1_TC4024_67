@@ -144,7 +144,43 @@ public sealed class HistorianProcessorTests
         Assert.Single(baseline.PaperBreakTransitions);
         Assert.False(baseline.PaperBreakTransitions[0].IsActive);
         Assert.True(Assert.Single(started.PaperBreakTransitions).IsActive);
+        var diagnostic = Assert.Single(started.PaperBreakDiagnostics);
+        Assert.Equal(firstAt.AddSeconds(1), diagnostic.BreakAtUtc);
+        Assert.Equal(2, diagnostic.Samples.Count);
+        Assert.Equal(firstAt, diagnostic.Samples[0].CapturedAtUtc);
+        Assert.Equal(firstAt.AddSeconds(1), diagnostic.Samples[1].CapturedAtUtc);
         Assert.False(Assert.Single(ended.PaperBreakTransitions).IsActive);
+        Assert.Empty(ended.PaperBreakDiagnostics);
+    }
+
+    [Fact]
+    public void PaperBreakDiagnosticKeepsOnlyConfiguredPreBreakWindow()
+    {
+        var options = new HistorianOptions
+        {
+            PaperBreakDiagnosticWindowSeconds = 30
+        };
+        var processor = new HistorianProcessor(options);
+        var firstAt = new DateTimeOffset(2026, 7, 24, 12, 0, 0, TimeSpan.Zero);
+        processor.Process(CreateSnapshot(
+            firstAt,
+            """{"dryingSectionGroup3UpperMasterSpeedMPM":120.0,"dryingSectionGroup3PaperPresence":true}""",
+            """{"start":false}""",
+            """{"fault":false}"""));
+        processor.Process(CreateSnapshot(
+            firstAt.AddSeconds(20),
+            """{"dryingSectionGroup3UpperMasterSpeedMPM":121.0,"dryingSectionGroup3PaperPresence":true}""",
+            """{"start":false}""",
+            """{"fault":false}"""));
+        var started = processor.Process(CreateSnapshot(
+            firstAt.AddSeconds(40),
+            """{"dryingSectionGroup3UpperMasterSpeedMPM":119.0,"dryingSectionGroup3PaperPresence":false}""",
+            """{"start":false}""",
+            """{"fault":false}"""));
+
+        var samples = Assert.Single(started.PaperBreakDiagnostics).Samples;
+        Assert.Equal(2, samples.Count);
+        Assert.DoesNotContain(samples, sample => sample.CapturedAtUtc == firstAt);
     }
 
     [Fact]

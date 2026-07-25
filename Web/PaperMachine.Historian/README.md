@@ -44,12 +44,23 @@ O arquivo, seu WAL e arquivos temporários estão ignorados pelo Git. O banco us
   e contexto C2000 Plus (código, descrição, torque retido e referência do manual);
 - `PaperBreakEvents`: início, fim, duração e velocidade das quebras detectadas
   pelo terceiro grupo de secagem;
+- `PaperBreakDiagnosticSamples`: janela indexada de T-180 s até T0 com as
+  variáveis relevantes de processo, motores, bombas, headbox e estados;
+- `PaperBreakDiagnosticSummary`: estatísticas por variável, comparação entre a
+  linha de base e os 30 segundos finais e índice de alteração;
+- `PaperBreakEvidence`: alarmes, comandos ADS `on-change` e mudanças discretas
+  correlacionadas à mesma janela;
 - `AdsCommunicationEvents`: conexão e falhas de aquisição;
 - `HistorianMaintenanceState`: progresso da migração e última manutenção;
 - `ApplicationUsers`: usuários locais e hashes de senha;
 - `SchemaMigrations`: versão aplicada ao banco.
 
 Datas são armazenadas em UTC. Alarmes encontrados ativos na primeira leitura ficam marcados como `ActiveAtStartup`, pois o horário real de ativação anterior ao início do serviço é desconhecido.
+
+A página **Análise de quebras** permite filtrar eventos, sobrepor variáveis em
+eixos separados por unidade, consultar evidências e registrar a causa validada
+pelo analista. O índice de alteração é um auxílio estatístico e não é tratado
+como prova automática de causalidade.
 
 O histórico legado em JSON é convertido progressivamente em agregados por minuto
 antes de ser removido pela retenção. A limpeza ocorre em pequenos lotes e só é
@@ -111,6 +122,10 @@ Os testes não escrevem no PLC. Um banco SQLite temporário é usado no teste de
 Para gerar o pacote autocontido e instalar como serviço Windows com início
 automático, consulte [DEPLOYMENT.md](DEPLOYMENT.md).
 
+Para entender, operar ou reutilizar o atualizador por GitHub Releases, consulte
+[UPDATE-SYSTEM.md](UPDATE-SYSTEM.md). O documento inclui o fluxo ponta a ponta,
+modelo de ameaça, limitações de segurança e checklist de replicação.
+
 ## Configuração
 
 Os valores iniciais ficam em
@@ -132,6 +147,7 @@ Configurações relevantes:
 - `Historian:MaintenanceIntervalMinutes`;
 - `Historian:MaintenanceBatchSize`;
 - `Historian:PaperBreakMinimumSpeedMpm`;
+- `Historian:PaperBreakDiagnosticWindowSeconds` (padrão: `180`);
 - `Historian:RetentionEnabled`;
 - `Historian:MappingVersion`;
 - `Database:FilePath`;

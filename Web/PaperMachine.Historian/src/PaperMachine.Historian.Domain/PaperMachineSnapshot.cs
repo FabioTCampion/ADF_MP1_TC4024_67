@@ -29,6 +29,14 @@ public sealed record PaperBreakTransition(
     bool InitialObservation,
     double SpeedMpm);
 
+public sealed record PaperBreakDiagnosticSample(
+    DateTimeOffset CapturedAtUtc,
+    JsonElement Status);
+
+public sealed record PaperBreakDiagnosticCapture(
+    DateTimeOffset BreakAtUtc,
+    IReadOnlyList<PaperBreakDiagnosticSample> Samples);
+
 public sealed record AlarmDefinition(
     string DisplayName,
     string Description,
@@ -56,7 +64,8 @@ public sealed record HistorianCycle(
     IReadOnlyList<FieldChange> StatusChanges,
     IReadOnlyList<FieldChange> CommandChanges,
     IReadOnlyList<AlarmTransition> AlarmTransitions,
-    IReadOnlyList<PaperBreakTransition> PaperBreakTransitions);
+    IReadOnlyList<PaperBreakTransition> PaperBreakTransitions,
+    IReadOnlyList<PaperBreakDiagnosticCapture> PaperBreakDiagnostics);
 
 public sealed record CommunicationEvent(
     DateTimeOffset ObservedAtUtc,

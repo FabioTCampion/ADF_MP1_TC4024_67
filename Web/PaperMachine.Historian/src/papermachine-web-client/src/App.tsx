@@ -13,6 +13,7 @@ import SideMenu, { type NavigationItem, type PageId } from "./SideMenu";
 
 const InteractiveChart = lazy(() => import("./InteractiveChart"));
 const MetricsScreen = lazy(() => import("./MetricsScreen"));
+const BreakAnalysisScreen = lazy(() => import("./BreakAnalysisScreen"));
 const UsersScreen = lazy(() => import("./UsersScreen"));
 const UpdatesScreen = lazy(() => import("./UpdatesScreen"));
 
@@ -116,6 +117,7 @@ type MotorTrend = {
 const navigation: readonly NavigationItem[] = [
   { id: "dashboard", label: "Visão geral", icon: "dashboard" },
   { id: "metrics", label: "Métricas", icon: "metrics" },
+  { id: "breaks", label: "Análise de quebras", icon: "breaks" },
   { id: "status", label: "Status atual", icon: "status" },
   { id: "graphs", label: "Gráficos", icon: "graphs" },
   { id: "alarms", label: "Alarmes", icon: "alarm" },
@@ -449,6 +451,11 @@ export default function App() {
           {page === "metrics" && (
             <Suspense fallback={<EmptyState text="Preparando métricas…" />}>
               <MetricsScreen />
+            </Suspense>
+          )}
+          {page === "breaks" && (
+            <Suspense fallback={<EmptyState text="Preparando análise de quebras…" />}>
+              <BreakAnalysisScreen />
             </Suspense>
           )}
           {page === "status" && <CurrentStatus current={current} />}

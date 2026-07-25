@@ -8,7 +8,7 @@ namespace PaperMachine.Historian.Infrastructure.Database;
 
 public sealed class SqliteHistorianRepository : IHistorianRepository
 {
-    private const int SchemaVersion = 4;
+    private const int SchemaVersion = 5;
     private readonly string _databasePath;
     private readonly string _connectionString;
     private readonly SemaphoreSlim _writeGate = new(1, 1);
@@ -141,6 +141,7 @@ public sealed class SqliteHistorianRepository : IHistorianRepository
 
         await EnsureAlarmEventColumnsAsync(connection, cancellationToken);
         await EnsureOptimizedHistorianSchemaAsync(connection, cancellationToken);
+        await EnsurePaperBreakDiagnosticSchemaAsync(connection, cancellationToken);
         await ExecuteAsync(
             connection,
             null,
@@ -149,6 +150,8 @@ public sealed class SqliteHistorianRepository : IHistorianRepository
             VALUES (3, @AppliedAtUtc);
             INSERT OR IGNORE INTO SchemaMigrations (Version, AppliedAtUtc)
             VALUES (4, @AppliedAtUtc);
+            INSERT OR IGNORE INTO SchemaMigrations (Version, AppliedAtUtc)
+            VALUES (5, @AppliedAtUtc);
             """,
             cancellationToken,
             ("@AppliedAtUtc", ToDatabaseTimestamp(DateTimeOffset.UtcNow)));
@@ -169,7 +172,8 @@ public sealed class SqliteHistorianRepository : IHistorianRepository
             cycle.StatusChanges.Count == 0 &&
             cycle.CommandChanges.Count == 0 &&
             cycle.AlarmTransitions.Count == 0 &&
-            cycle.PaperBreakTransitions.Count == 0)
+            cycle.PaperBreakTransitions.Count == 0 &&
+            cycle.PaperBreakDiagnostics.Count == 0)
         {
             return;
         }
@@ -323,6 +327,32 @@ public sealed class SqliteHistorianRepository : IHistorianRepository
                     ("@ActiveAtStartup", transition.InitialObservation ? 1 : 0),
                     ("@SpeedAtStartMpm", transition.SpeedMpm),
                     ("@MappingVersion", cycle.Snapshot.MappingVersion));
+
+                var diagnostic = cycle.PaperBreakDiagnostics.FirstOrDefault(item =>
+                    item.BreakAtUtc == transition.ObservedAtUtc);
+                if (diagnostic is not null)
+                {
+                    var paperBreakEventId = await GetPaperBreakEventIdAsync(
+                        connection,
+                        transaction,
+                        transition.ObservedAtUtc,
+                        cancellationToken);
+                    if (paperBreakEventId.HasValue)
+                    {
+                        await InsertPaperBreakDiagnosticAsync(
+                            connection,
+                            transaction,
+                            paperBreakEventId.Value,
+                            diagnostic,
+                            cancellationToken);
+                        await InsertPaperBreakEvidenceAsync(
+                            connection,
+                            transaction,
+                            paperBreakEventId.Value,
+                            diagnostic.BreakAtUtc,
+                            cancellationToken);
+                    }
+                }
             }
             else
             {
@@ -374,6 +404,26 @@ public sealed class SqliteHistorianRepository : IHistorianRepository
                 ("@Current", change.CurrentValueJson),
                 ("@ObservedAtUtc", ToDatabaseTimestamp(change.ObservedAtUtc)),
                 ("@MappingVersion", mappingVersion));
+            await ExecuteAsync(
+                connection,
+                null,
+                """
+                INSERT OR IGNORE INTO PaperBreakEvidence
+                    (PaperBreakEventId, Kind, Name, PreviousValueJson, CurrentValueJson,
+                     ObservedAtUtc, OffsetMilliseconds, Description, Severity)
+                SELECT Id, 'Comando', @Name, @Previous, @Current, @ObservedAtUtc,
+                       @ObservedAtUnixMs - StartedAtUnixMs, 'AdsOnChange', NULL
+                FROM PaperBreakEvents
+                WHERE ActiveAtStartup = 0
+                  AND StartedAtUnixMs >= @ObservedAtUnixMs
+                  AND StartedAtUnixMs <= @ObservedAtUnixMs + 180000;
+                """,
+                cancellationToken,
+                ("@Name", change.FieldName),
+                ("@Previous", change.PreviousValueJson),
+                ("@Current", change.CurrentValueJson),
+                ("@ObservedAtUtc", ToDatabaseTimestamp(change.ObservedAtUtc)),
+                ("@ObservedAtUnixMs", change.ObservedAtUtc.ToUnixTimeMilliseconds()));
         }
         finally
         {
@@ -764,8 +814,12 @@ public sealed class SqliteHistorianRepository : IHistorianRepository
         await using var command = connection.CreateCommand();
         command.CommandText = """
             SELECT Id, StartedAtUnixMs, EndedAtUnixMs, DurationMilliseconds,
-                   ActiveAtStartup, SpeedAtStartMpm, SpeedAtEndMpm, MappingVersion
-            FROM PaperBreakEvents
+                   ActiveAtStartup, SpeedAtStartMpm, SpeedAtEndMpm, MappingVersion,
+                   (SELECT COUNT(*) FROM PaperBreakDiagnosticSamples samples
+                    WHERE samples.PaperBreakEventId = events.Id),
+                   AnalysisStatus, CauseCategory, CauseDescription, AnalysisNotes,
+                   AnalyzedBy, AnalyzedAtUtc
+            FROM PaperBreakEvents events
             WHERE (@FromUnixMs IS NULL OR StartedAtUnixMs >= @FromUnixMs)
               AND (@ToUnixMs IS NULL OR StartedAtUnixMs < @ToUnixMs)
             ORDER BY StartedAtUnixMs DESC
@@ -793,10 +847,170 @@ public sealed class SqliteHistorianRepository : IHistorianRepository
                 reader.GetInt64(4) != 0,
                 reader.GetDouble(5),
                 reader.IsDBNull(6) ? null : reader.GetDouble(6),
-                reader.GetString(7)));
+                reader.GetString(7),
+                reader.GetInt32(8),
+                reader.GetString(9),
+                reader.IsDBNull(10) ? null : reader.GetString(10),
+                reader.IsDBNull(11) ? null : reader.GetString(11),
+                reader.IsDBNull(12) ? null : reader.GetString(12),
+                reader.IsDBNull(13) ? null : reader.GetString(13),
+                reader.IsDBNull(14) ? null : ParseDatabaseTimestamp(reader.GetString(14))));
         }
 
         return rows;
+    }
+
+    public async Task<PaperBreakDiagnosticRow?> GetPaperBreakDiagnosticAsync(
+        long paperBreakEventId,
+        CancellationToken cancellationToken)
+    {
+        await using var connection = await OpenAsync(cancellationToken);
+        PaperBreakEventRow? paperBreakEvent;
+        await using (var command = connection.CreateCommand())
+        {
+            command.CommandText = """
+                SELECT Id, StartedAtUnixMs, EndedAtUnixMs, DurationMilliseconds,
+                       ActiveAtStartup, SpeedAtStartMpm, SpeedAtEndMpm, MappingVersion,
+                       (SELECT COUNT(*) FROM PaperBreakDiagnosticSamples samples
+                        WHERE samples.PaperBreakEventId = events.Id),
+                       AnalysisStatus, CauseCategory, CauseDescription, AnalysisNotes,
+                       AnalyzedBy, AnalyzedAtUtc
+                FROM PaperBreakEvents events
+                WHERE Id = @Id;
+                """;
+            command.Parameters.AddWithValue("@Id", paperBreakEventId);
+            await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+            if (!await reader.ReadAsync(cancellationToken))
+                return null;
+            paperBreakEvent = ReadPaperBreakEvent(reader);
+        }
+
+        var samples = new List<PaperBreakDiagnosticSampleRow>();
+        await using (var command = connection.CreateCommand())
+        {
+            command.CommandText = """
+                SELECT CapturedAtUnixMs, OffsetMilliseconds, StatusJson, Quality
+                FROM PaperBreakDiagnosticSamples
+                WHERE PaperBreakEventId = @Id
+                ORDER BY CapturedAtUnixMs;
+                """;
+            command.Parameters.AddWithValue("@Id", paperBreakEventId);
+            await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+            while (await reader.ReadAsync(cancellationToken))
+            {
+                samples.Add(new PaperBreakDiagnosticSampleRow(
+                    DateTimeOffset.FromUnixTimeMilliseconds(reader.GetInt64(0)),
+                    reader.GetInt64(1),
+                    reader.GetString(2),
+                    reader.GetString(3)));
+            }
+        }
+
+        var summary = new List<PaperBreakDiagnosticSummaryRow>();
+        await using (var command = connection.CreateCommand())
+        {
+            command.CommandText = """
+                SELECT FieldName, Category, Unit, SampleCount, Minimum, Maximum, Average,
+                       StandardDeviation, ValueAtBreak, BaselineAverage, CriticalAverage,
+                       Delta, AnomalyScore
+                FROM PaperBreakDiagnosticSummary
+                WHERE PaperBreakEventId = @Id
+                ORDER BY COALESCE(AnomalyScore, -1) DESC, FieldName;
+                """;
+            command.Parameters.AddWithValue("@Id", paperBreakEventId);
+            await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+            while (await reader.ReadAsync(cancellationToken))
+            {
+                summary.Add(new PaperBreakDiagnosticSummaryRow(
+                    reader.GetString(0),
+                    reader.GetString(1),
+                    reader.GetString(2),
+                    reader.GetInt32(3),
+                    ReadNullableDouble(reader, 4),
+                    ReadNullableDouble(reader, 5),
+                    ReadNullableDouble(reader, 6),
+                    ReadNullableDouble(reader, 7),
+                    ReadNullableDouble(reader, 8),
+                    ReadNullableDouble(reader, 9),
+                    ReadNullableDouble(reader, 10),
+                    ReadNullableDouble(reader, 11),
+                    ReadNullableDouble(reader, 12)));
+            }
+        }
+
+        var evidence = new List<PaperBreakEvidenceRow>();
+        await using (var command = connection.CreateCommand())
+        {
+            command.CommandText = """
+                SELECT Id, Kind, Name, PreviousValueJson, CurrentValueJson,
+                       ObservedAtUtc, OffsetMilliseconds, Description, Severity
+                FROM PaperBreakEvidence
+                WHERE PaperBreakEventId = @Id
+                ORDER BY ObservedAtUtc;
+                """;
+            command.Parameters.AddWithValue("@Id", paperBreakEventId);
+            await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+            while (await reader.ReadAsync(cancellationToken))
+            {
+                evidence.Add(new PaperBreakEvidenceRow(
+                    reader.GetInt64(0),
+                    reader.GetString(1),
+                    reader.GetString(2),
+                    reader.IsDBNull(3) ? null : reader.GetString(3),
+                    reader.IsDBNull(4) ? null : reader.GetString(4),
+                    ParseDatabaseTimestamp(reader.GetString(5)),
+                    reader.GetInt64(6),
+                    reader.IsDBNull(7) ? null : reader.GetString(7),
+                    reader.IsDBNull(8) ? null : reader.GetString(8)));
+            }
+        }
+
+        return new PaperBreakDiagnosticRow(paperBreakEvent, samples, summary, evidence);
+    }
+
+    public async Task<bool> UpdatePaperBreakAnalysisAsync(
+        long paperBreakEventId,
+        PaperBreakAnalysisUpdate update,
+        string analyzedBy,
+        DateTimeOffset analyzedAtUtc,
+        CancellationToken cancellationToken)
+    {
+        await _writeGate.WaitAsync(cancellationToken);
+        try
+        {
+            await using var connection = await OpenAsync(cancellationToken);
+            await using var command = connection.CreateCommand();
+            command.CommandText = """
+                UPDATE PaperBreakEvents
+                SET AnalysisStatus = @AnalysisStatus,
+                    CauseCategory = @CauseCategory,
+                    CauseDescription = @CauseDescription,
+                    AnalysisNotes = @AnalysisNotes,
+                    AnalyzedBy = @AnalyzedBy,
+                    AnalyzedAtUtc = @AnalyzedAtUtc
+                WHERE Id = @Id;
+                """;
+            command.Parameters.AddWithValue("@Id", paperBreakEventId);
+            command.Parameters.AddWithValue("@AnalysisStatus", update.AnalysisStatus);
+            command.Parameters.AddWithValue(
+                "@CauseCategory",
+                (object?)update.CauseCategory ?? DBNull.Value);
+            command.Parameters.AddWithValue(
+                "@CauseDescription",
+                (object?)update.CauseDescription ?? DBNull.Value);
+            command.Parameters.AddWithValue(
+                "@AnalysisNotes",
+                (object?)update.AnalysisNotes ?? DBNull.Value);
+            command.Parameters.AddWithValue("@AnalyzedBy", analyzedBy);
+            command.Parameters.AddWithValue(
+                "@AnalyzedAtUtc",
+                ToDatabaseTimestamp(analyzedAtUtc));
+            return await command.ExecuteNonQueryAsync(cancellationToken) > 0;
+        }
+        finally
+        {
+            _writeGate.Release();
+        }
     }
 
     public async Task<HistorianMaintenanceResult> RunMaintenanceAsync(
@@ -1388,6 +1602,97 @@ public sealed class SqliteHistorianRepository : IHistorianRepository
             cancellationToken);
     }
 
+    private static async Task EnsurePaperBreakDiagnosticSchemaAsync(
+        SqliteConnection connection,
+        CancellationToken cancellationToken)
+    {
+        var existing = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        await using (var command = connection.CreateCommand())
+        {
+            command.CommandText = "PRAGMA table_info(PaperBreakEvents);";
+            await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+            while (await reader.ReadAsync(cancellationToken))
+                existing.Add(reader.GetString(1));
+        }
+
+        var required = new (string Name, string Sql)[]
+        {
+            ("AnalysisStatus", "TEXT NOT NULL DEFAULT 'Pendente'"),
+            ("CauseCategory", "TEXT NULL"),
+            ("CauseDescription", "TEXT NULL"),
+            ("AnalysisNotes", "TEXT NULL"),
+            ("AnalyzedBy", "TEXT NULL"),
+            ("AnalyzedAtUtc", "TEXT NULL")
+        };
+        foreach (var column in required)
+        {
+            if (existing.Contains(column.Name))
+                continue;
+            await ExecuteAsync(
+                connection,
+                null,
+                $"ALTER TABLE PaperBreakEvents ADD COLUMN {column.Name} {column.Sql};",
+                cancellationToken);
+        }
+
+        await ExecuteAsync(
+            connection,
+            null,
+            """
+            CREATE TABLE IF NOT EXISTS PaperBreakDiagnosticSamples (
+                PaperBreakEventId INTEGER NOT NULL,
+                CapturedAtUnixMs INTEGER NOT NULL,
+                OffsetMilliseconds INTEGER NOT NULL,
+                StatusJson TEXT NOT NULL,
+                Quality TEXT NOT NULL,
+                PRIMARY KEY (PaperBreakEventId, CapturedAtUnixMs),
+                FOREIGN KEY (PaperBreakEventId) REFERENCES PaperBreakEvents(Id) ON DELETE CASCADE
+            );
+            CREATE INDEX IF NOT EXISTS IX_PaperBreakDiagnosticSamples_EventOffset
+                ON PaperBreakDiagnosticSamples (PaperBreakEventId, OffsetMilliseconds);
+
+            CREATE TABLE IF NOT EXISTS PaperBreakDiagnosticSummary (
+                PaperBreakEventId INTEGER NOT NULL,
+                FieldName TEXT NOT NULL,
+                Category TEXT NOT NULL,
+                Unit TEXT NOT NULL,
+                SampleCount INTEGER NOT NULL,
+                Minimum REAL NULL,
+                Maximum REAL NULL,
+                Average REAL NULL,
+                StandardDeviation REAL NULL,
+                ValueAtBreak REAL NULL,
+                BaselineAverage REAL NULL,
+                CriticalAverage REAL NULL,
+                Delta REAL NULL,
+                AnomalyScore REAL NULL,
+                PRIMARY KEY (PaperBreakEventId, FieldName),
+                FOREIGN KEY (PaperBreakEventId) REFERENCES PaperBreakEvents(Id) ON DELETE CASCADE
+            );
+            CREATE INDEX IF NOT EXISTS IX_PaperBreakDiagnosticSummary_Anomaly
+                ON PaperBreakDiagnosticSummary (PaperBreakEventId, AnomalyScore DESC);
+
+            CREATE TABLE IF NOT EXISTS PaperBreakEvidence (
+                Id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+                PaperBreakEventId INTEGER NOT NULL,
+                Kind TEXT NOT NULL,
+                Name TEXT NOT NULL,
+                PreviousValueJson TEXT NULL,
+                CurrentValueJson TEXT NULL,
+                ObservedAtUtc TEXT NOT NULL,
+                OffsetMilliseconds INTEGER NOT NULL,
+                Description TEXT NULL,
+                Severity TEXT NULL,
+                FOREIGN KEY (PaperBreakEventId) REFERENCES PaperBreakEvents(Id) ON DELETE CASCADE
+            );
+            CREATE INDEX IF NOT EXISTS IX_PaperBreakEvidence_EventOffset
+                ON PaperBreakEvidence (PaperBreakEventId, OffsetMilliseconds);
+            CREATE UNIQUE INDEX IF NOT EXISTS UX_PaperBreakEvidence_EventOccurrence
+                ON PaperBreakEvidence (PaperBreakEventId, Kind, Name, ObservedAtUtc);
+            """,
+            cancellationToken);
+    }
+
     private static async Task InsertTelemetrySampleAsync(
         SqliteConnection connection,
         SqliteTransaction transaction,
@@ -1522,6 +1827,298 @@ public sealed class SqliteHistorianRepository : IHistorianRepository
                 .ToArray());
     }
 
+    private static async Task<long?> GetPaperBreakEventIdAsync(
+        SqliteConnection connection,
+        SqliteTransaction transaction,
+        DateTimeOffset startedAtUtc,
+        CancellationToken cancellationToken)
+    {
+        await using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText =
+            "SELECT Id FROM PaperBreakEvents WHERE StartedAtUnixMs = @StartedAtUnixMs LIMIT 1;";
+        command.Parameters.AddWithValue(
+            "@StartedAtUnixMs",
+            startedAtUtc.ToUnixTimeMilliseconds());
+        var value = await command.ExecuteScalarAsync(cancellationToken);
+        return value is null or DBNull
+            ? null
+            : Convert.ToInt64(value, CultureInfo.InvariantCulture);
+    }
+
+    private static async Task InsertPaperBreakDiagnosticAsync(
+        SqliteConnection connection,
+        SqliteTransaction transaction,
+        long paperBreakEventId,
+        PaperBreakDiagnosticCapture diagnostic,
+        CancellationToken cancellationToken)
+    {
+        foreach (var sample in diagnostic.Samples)
+        {
+            await ExecuteAsync(
+                connection,
+                transaction,
+                """
+                INSERT OR IGNORE INTO PaperBreakDiagnosticSamples
+                    (PaperBreakEventId, CapturedAtUnixMs, OffsetMilliseconds, StatusJson, Quality)
+                VALUES
+                    (@PaperBreakEventId, @CapturedAtUnixMs, @OffsetMilliseconds, @StatusJson, 'Good');
+                """,
+                cancellationToken,
+                ("@PaperBreakEventId", paperBreakEventId),
+                ("@CapturedAtUnixMs", sample.CapturedAtUtc.ToUnixTimeMilliseconds()),
+                ("@OffsetMilliseconds",
+                    sample.CapturedAtUtc.ToUnixTimeMilliseconds() -
+                    diagnostic.BreakAtUtc.ToUnixTimeMilliseconds()),
+                ("@StatusJson", SerializeDiagnosticStatus(sample.Status)));
+        }
+
+        foreach (var summary in BuildPaperBreakSummary(diagnostic))
+        {
+            await ExecuteAsync(
+                connection,
+                transaction,
+                """
+                INSERT OR REPLACE INTO PaperBreakDiagnosticSummary
+                    (PaperBreakEventId, FieldName, Category, Unit, SampleCount,
+                     Minimum, Maximum, Average, StandardDeviation, ValueAtBreak,
+                     BaselineAverage, CriticalAverage, Delta, AnomalyScore)
+                VALUES
+                    (@PaperBreakEventId, @FieldName, @Category, @Unit, @SampleCount,
+                     @Minimum, @Maximum, @Average, @StandardDeviation, @ValueAtBreak,
+                     @BaselineAverage, @CriticalAverage, @Delta, @AnomalyScore);
+                """,
+                cancellationToken,
+                ("@PaperBreakEventId", paperBreakEventId),
+                ("@FieldName", summary.FieldName),
+                ("@Category", summary.Category),
+                ("@Unit", summary.Unit),
+                ("@SampleCount", summary.SampleCount),
+                ("@Minimum", summary.Minimum),
+                ("@Maximum", summary.Maximum),
+                ("@Average", summary.Average),
+                ("@StandardDeviation", summary.StandardDeviation),
+                ("@ValueAtBreak", summary.ValueAtBreak),
+                ("@BaselineAverage", summary.BaselineAverage),
+                ("@CriticalAverage", summary.CriticalAverage),
+                ("@Delta", summary.Delta),
+                ("@AnomalyScore", summary.AnomalyScore));
+        }
+    }
+
+    private static IReadOnlyList<PaperBreakDiagnosticSummaryRow> BuildPaperBreakSummary(
+        PaperBreakDiagnosticCapture diagnostic)
+    {
+        var values = new Dictionary<string, List<(long Offset, double Value)>>(
+            StringComparer.OrdinalIgnoreCase);
+        var breakAtUnixMs = diagnostic.BreakAtUtc.ToUnixTimeMilliseconds();
+        foreach (var sample in diagnostic.Samples)
+        {
+            var offset = sample.CapturedAtUtc.ToUnixTimeMilliseconds() - breakAtUnixMs;
+            foreach (var property in sample.Status.EnumerateObject())
+            {
+                if (!IsPaperBreakDiagnosticField(property.Name, property.Value) ||
+                    property.Value.ValueKind != JsonValueKind.Number ||
+                    !property.Value.TryGetDouble(out var number) ||
+                    !double.IsFinite(number))
+                {
+                    continue;
+                }
+
+                if (!values.TryGetValue(property.Name, out var fieldValues))
+                {
+                    fieldValues = [];
+                    values[property.Name] = fieldValues;
+                }
+                fieldValues.Add((offset, number));
+            }
+        }
+
+        return values.Select(item =>
+        {
+            var all = item.Value.Select(value => value.Value).ToArray();
+            var average = all.Average();
+            var variance = all.Select(value => Math.Pow(value - average, 2)).Average();
+            var standardDeviation = Math.Sqrt(variance);
+            var baseline = item.Value
+                .Where(value => value.Offset <= -60_000)
+                .Select(value => value.Value)
+                .ToArray();
+            var critical = item.Value
+                .Where(value => value.Offset >= -30_000)
+                .Select(value => value.Value)
+                .ToArray();
+            var baselineAverage = baseline.Length == 0 ? (double?)null : baseline.Average();
+            var criticalAverage = critical.Length == 0 ? (double?)null : critical.Average();
+            double? delta = baselineAverage.HasValue && criticalAverage.HasValue
+                ? criticalAverage.Value - baselineAverage.Value
+                : null;
+            double? anomaly = delta.HasValue
+                ? Math.Min(
+                    99,
+                    standardDeviation > 0.0001
+                        ? Math.Abs(delta.Value) / standardDeviation
+                        : Math.Abs(delta.Value) > 0.0001 ? 10 : 0)
+                : null;
+            var (category, unit) = DescribeDiagnosticField(item.Key);
+            return new PaperBreakDiagnosticSummaryRow(
+                item.Key,
+                category,
+                unit,
+                all.Length,
+                all.Min(),
+                all.Max(),
+                average,
+                standardDeviation,
+                item.Value.OrderBy(value => value.Offset).Last().Value,
+                baselineAverage,
+                criticalAverage,
+                delta,
+                anomaly);
+        })
+        .OrderByDescending(item => item.AnomalyScore ?? -1)
+        .ThenBy(item => item.FieldName, StringComparer.OrdinalIgnoreCase)
+        .ToArray();
+    }
+
+    private static string SerializeDiagnosticStatus(JsonElement status)
+    {
+        using var stream = new MemoryStream();
+        using (var writer = new Utf8JsonWriter(stream))
+        {
+            writer.WriteStartObject();
+            foreach (var property in status.EnumerateObject())
+            {
+                if (!IsPaperBreakDiagnosticField(property.Name, property.Value))
+                    continue;
+                property.WriteTo(writer);
+            }
+            writer.WriteEndObject();
+        }
+        return System.Text.Encoding.UTF8.GetString(stream.ToArray());
+    }
+
+    private static bool IsPaperBreakDiagnosticField(string fieldName, JsonElement value)
+    {
+        if (value.ValueKind is JsonValueKind.True or JsonValueKind.False)
+            return true;
+        if (value.ValueKind != JsonValueKind.Number)
+            return false;
+
+        return fieldName.Contains("Speed", StringComparison.OrdinalIgnoreCase) ||
+               fieldName.Contains("Torque", StringComparison.OrdinalIgnoreCase) ||
+               fieldName.Contains("Pressure", StringComparison.OrdinalIgnoreCase) ||
+               fieldName.Contains("MMH2O", StringComparison.OrdinalIgnoreCase) ||
+               fieldName.Contains("Position", StringComparison.OrdinalIgnoreCase) ||
+               fieldName.Contains("Temperature", StringComparison.OrdinalIgnoreCase) ||
+               fieldName.Contains("Level", StringComparison.OrdinalIgnoreCase) ||
+               fieldName.Contains("Vacuum", StringComparison.OrdinalIgnoreCase) ||
+               fieldName.Contains("Flow", StringComparison.OrdinalIgnoreCase) ||
+               fieldName.Contains("Setpoint", StringComparison.OrdinalIgnoreCase) ||
+               fieldName.Contains("CtrlOutput", StringComparison.OrdinalIgnoreCase) ||
+               fieldName.Contains("Ratio", StringComparison.OrdinalIgnoreCase) ||
+               fieldName.Contains("Current", StringComparison.OrdinalIgnoreCase) ||
+               fieldName.Contains("Voltage", StringComparison.OrdinalIgnoreCase) ||
+               fieldName.Contains("Frequency", StringComparison.OrdinalIgnoreCase) ||
+               fieldName.Contains("Diameter", StringComparison.OrdinalIgnoreCase) ||
+               fieldName.EndsWith("State", StringComparison.OrdinalIgnoreCase) ||
+               fieldName.Contains("FaultCode", StringComparison.OrdinalIgnoreCase) ||
+               fieldName.Contains("EventCounter", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static (string Category, string Unit) DescribeDiagnosticField(string fieldName)
+    {
+        if (fieldName.Contains("Torque", StringComparison.OrdinalIgnoreCase))
+            return ("Torque", "%");
+        if (fieldName.Contains("Speed", StringComparison.OrdinalIgnoreCase))
+        {
+            var isPump = fieldName.Contains("Pump", StringComparison.OrdinalIgnoreCase);
+            return (isPump ? "Bombas" : "Velocidade", isPump ? "%" : "m/min");
+        }
+        if (fieldName.Contains("Pressure", StringComparison.OrdinalIgnoreCase))
+            return ("Pressão", "bar");
+        if (fieldName.Contains("MMH2O", StringComparison.OrdinalIgnoreCase))
+            return ("Headbox", "mmH₂O");
+        if (fieldName.Contains("Position", StringComparison.OrdinalIgnoreCase))
+            return ("Posição", "mm");
+        if (fieldName.Contains("Temperature", StringComparison.OrdinalIgnoreCase))
+            return ("Temperatura", "°C");
+        if (fieldName.Contains("Level", StringComparison.OrdinalIgnoreCase) ||
+            fieldName.Contains("CtrlOutput", StringComparison.OrdinalIgnoreCase) ||
+            fieldName.Contains("Setpoint", StringComparison.OrdinalIgnoreCase) ||
+            fieldName.Contains("Ratio", StringComparison.OrdinalIgnoreCase))
+        {
+            return ("Processo", "%");
+        }
+        if (fieldName.EndsWith("State", StringComparison.OrdinalIgnoreCase) ||
+            fieldName.Contains("FaultCode", StringComparison.OrdinalIgnoreCase) ||
+            fieldName.Contains("EventCounter", StringComparison.OrdinalIgnoreCase))
+        {
+            return ("Estado", "código");
+        }
+        return ("Processo", "unidade PLC");
+    }
+
+    private static async Task InsertPaperBreakEvidenceAsync(
+        SqliteConnection connection,
+        SqliteTransaction transaction,
+        long paperBreakEventId,
+        DateTimeOffset breakAtUtc,
+        CancellationToken cancellationToken)
+    {
+        var fromUtc = breakAtUtc.AddMinutes(-3);
+        await ExecuteAsync(
+            connection,
+            transaction,
+            """
+            INSERT OR IGNORE INTO PaperBreakEvidence
+                (PaperBreakEventId, Kind, Name, PreviousValueJson, CurrentValueJson,
+                 ObservedAtUtc, OffsetMilliseconds, Description, Severity)
+            SELECT @PaperBreakEventId, 'Comando', CommandName, PreviousValueJson, CurrentValueJson,
+                   ObservedAtUtc,
+                   CAST(ROUND((julianday(ObservedAtUtc) - julianday(@BreakAtUtc)) * 86400000) AS INTEGER),
+                   Origin, NULL
+            FROM CommandEvents
+            WHERE ObservedAtUtc >= @FromUtc AND ObservedAtUtc <= @BreakAtUtc;
+
+            INSERT OR IGNORE INTO PaperBreakEvidence
+                (PaperBreakEventId, Kind, Name, PreviousValueJson, CurrentValueJson,
+                 ObservedAtUtc, OffsetMilliseconds, Description, Severity)
+            SELECT @PaperBreakEventId, 'Status', FieldName, PreviousValueJson, CurrentValueJson,
+                   ObservedAtUtc,
+                   CAST(ROUND((julianday(ObservedAtUtc) - julianday(@BreakAtUtc)) * 86400000) AS INTEGER),
+                   NULL, NULL
+            FROM StatusChanges
+            WHERE ObservedAtUtc >= @FromUtc AND ObservedAtUtc <= @BreakAtUtc;
+
+            INSERT OR IGNORE INTO PaperBreakEvidence
+                (PaperBreakEventId, Kind, Name, PreviousValueJson, CurrentValueJson,
+                 ObservedAtUtc, OffsetMilliseconds, Description, Severity)
+            SELECT @PaperBreakEventId, 'Alarme', AlarmName, 'false', 'true',
+                   ActivatedAtUtc,
+                   CAST(ROUND((julianday(ActivatedAtUtc) - julianday(@BreakAtUtc)) * 86400000) AS INTEGER),
+                   DisplayName || CASE WHEN Description = '' THEN '' ELSE ' — ' || Description END,
+                   Severity
+            FROM AlarmEvents
+            WHERE ActivatedAtUtc >= @FromUtc AND ActivatedAtUtc <= @BreakAtUtc;
+
+            INSERT OR IGNORE INTO PaperBreakEvidence
+                (PaperBreakEventId, Kind, Name, PreviousValueJson, CurrentValueJson,
+                 ObservedAtUtc, OffsetMilliseconds, Description, Severity)
+            SELECT @PaperBreakEventId, 'Alarme ativo', AlarmName, NULL, 'true',
+                   @BreakAtUtc, 0,
+                   DisplayName || ' — já estava ativo no início da janela',
+                   Severity
+            FROM AlarmEvents
+            WHERE ActivatedAtUtc < @FromUtc
+              AND (ClearedAtUtc IS NULL OR ClearedAtUtc > @BreakAtUtc);
+            """,
+            cancellationToken,
+            ("@PaperBreakEventId", paperBreakEventId),
+            ("@FromUtc", ToDatabaseTimestamp(fromUtc)),
+            ("@BreakAtUtc", ToDatabaseTimestamp(breakAtUtc)));
+    }
+
     private static async Task EnsureAlarmEventColumnsAsync(
         SqliteConnection connection,
         CancellationToken cancellationToken)
@@ -1654,6 +2251,31 @@ public sealed class SqliteHistorianRepository : IHistorianRepository
 
     private static DateTimeOffset ParseDatabaseTimestamp(string value) =>
         DateTimeOffset.Parse(value, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind);
+
+    private static double? ReadNullableDouble(SqliteDataReader reader, int ordinal) =>
+        reader.IsDBNull(ordinal)
+            ? null
+            : Convert.ToDouble(reader.GetValue(ordinal), CultureInfo.InvariantCulture);
+
+    private static PaperBreakEventRow ReadPaperBreakEvent(SqliteDataReader reader) =>
+        new(
+            reader.GetInt64(0),
+            DateTimeOffset.FromUnixTimeMilliseconds(reader.GetInt64(1)),
+            reader.IsDBNull(2)
+                ? null
+                : DateTimeOffset.FromUnixTimeMilliseconds(reader.GetInt64(2)),
+            reader.IsDBNull(3) ? null : reader.GetInt64(3),
+            reader.GetInt64(4) != 0,
+            reader.GetDouble(5),
+            reader.IsDBNull(6) ? null : reader.GetDouble(6),
+            reader.GetString(7),
+            reader.GetInt32(8),
+            reader.GetString(9),
+            reader.IsDBNull(10) ? null : reader.GetString(10),
+            reader.IsDBNull(11) ? null : reader.GetString(11),
+            reader.IsDBNull(12) ? null : reader.GetString(12),
+            reader.IsDBNull(13) ? null : reader.GetString(13),
+            reader.IsDBNull(14) ? null : ParseDatabaseTimestamp(reader.GetString(14)));
 
     private static void ValidateLimit(int limit)
     {

@@ -60,6 +60,15 @@ public interface IHistorianRepository
         DateTimeOffset? toUtc,
         int limit,
         CancellationToken cancellationToken);
+    Task<PaperBreakDiagnosticRow?> GetPaperBreakDiagnosticAsync(
+        long paperBreakEventId,
+        CancellationToken cancellationToken);
+    Task<bool> UpdatePaperBreakAnalysisAsync(
+        long paperBreakEventId,
+        PaperBreakAnalysisUpdate update,
+        string analyzedBy,
+        DateTimeOffset analyzedAtUtc,
+        CancellationToken cancellationToken);
     Task<HistorianMaintenanceResult> RunMaintenanceAsync(
         DateTimeOffset nowUtc,
         HistorianOptions options,
@@ -164,7 +173,58 @@ public sealed record PaperBreakEventRow(
     bool ActiveAtStartup,
     double SpeedAtStartMpm,
     double? SpeedAtEndMpm,
-    string MappingVersion);
+    string MappingVersion,
+    int DiagnosticSampleCount,
+    string AnalysisStatus,
+    string? CauseCategory,
+    string? CauseDescription,
+    string? AnalysisNotes,
+    string? AnalyzedBy,
+    DateTimeOffset? AnalyzedAtUtc);
+
+public sealed record PaperBreakDiagnosticSampleRow(
+    DateTimeOffset CapturedAtUtc,
+    long OffsetMilliseconds,
+    string StatusJson,
+    string Quality);
+
+public sealed record PaperBreakDiagnosticSummaryRow(
+    string FieldName,
+    string Category,
+    string Unit,
+    int SampleCount,
+    double? Minimum,
+    double? Maximum,
+    double? Average,
+    double? StandardDeviation,
+    double? ValueAtBreak,
+    double? BaselineAverage,
+    double? CriticalAverage,
+    double? Delta,
+    double? AnomalyScore);
+
+public sealed record PaperBreakEvidenceRow(
+    long Id,
+    string Kind,
+    string Name,
+    string? PreviousValueJson,
+    string? CurrentValueJson,
+    DateTimeOffset ObservedAtUtc,
+    long OffsetMilliseconds,
+    string? Description,
+    string? Severity);
+
+public sealed record PaperBreakDiagnosticRow(
+    PaperBreakEventRow Event,
+    IReadOnlyList<PaperBreakDiagnosticSampleRow> Samples,
+    IReadOnlyList<PaperBreakDiagnosticSummaryRow> Summary,
+    IReadOnlyList<PaperBreakEvidenceRow> Evidence);
+
+public sealed record PaperBreakAnalysisUpdate(
+    string AnalysisStatus,
+    string? CauseCategory,
+    string? CauseDescription,
+    string? AnalysisNotes);
 
 public sealed record HistorianMaintenanceResult(
     int DeletedDiagnosticSnapshots,

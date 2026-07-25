@@ -15,6 +15,7 @@ public sealed class HistorianOptions
     public int MaintenanceIntervalMinutes { get; set; } = 10;
     public int MaintenanceBatchSize { get; set; } = 5_000;
     public double PaperBreakMinimumSpeedMpm { get; set; } = 5;
+    public int PaperBreakDiagnosticWindowSeconds { get; set; } = 180;
     public bool RetentionEnabled { get; set; } = true;
     public string MappingVersion { get; set; } = "paper-machine-hmi-v1";
 
@@ -41,6 +42,9 @@ public sealed class HistorianOptions
             throw new InvalidOperationException("Maintenance batch size must be between 100 and 50000.");
         if (PaperBreakMinimumSpeedMpm < 0)
             throw new InvalidOperationException("Paper-break minimum speed cannot be negative.");
+        if (PaperBreakDiagnosticWindowSeconds is < 30 or > 600)
+            throw new InvalidOperationException(
+                "Paper-break diagnostic window must be between 30 and 600 seconds.");
         if (string.IsNullOrWhiteSpace(MappingVersion))
             throw new InvalidOperationException("Historian mapping version is required.");
     }

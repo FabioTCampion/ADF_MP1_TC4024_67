@@ -43,14 +43,14 @@ public sealed class SqliteHistorianRepositoryTests
             await repository.PersistCycleAsync(
                 processor.Process(HistorianProcessorTests.CreateSnapshot(
                     firstAt.AddSeconds(1),
-                    """{"speed":11.0,"mixingPumpFaultCode":1,"mixingPumpFaultTorque":12.3,"mixingPumpFaultEventCounter":1}""",
+                    """{"speed":11.0,"dryingSectionGroup3UpperMasterSpeedMPM":335.0,"dryingSectionGroup3PaperPresence":false,"headBoxMMH2O":245.5,"headboxLipsPosition_mm":8.2,"mixingPumpFaultCode":1,"mixingPumpFaultTorque":12.3,"mixingPumpFaultEventCounter":1}""",
                     """{"start":true}""",
                     """{"mixingPumpFaultAlarm":true}""")),
                 CancellationToken.None);
             await repository.PersistCycleAsync(
                 processor.Process(HistorianProcessorTests.CreateSnapshot(
                     firstAt.AddSeconds(2),
-                    """{"speed":11.0,"mixingPumpFaultCode":1,"mixingPumpFaultTorque":12.3,"mixingPumpFaultEventCounter":1}""",
+                    """{"speed":11.0,"dryingSectionGroup3UpperMasterSpeedMPM":334.0,"dryingSectionGroup3PaperPresence":true,"headBoxMMH2O":246.0,"headboxLipsPosition_mm":8.2,"mixingPumpFaultCode":1,"mixingPumpFaultTorque":12.3,"mixingPumpFaultEventCounter":1}""",
                     """{"start":false}""",
                     """{"mixingPumpFaultAlarm":false}""")),
                 CancellationToken.None);
@@ -96,6 +96,45 @@ public sealed class SqliteHistorianRepositoryTests
             Assert.Equal(1, alarm.DriveFaultCode);
             Assert.Equal("ocA", alarm.DriveFaultMnemonic);
             Assert.Equal(12.3, alarm.DriveFaultTorque);
+
+            var paperBreak = Assert.Single(
+                await repository.GetPaperBreakEventsAsync(
+                    null,
+                    null,
+                    10,
+                    CancellationToken.None));
+            Assert.Equal(2, paperBreak.DiagnosticSampleCount);
+            Assert.Equal("Pendente", paperBreak.AnalysisStatus);
+            var diagnostic = await repository.GetPaperBreakDiagnosticAsync(
+                paperBreak.Id,
+                CancellationToken.None);
+            Assert.NotNull(diagnostic);
+            Assert.Equal(2, diagnostic.Samples.Count);
+            Assert.Contains(
+                diagnostic.Summary,
+                item => item.FieldName == "headBoxMMH2O" && item.Unit == "mmH₂O");
+            Assert.Contains(
+                diagnostic.Evidence,
+                item => item.Kind == "Comando" && item.Name == "start");
+            Assert.Contains(
+                diagnostic.Evidence,
+                item => item.Kind == "Alarme" && item.Name == "mixingPumpFaultAlarm");
+            Assert.True(await repository.UpdatePaperBreakAnalysisAsync(
+                paperBreak.Id,
+                new PaperBreakAnalysisUpdate(
+                    "Concluída",
+                    "Processo",
+                    "Oscilação observada.",
+                    "Validado no teste."),
+                "tester",
+                firstAt.AddMinutes(1),
+                CancellationToken.None));
+            var analyzed = await repository.GetPaperBreakDiagnosticAsync(
+                paperBreak.Id,
+                CancellationToken.None);
+            Assert.NotNull(analyzed);
+            Assert.Equal("Concluída", analyzed.Event.AnalysisStatus);
+            Assert.Equal("tester", analyzed.Event.AnalyzedBy);
 
             var storage = await repository.GetStorageStatusAsync(CancellationToken.None);
             Assert.Equal(1, storage.TelemetrySampleCount);

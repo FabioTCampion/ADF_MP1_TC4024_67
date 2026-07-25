@@ -320,6 +320,77 @@ api.MapGet(
             cancellationToken)));
 
 api.MapGet(
+    "/history/breaks/{id:long}/diagnostic",
+    async (
+        long id,
+        IHistorianRepository repository,
+        CancellationToken cancellationToken) =>
+    {
+        var diagnostic = await repository.GetPaperBreakDiagnosticAsync(
+            id,
+            cancellationToken);
+        if (diagnostic is null)
+            return Results.NotFound(new { error = "Quebra não encontrada." });
+
+        return Results.Ok(new
+        {
+            diagnostic.Event,
+            Samples = diagnostic.Samples.Select(sample => new
+            {
+                sample.CapturedAtUtc,
+                sample.OffsetMilliseconds,
+                Status = ParseJson(sample.StatusJson),
+                sample.Quality
+            }),
+            diagnostic.Summary,
+            diagnostic.Evidence
+        });
+    });
+
+api.MapPut(
+    "/history/breaks/{id:long}/analysis",
+    async (
+        long id,
+        PaperBreakAnalysisUpdate request,
+        HttpContext context,
+        TimeProvider clock,
+        IHistorianRepository repository,
+        CancellationToken cancellationToken) =>
+    {
+        var allowedStatuses = new[] { "Pendente", "Em análise", "Concluída" };
+        if (!allowedStatuses.Contains(request.AnalysisStatus, StringComparer.Ordinal))
+            return Results.BadRequest(new { error = "Status de análise inválido." });
+        if (request.CauseCategory?.Length > 100 ||
+            request.CauseDescription?.Length > 1_000 ||
+            request.AnalysisNotes?.Length > 4_000)
+        {
+            return Results.BadRequest(new { error = "Os campos da análise excedem o limite permitido." });
+        }
+
+        var sanitized = new PaperBreakAnalysisUpdate(
+            request.AnalysisStatus,
+            string.IsNullOrWhiteSpace(request.CauseCategory)
+                ? null
+                : request.CauseCategory.Trim(),
+            string.IsNullOrWhiteSpace(request.CauseDescription)
+                ? null
+                : request.CauseDescription.Trim(),
+            string.IsNullOrWhiteSpace(request.AnalysisNotes)
+                ? null
+                : request.AnalysisNotes.Trim());
+        var updated = await repository.UpdatePaperBreakAnalysisAsync(
+            id,
+            sanitized,
+            context.User.Identity?.Name ?? "usuário",
+            clock.GetUtcNow(),
+            cancellationToken);
+        return updated
+            ? Results.NoContent()
+            : Results.NotFound(new { error = "Quebra não encontrada." });
+    })
+    .RequireAuthorization(policy => policy.RequireRole(HistorianRoles.Administrator));
+
+api.MapGet(
     "/storage",
     async (
         IHistorianRepository repository,

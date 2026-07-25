@@ -1,9 +1,9 @@
-export type PageId = "dashboard" | "metrics" | "status" | "graphs" | "alarms" | "commands" | "history" | "users" | "updates";
+export type PageId = "dashboard" | "metrics" | "breaks" | "status" | "graphs" | "alarms" | "commands" | "history" | "users" | "updates";
 
 export type NavigationItem = {
   id: PageId;
   label: string;
-  icon: "dashboard" | "metrics" | "status" | "graphs" | "alarm" | "command" | "history" | "users" | "updates";
+  icon: "dashboard" | "metrics" | "breaks" | "status" | "graphs" | "alarm" | "command" | "history" | "users" | "updates";
 };
 
 type Props = {
@@ -27,6 +27,9 @@ function Icon({ name }: { name: NavigationItem["icon"] }) {
   }
   if (name === "metrics") {
     return <svg viewBox="0 0 24 24"><path d="M4 19V9M10 19V5M16 19v-7M22 19H2" /><path d="m4 7 6-4 6 6 5-4" /></svg>;
+  }
+  if (name === "breaks") {
+    return <svg viewBox="0 0 24 24"><path d="M4 19V5M4 19h16M6 15l4-4 3 2 2-6 4 3" /><path d="m12 3 2 3-3 2 3 3-2 3" /></svg>;
   }
   if (name === "alarm") {
     return <svg viewBox="0 0 24 24"><path d="M18 9a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M9.8 21h4.4" /></svg>;

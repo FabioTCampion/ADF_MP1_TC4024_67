@@ -7,7 +7,9 @@ public sealed class HistorianProcessor
 {
     private readonly TimeSpan _telemetrySampleInterval;
     private readonly TimeSpan _statusSnapshotInterval;
+    private readonly TimeSpan _paperBreakDiagnosticWindow;
     private readonly double _paperBreakMinimumSpeedMpm;
+    private readonly Queue<PaperBreakDiagnosticSample> _paperBreakBuffer = new();
     private JsonElement? _lastStatus;
     private JsonElement? _lastCommands;
     private JsonElement? _lastAlarms;
@@ -21,6 +23,8 @@ public sealed class HistorianProcessor
         _telemetrySampleInterval = TimeSpan.FromSeconds(options.TelemetrySampleIntervalSeconds);
         _statusSnapshotInterval = TimeSpan.FromSeconds(options.StatusSnapshotIntervalSeconds);
         _paperBreakMinimumSpeedMpm = options.PaperBreakMinimumSpeedMpm;
+        _paperBreakDiagnosticWindow =
+            TimeSpan.FromSeconds(options.PaperBreakDiagnosticWindowSeconds);
     }
 
     public HistorianCycle Process(PaperMachineSnapshot snapshot)
@@ -61,6 +65,17 @@ public sealed class HistorianProcessor
             snapshot.Status,
             snapshot.CapturedAtUtc,
             initialObservation);
+        AddPaperBreakDiagnosticSample(snapshot);
+        var paperBreakDiagnostics = paperBreakTransitions
+            .Where(transition => transition.IsActive && !transition.InitialObservation)
+            .Select(transition => new PaperBreakDiagnosticCapture(
+                transition.ObservedAtUtc,
+                _paperBreakBuffer
+                    .Where(sample =>
+                        sample.CapturedAtUtc >= transition.ObservedAtUtc - _paperBreakDiagnosticWindow &&
+                        sample.CapturedAtUtc <= transition.ObservedAtUtc)
+                    .ToArray()))
+            .ToArray();
 
         _lastStatus = snapshot.Status.Clone();
         _lastCommands = snapshot.Commands.Clone();
@@ -77,7 +92,22 @@ public sealed class HistorianProcessor
             statusChanges,
             commandChanges,
             alarmTransitions,
-            paperBreakTransitions);
+            paperBreakTransitions,
+            paperBreakDiagnostics);
+    }
+
+    private void AddPaperBreakDiagnosticSample(PaperMachineSnapshot snapshot)
+    {
+        _paperBreakBuffer.Enqueue(new PaperBreakDiagnosticSample(
+            snapshot.CapturedAtUtc,
+            snapshot.Status.Clone()));
+
+        var oldestAllowed = snapshot.CapturedAtUtc - _paperBreakDiagnosticWindow;
+        while (_paperBreakBuffer.TryPeek(out var oldest) &&
+               oldest.CapturedAtUtc < oldestAllowed)
+        {
+            _paperBreakBuffer.Dequeue();
+        }
     }
 
     private static IReadOnlyList<FieldChange> FindChanges(
