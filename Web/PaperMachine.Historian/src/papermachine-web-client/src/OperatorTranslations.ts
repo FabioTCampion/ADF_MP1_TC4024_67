@@ -1,0 +1,222 @@
+const approvedVariableLabels: Record<string, string> = {
+  headBoxMMH2O: "Pressão da caixa de entrada",
+  headboxLipsPosition_mm: "Abertura do lábio da caixa de entrada",
+  whiteWaterSiloCtrlOutput: "Saída do controle do silo de água branca",
+  whiteWaterSiloLevel: "Nível do silo de água branca",
+  formingBoardSuctionRollSpeed: "Velocidade do rolo de sucção da mesa formadora",
+  formingBoardSuctionRollTorque: "Torque do rolo de sucção da mesa formadora",
+  formingBoardTractionRollSpeed: "Velocidade do rolo de tração da mesa formadora",
+  formingBoardTractionRollTorque: "Torque do rolo de tração da mesa formadora",
+  firstPressSectionSpeed: "Velocidade da primeira prensa",
+  firstPressSectionTorque: "Torque da primeira prensa",
+  secondPressSectionSpeed: "Velocidade da segunda prensa",
+  secondPressSectionTorque: "Torque da segunda prensa",
+  stockPumpSpeed: "Velocidade da bomba de massa",
+  stockPumpTorque: "Torque da bomba de massa",
+  mixPumpSpeed: "Velocidade da bomba de mistura",
+  mixPumpTorque: "Torque da bomba de mistura",
+  winderSpeedMPM: "Velocidade da enroladeira",
+  winderTorque: "Torque da enroladeira",
+  winderPaperPresence: "Papel presente na enroladeira",
+};
+
+// Substituições revisadas pelo usuário na planilha de traduções do analisador.
+const reviewedVariableLabels: Record<string, string> = {
+  couchPitPumpSpeed: "Velocidade da bomba do Couch Pit",
+  wirePitPumpSpeed: "Velocidade da bomba do Wire Pit",
+  couchPitMixerState: "Estado do agitador do Couch Pit",
+  couchPitPumpFaultCode: "Código de falha — Bomba do Couch Pit",
+  couchPitPumpFaultEventCounter: "Contador de falhas — Bomba do Couch Pit",
+  couchPitPumpState: "Estado — Bomba do Couch Pit",
+  dryingSectionLubricationPump1State:
+    "Estado da bomba 1 do sistema de lubrificação da seção de secagem",
+  dryingSectionLubricationPump2State:
+    "Estado da bomba 2 do sistema de lubrificação da seção de secagem",
+  firstPressSectionState: "Estado da primeira prensa",
+  formingBoardSuctionRollFaultCode:
+    "Código de falha — Rolo de sucção da mesa formadora",
+  formingBoardSuctionRollFaultEventCounter:
+    "Contador de falhas — Rolo de sucção da mesa formadora",
+  formingBoardSuctionRollState: "Estado — Rolo de sucção da mesa formadora",
+  formingBoardTractionRollFaultCode:
+    "Código de falha — Rolo de tração da mesa formadora",
+  formingBoardTractionRollFaultEventCounter:
+    "Contador de falhas — Rolo de tração da mesa formadora",
+  formingBoardTractionRollState: "Estado — Rolo de tração da mesa formadora",
+  formingTailCutterNozzleState: "Estado do bico de corte",
+  formingWireShowerState: "Estado do chuveiro da tela formadora",
+  lowVacuumExhaustFanState: "Estado do exaustor do sistema de baixo vácuo",
+  mixingPumpFaultCode: "Código de falha — Bomba de mistura",
+  mixingPumpFaultEventCounter: "Contador de falhas — Bomba de mistura",
+  pressFeltVaccum1State: "Estado do sistema de vácuo 1 do feltro da prensa",
+  pressFeltVaccum2State: "Estado do sistema de vácuo 2 do feltro da prensa",
+  pressSectionFirstPressFaultCode: "Código de falha — Primeira prensa",
+  pressSectionFirstPressFaultEventCounter: "Contador de falhas — Primeira prensa",
+  pressSectionSecondPressFaultCode: "Código de falha — Segunda prensa",
+  pressSectionSecondPressFaultEventCounter: "Contador de falhas — Segunda prensa",
+  secondPressSectionState: "Estado da segunda prensa",
+  suctionRollVacuumPumpState: "Estado da bomba de vácuo do rolo de sucção",
+  vacuumSealPumpState: "Estado da bomba de água de selagem do sistema de vácuo",
+  vacuumWaterSepPumpState:
+    "Estado da bomba do separador de água do sistema de vácuo",
+  wirePitPumpFaultCode: "Código de falha — Bomba do Wire Pit",
+  wirePitPumpFaultEventCounter: "Contador de falhas — Bomba do Wire Pit",
+  wirePitPumpState: "Estado — Bomba do Wire Pit",
+  wireVacuumPumpState: "Estado da bomba de vácuo da tela formadora",
+  headBoxMMH2OCalc: "Pressão calculada da caixa de entrada",
+  pressureScreenState: "Estado do depurador pressurizado",
+  winderPressureSetpointDriveSide:
+    "Pressão de referência da enroladeira — Lado do acionamento",
+  winderPressureSetpointOperatorSide:
+    "Pressão de referência da enroladeira — Lado do operador",
+  couchPitLevel: "Nível do Couch Pit",
+  mixPumpRatio: "Relação de velocidade da bomba de mistura",
+  mixPumpSetpointMan: "Referência manual da bomba de mistura",
+  wirePitLevel: "Nível do Wire Pit",
+  dryingSectionLubricationCircuitTemperature:
+    "Temperatura do circuito de lubrificação da seção de secagem",
+  dryingSectionLubricationTankTemperature:
+    "Temperatura do tanque de lubrificação da seção de secagem",
+  couchPitPumpFaultTorque: "Torque no momento da falha — Bomba do Couch Pit",
+  couchPitPumpTorque: "Torque da bomba do Couch Pit",
+  formingBoardSuctionRollFaultTorque:
+    "Torque no momento da falha — Rolo de sucção da mesa formadora",
+  formingBoardTractionRollFaultTorque:
+    "Torque no momento da falha — Rolo de tração da mesa formadora",
+  mixingPumpFaultTorque: "Torque no momento da falha — Bomba de mistura",
+  pressSectionFirstPressFaultTorque:
+    "Torque no momento da falha — Primeira prensa",
+  pressSectionSecondPressFaultTorque:
+    "Torque no momento da falha — Segunda prensa",
+  wirePitPumpFaultTorque: "Torque no momento da falha — Bomba do Wire Pit",
+  wirePitPumpTorque: "Torque da bomba do Wire Pit",
+  headBoxJetSpeedMPS: "Velocidade do jato da caixa de entrada",
+  presseGroupSpeedDif: "Diferença de velocidade da seção de prensas",
+  winderSpeedDif: "Diferença de velocidade da enroladeira",
+};
+
+const exactVariableLabels: Record<string, string> = {
+  ...approvedVariableLabels,
+  ...reviewedVariableLabels,
+};
+
+const locationLabels: Record<string, string> = {
+  Upper: "Superior",
+  Lower: "Inferior",
+};
+
+const equipmentLabels: Record<string, string> = {
+  couchPitPump: "Bomba do Couch Pit",
+  wirePitPump: "Bomba do Wire Pit",
+  stockPump: "Bomba de massa",
+  mixPump: "Bomba de mistura",
+  winder: "Enroladeira",
+};
+
+const measurementLabels: Record<string, string> = {
+  SpeedMPM: "Velocidade",
+  Speed: "Velocidade",
+  Torque: "Torque",
+  FaultCode: "Código de falha",
+  FaultEventCounter: "Contador de falhas",
+  FaultTorque: "Torque no momento da falha",
+  State: "Estado",
+};
+
+const categoryLabels: Record<string, string> = {
+  Headbox: "Caixa de entrada",
+  Processo: "Processo",
+  Torque: "Torque",
+  Bombas: "Bombas",
+  Velocidade: "Velocidade",
+  Pressão: "Pressão",
+  Posição: "Posição",
+  Temperatura: "Temperatura",
+  Estado: "Estado",
+};
+
+const evidenceKindLabels: Record<string, string> = {
+  Alarm: "Alarme",
+  Alarme: "Alarme",
+  Command: "Comando",
+  Comando: "Comando",
+  Status: "Estado",
+};
+
+export function operatorVariableLabel(field: string) {
+  if (exactVariableLabels[field]) return exactVariableLabels[field];
+
+  const dryingMotor = field.match(
+    /^dryingSectionGroup(\d)(Upper|Lower)(Master|Slave(\d+))(SpeedMPM|Speed|Torque|FaultCode|FaultEventCounter|FaultTorque|State)$/,
+  );
+  if (dryingMotor) {
+    const [, group, location, role, slaveNumber, measurement] = dryingMotor;
+    const roleLabel = role === "Master" ? "Mestre" : `Escravo ${slaveNumber}`;
+    const measurementLabel = measurementLabels[measurement] ?? measurement;
+    return `${measurementLabel} da secagem G${group} · ${locationLabels[location]} · ${roleLabel}`;
+  }
+
+  const steamPressure = field.match(/^dryingSectionGroup(\d)SteamPressure$/);
+  if (steamPressure) return `Pressão de vapor da secagem G${steamPressure[1]}`;
+
+  const paperPresence = field.match(/^dryingSectionGroup(\d)PaperPresence$/);
+  if (paperPresence) return `Papel presente na secagem G${paperPresence[1]}`;
+
+  const speedDifference = field.match(/^dryingSectionGroup(\d)SpeedDif$/);
+  if (speedDifference)
+    return `Diferença de velocidade da secagem G${speedDifference[1]}`;
+
+  for (const [prefix, equipment] of Object.entries(equipmentLabels)) {
+    if (!field.startsWith(prefix)) continue;
+    const measurement = field.slice(prefix.length);
+    if (measurementLabels[measurement])
+      return `${measurementLabels[measurement]} — ${equipment}`;
+  }
+
+  return field
+    .replace(/whiteWaterSilo/gi, "Silo de água branca ")
+    .replace(/wirePit/gi, "Wire Pit ")
+    .replace(/couchPit/gi, "Couch Pit ")
+    .replace(/dryingSection/gi, "Secagem ")
+    .replace(/formingBoard/gi, "Mesa formadora ")
+    .replace(/headBox/gi, "Caixa de entrada ")
+    .replace(/FaultEventCounter/gi, " Contador de falhas")
+    .replace(/FaultTorque/gi, " Torque no momento da falha")
+    .replace(/FaultCode/gi, " Código de falha")
+    .replace(/PaperPresence/gi, " Papel presente")
+    .replace(/SteamPressure/gi, " Pressão de vapor")
+    .replace(/SpeedMPM/gi, " Velocidade")
+    .replace(/Speed/gi, " Velocidade")
+    .replace(/Torque/gi, " Torque")
+    .replace(/Position/gi, " Posição")
+    .replace(/Temperature/gi, " Temperatura")
+    .replace(/Upper/gi, " Superior")
+    .replace(/Lower/gi, " Inferior")
+    .replace(/Master/gi, " Mestre")
+    .replace(/Slave(\d+)/gi, " Escravo $1")
+    .replace(/Group(\d+)/gi, " G$1")
+    .replace(/Pump/gi, " Bomba")
+    .replace(/Pressure/gi, " Pressão")
+    .replace(/Level/gi, " Nível")
+    .replace(/Setpoint/gi, " Referência")
+    .replace(/CtrlOutput/gi, " Saída do controle")
+    .replace(/Ratio/gi, " Proporção")
+    .replace(/Current/gi, " Corrente")
+    .replace(/Voltage/gi, " Tensão")
+    .replace(/Frequency/gi, " Frequência")
+    .replace(/Diameter/gi, " Diâmetro")
+    .replace(/State/gi, " Estado")
+    .replace(/EventCounter/gi, " Contador de eventos")
+    .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
+    .replace(/_/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+export function operatorCategoryLabel(category: string) {
+  return categoryLabels[category] ?? category;
+}
+
+export function operatorEvidenceKindLabel(kind: string) {
+  return evidenceKindLabels[kind] ?? kind;
+}

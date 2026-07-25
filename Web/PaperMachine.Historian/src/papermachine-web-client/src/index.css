@@ -20,6 +20,40 @@ body { margin: 0; min-width: 320px; min-height: 100vh; }
 button, input, select { font: inherit; }
 button { color: inherit; }
 
+/* Scrollbars discretas, com o mesmo acabamento visual do projeto de referência. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #405570 transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+*::-webkit-scrollbar-track { background: transparent; }
+
+*::-webkit-scrollbar-thumb {
+  min-width: 36px;
+  min-height: 36px;
+  border: 3px solid transparent;
+  border-radius: 999px;
+  background: #405570;
+  background-clip: padding-box;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: #587393;
+  background-clip: padding-box;
+}
+
+*::-webkit-scrollbar-thumb:active {
+  background: #6a8db5;
+  background-clip: padding-box;
+}
+
+*::-webkit-scrollbar-corner { background: transparent; }
+
 .app-shell {
   display: grid;
   grid-template-columns: 224px minmax(0, 1fr);
@@ -106,7 +140,17 @@ button { color: inherit; }
 .side-menu--collapsed .side-menu-heading { flex-direction: column; }
 .side-menu--collapsed .menu-toggle { position: static; }
 
-.side-menu nav { display: flex; flex-direction: column; gap: 5px; }
+.side-menu nav {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  gap: 5px;
+  margin-right: -5px;
+  padding-right: 5px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+}
 .side-menu nav button {
   position: relative;
   display: flex;

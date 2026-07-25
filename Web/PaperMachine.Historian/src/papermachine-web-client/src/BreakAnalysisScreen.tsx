@@ -1,7 +1,13 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { useAuth } from "./Auth";
 import type { InteractiveChartOption } from "./InteractiveChart";
+import {
+  operatorCategoryLabel as categoryLabel,
+  operatorEvidenceKindLabel as evidenceKindLabel,
+  operatorVariableLabel as fieldLabel,
+} from "./OperatorTranslations";
 import "./BreakAnalysisScreen.css";
+import "./BreakAnalysisEnhancements.css";
 
 const InteractiveChart = lazy(() => import("./InteractiveChart"));
 
@@ -65,13 +71,8 @@ function formatNumber(value: number | null, digits = 2) {
     minimumFractionDigits: digits, maximumFractionDigits: digits,
   });
 }
-function fieldLabel(field: string) {
-  return field
-    .replace(/dryingSection/gi, "Secagem ")
-    .replace(/formingBoard/gi, "Mesa ")
-    .replace(/headBox/gi, "Headbox ")
-    .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
-    .replace(/_/g, " ").replace(/\s+/g, " ").trim();
+function normalizeSearch(value: string) {
+  return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("pt-BR");
 }
 function defaultVariables(summary: Summary[]) {
   const available = new Set(summary.map((item) => item.fieldName));
@@ -96,6 +97,7 @@ export default function BreakAnalysisScreen() {
   const [diagnostic, setDiagnostic] = useState<Diagnostic | null>(null);
   const [selectedVariables, setSelectedVariables] = useState<string[]>([]);
   const [category, setCategory] = useState("Todas");
+  const [variableSearch, setVariableSearch] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -135,6 +137,7 @@ export default function BreakAnalysisScreen() {
         setDiagnostic(result);
         setSelectedVariables(defaultVariables(result.summary));
         setCategory("Todas");
+        setVariableSearch("");
         setAnalysisStatus(result.event.analysisStatus);
         setCauseCategory(result.event.causeCategory ?? "");
         setCauseDescription(result.event.causeDescription ?? "");
@@ -154,9 +157,14 @@ export default function BreakAnalysisScreen() {
     () => ["Todas", ...new Set(diagnostic?.summary.map((item) => item.category) ?? [])],
     [diagnostic],
   );
-  const visibleSummary = diagnostic?.summary.filter(
-    (item) => category === "Todas" || item.category === category,
-  ) ?? [];
+  const visibleSummary = useMemo(() => {
+    const search = normalizeSearch(variableSearch.trim());
+    return diagnostic?.summary.filter((item) =>
+      (category === "Todas" || item.category === category) &&
+      (!search || normalizeSearch([
+        fieldLabel(item.fieldName), item.fieldName, categoryLabel(item.category), item.unit,
+      ].join(" ")).includes(search))) ?? [];
+  }, [category, diagnostic, variableSearch]);
   const summaryByField = useMemo(
     () => new Map(diagnostic?.summary.map((item) => [item.fieldName, item]) ?? []),
     [diagnostic],
@@ -276,21 +284,48 @@ export default function BreakAnalysisScreen() {
               <article><span>Análise</span><b>{diagnostic.event.analysisStatus}</b></article>
             </div>
             <section className="break-chart-card">
-              <header><div><h2>Variáveis antes da quebra</h2><span>Trocar de evento redefine o gráfico.</span></div>
-                <label>Grupo<select value={category} onChange={(event) => setCategory(event.target.value)}>
-                  {categories.map((item) => <option key={item}>{item}</option>)}
-                </select></label></header>
+              <header><div><h2>Variáveis antes da quebra</h2><span>Selecione os sinais que deseja comparar nos 3 minutos anteriores.</span></div>
+                <div className="break-chart-actions">
+                  <div className="break-selection-count" aria-live="polite">
+                    <b>{selectedVariables.length}</b>
+                    <span>{selectedVariables.length === 1 ? "selecionada" : "selecionadas"}</span>
+                  </div>
+                  <button type="button" className="break-clear-selection"
+                    onClick={() => setSelectedVariables([])}
+                    disabled={selectedVariables.length === 0}>
+                    Limpar seleção
+                  </button>
+                  <label>Grupo<select value={category} onChange={(event) => setCategory(event.target.value)}>
+                    {categories.map((item) => <option key={item} value={item}>{categoryLabel(item)}</option>)}
+                  </select></label>
+                </div></header>
               <div className="break-chart-layout">
-                <div className="break-variable-list">{visibleSummary.map((item) => (
-                  <label key={item.fieldName}>
-                    <input type="checkbox" checked={selectedVariables.includes(item.fieldName)}
-                      onChange={() => toggleVariable(item.fieldName)} />
-                    <span><b>{fieldLabel(item.fieldName)}</b><small>{item.fieldName}</small></span>
-                    <em>{item.unit}</em>
-                  </label>
-                ))}</div>
+                <div className="break-variable-sidebar">
+                  <div className="break-variable-search">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5" /><path d="m16 16 4 4" /></svg>
+                    <input type="search" value={variableSearch}
+                      onChange={(event) => setVariableSearch(event.target.value)}
+                      placeholder="Buscar variável…" aria-label="Buscar variável" />
+                    {variableSearch && <button type="button" onClick={() => setVariableSearch("")}
+                      aria-label="Limpar busca">×</button>}
+                  </div>
+                  <div className="break-variable-list">{visibleSummary.map((item) => (
+                    <label key={item.fieldName}>
+                      <input type="checkbox" checked={selectedVariables.includes(item.fieldName)}
+                        onChange={() => toggleVariable(item.fieldName)} />
+                      <span><b>{fieldLabel(item.fieldName)}</b><small>{item.fieldName}</small></span>
+                      <em>{item.unit}</em>
+                    </label>
+                  ))}
+                    {visibleSummary.length === 0 &&
+                      <p>Nenhuma variável encontrada para este filtro.</p>}
+                  </div>
+                </div>
                 {diagnostic.samples.length === 0
                   ? <div className="break-empty">Evento anterior à versão de diagnóstico; não há janela de amostras disponível.</div>
+                  : selectedVariables.length === 0
+                    ? <div className="break-empty break-chart-empty"><b>Gráfico limpo</b>
+                      <span>Marque uma ou mais variáveis na lista para iniciar a comparação.</span></div>
                   : <Suspense fallback={<div className="break-empty">Preparando gráfico…</div>}>
                     <InteractiveChart key={diagnostic.event.id} option={chartOption}
                       ariaLabel="Variáveis nos 180 segundos anteriores à quebra" />
@@ -316,7 +351,7 @@ export default function BreakAnalysisScreen() {
                 <div className="break-evidence-list">{diagnostic.evidence.map((item) => (
                   <article key={item.id}>
                     <time>{item.offsetMilliseconds === 0 ? "T0" : `T${Math.round(item.offsetMilliseconds / 1000)}s`}</time>
-                    <em>{item.kind}</em><div><b>{item.description ?? fieldLabel(item.name)}</b><small>{item.name}</small></div>
+                    <em>{evidenceKindLabel(item.kind)}</em><div><b>{item.description ?? fieldLabel(item.name)}</b><small>{item.name}</small></div>
                     <span>{item.currentValueJson ?? "—"}</span>
                   </article>
                 ))}{diagnostic.evidence.length === 0 && <p>Nenhuma evidência discreta na janela.</p>}</div>

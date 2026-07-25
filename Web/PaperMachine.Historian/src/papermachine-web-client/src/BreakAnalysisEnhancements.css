@@ -1,0 +1,231 @@
+.break-chart-card {
+  box-shadow: 0 18px 46px rgb(1 7 15 / 22%);
+}
+
+.break-chart-card > header {
+  align-items: center;
+}
+
+.break-chart-actions {
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-end;
+  gap: 9px;
+}
+
+.break-selection-count {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  min-height: 38px;
+  padding: 9px 11px;
+  border: 1px solid #2f455f;
+  border-radius: 8px;
+  color: #8197b1;
+  background: #0c1725;
+  font-size: 9px;
+}
+
+.break-selection-count b {
+  color: #80b8ff;
+  font-size: 13px;
+}
+
+.break-clear-selection {
+  min-height: 38px;
+  padding: 0 13px;
+  border: 1px solid #3a506b;
+  border-radius: 8px;
+  color: #b7c7da;
+  background: #152438;
+  cursor: pointer;
+  font-size: 9px;
+  font-weight: 750;
+  transition: border-color .16s ease, color .16s ease, background .16s ease;
+}
+
+.break-clear-selection:hover:not(:disabled),
+.break-clear-selection:focus-visible {
+  border-color: #5689c4;
+  color: #fff;
+  background: #1a304a;
+}
+
+.break-clear-selection:disabled {
+  cursor: not-allowed;
+  opacity: .42;
+}
+
+.break-variable-sidebar {
+  display: flex;
+  flex-direction: column;
+  height: 420px;
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid #2c4059;
+  border-radius: 10px;
+  background: #0b1623;
+}
+
+.break-variable-search {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+  padding: 7px;
+  border-bottom: 1px solid #263a51;
+  background: #101d2c;
+}
+
+.break-variable-search svg {
+  position: absolute;
+  left: 17px;
+  width: 15px;
+  height: 15px;
+  fill: none;
+  stroke: #7189a5;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  pointer-events: none;
+}
+
+.break-variable-search input {
+  width: 100%;
+  height: 34px;
+  padding: 0 32px 0 33px;
+  border: 1px solid #314760;
+  border-radius: 7px;
+  outline: none;
+  color: #e6eef8;
+  background: #0a1421;
+  font-size: 10px;
+}
+
+.break-variable-search input::placeholder {
+  color: #617891;
+}
+
+.break-variable-search input:focus {
+  border-color: #4d8dd8;
+  box-shadow: 0 0 0 2px rgb(77 141 216 / 14%);
+}
+
+.break-variable-search input::-webkit-search-cancel-button {
+  display: none;
+}
+
+.break-variable-search button {
+  position: absolute;
+  right: 12px;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  color: #7e94ae;
+  background: transparent;
+  cursor: pointer;
+  font-size: 17px;
+  line-height: 1;
+}
+
+.break-variable-search button:hover {
+  color: #fff;
+  background: #20334a;
+}
+
+.break-variable-sidebar .break-variable-list {
+  flex: 1;
+  height: auto;
+  min-height: 0;
+  padding: 6px;
+  overflow: auto;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  scrollbar-gutter: stable;
+}
+
+.break-variable-list label {
+  border: 1px solid transparent;
+  transition: background .14s ease, border-color .14s ease;
+}
+
+.break-variable-list label:has(input:checked) {
+  border-color: #315b88;
+  background: #162a42;
+}
+
+.break-variable-list label:focus-within {
+  outline: 1px solid #5595dc;
+  outline-offset: -1px;
+}
+
+.break-variable-list > p {
+  margin: 0;
+  padding: 34px 12px;
+  color: #6e829a;
+  text-align: center;
+  font-size: 9px;
+  line-height: 1.55;
+}
+
+.break-chart-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  min-height: 420px;
+  gap: 7px;
+  border: 1px dashed #30465f;
+  border-radius: 10px;
+  background:
+    radial-gradient(circle at center, rgb(45 102 165 / 9%), transparent 55%),
+    #0c1623;
+}
+
+.break-chart-empty b {
+  color: #a8bad0;
+  font-size: 12px;
+}
+
+.break-chart-empty span {
+  max-width: 340px;
+  color: #71849c;
+  line-height: 1.55;
+}
+
+@media (max-width: 1200px) {
+  .break-variable-sidebar {
+    height: 280px;
+  }
+
+  .break-chart-empty {
+    min-height: 360px;
+  }
+}
+
+@media (max-width: 800px) {
+  .break-chart-card > header {
+    align-items: stretch;
+  }
+
+  .break-chart-actions {
+    align-items: stretch;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+    width: 100%;
+  }
+
+  .break-chart-actions label {
+    flex: 1 1 150px;
+  }
+
+  .break-selection-count,
+  .break-clear-selection {
+    flex: 1 1 auto;
+    justify-content: center;
+  }
+}

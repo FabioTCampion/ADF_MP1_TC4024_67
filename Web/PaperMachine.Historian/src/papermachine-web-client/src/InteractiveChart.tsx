@@ -59,7 +59,7 @@ export default function InteractiveChart({
       start?: number;
       end?: number;
     }>;
-    chart.setOption(option, { notMerge: false, lazyUpdate: true });
+    chart.setOption(option, { notMerge: true, lazyUpdate: true });
     currentZoom.forEach((zoom, dataZoomIndex) => {
       if (zoom.start === undefined || zoom.end === undefined) return;
       chart.dispatchAction({
