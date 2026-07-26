@@ -7,6 +7,13 @@
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.Hosting.WindowsServices" Version="10.0.10" />
+    <PackageReference Include="OpenSans" Version="1.0.1" GeneratePathProperty="true" />
+    <PackageReference Include="PDFsharp-MigraDoc" Version="6.2.4" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="$(PkgOpenSans)\content\fonts\OpenSans\Regular\OpenSans-Regular.ttf" LogicalName="PaperMachine.Reporting.OpenSans-Regular.ttf" />
+    <EmbeddedResource Include="$(PkgOpenSans)\content\fonts\OpenSans\Bold\OpenSans-Bold.ttf" LogicalName="PaperMachine.Reporting.OpenSans-Bold.ttf" />
+    <EmbeddedResource Include="ReportingAssets\cpnteck-logo-black.png" LogicalName="PaperMachine.Reporting.CPNTeck-Logo.png" />
   </ItemGroup>
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>

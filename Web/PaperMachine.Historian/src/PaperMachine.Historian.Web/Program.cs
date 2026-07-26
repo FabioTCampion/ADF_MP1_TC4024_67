@@ -52,13 +52,20 @@ var updateOptions = builder.Configuration
 updateOptions.ResolvePaths(databaseOptions);
 updateOptions.Validate();
 
+var reportingOptions = builder.Configuration
+    .GetSection(ReportingOptions.SectionName)
+    .Get<ReportingOptions>() ?? new ReportingOptions();
+reportingOptions.Validate();
+
 builder.Services.AddSingleton(adsOptions);
 builder.Services.AddSingleton(historianOptions);
 builder.Services.AddSingleton(databaseOptions);
 builder.Services.AddSingleton(updateOptions);
+builder.Services.AddSingleton(reportingOptions);
 builder.Services.AddSingleton<IPaperMachineReader, AdsPaperMachineReader>();
 builder.Services.AddSingleton<IHistorianRepository, SqliteHistorianRepository>();
 builder.Services.AddSingleton<IUserRepository, SqliteUserRepository>();
+builder.Services.AddSingleton<IProductionBreakReportService, ProductionBreakReportService>();
 builder.Services.AddSingleton<IPasswordHasher<ApplicationUser>, PasswordHasher<ApplicationUser>>();
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddSingleton<HistorianProcessor>();
@@ -173,6 +180,7 @@ app.MapGet("/api/version", () =>
 });
 app.MapHistorianAuthentication();
 app.MapHistorianUpdates();
+app.MapReportEndpoints();
 
 var api = app.MapGroup("/api").RequireAuthorization();
 

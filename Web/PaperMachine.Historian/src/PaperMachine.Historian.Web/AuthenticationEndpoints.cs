@@ -280,7 +280,8 @@ public static partial class AuthenticationEndpoints
             "status.view",
             "alarms.view",
             "commands.view",
-            "history.view"
+            "history.view",
+            "reports.generate"
         };
         if (role == HistorianRoles.Administrator)
         {

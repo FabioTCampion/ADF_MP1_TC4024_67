@@ -30,6 +30,56 @@
   font-size: 12px;
 }
 
+.metrics-report-button {
+  display: flex;
+  align-items: center;
+  min-width: 218px;
+  gap: 11px;
+  padding: 11px 14px;
+  border: 1px solid #397dd9;
+  border-radius: 10px;
+  color: #eef6ff;
+  background: linear-gradient(145deg, #276bc8, #205cae);
+  box-shadow: 0 10px 24px rgba(20, 84, 166, .24);
+  cursor: pointer;
+}
+
+.metrics-report-button:hover:not(:disabled) {
+  border-color: #65a4f5;
+  background: linear-gradient(145deg, #327bdd, #2567bd);
+}
+
+.metrics-report-button:disabled {
+  cursor: wait;
+  opacity: .65;
+}
+
+.metrics-report-button svg {
+  width: 23px;
+  height: 23px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.7;
+}
+
+.metrics-report-button span {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}
+
+.metrics-report-button b {
+  font-size: 10px;
+}
+
+.metrics-report-button small {
+  color: #bcd7fa;
+  font-size: 8px;
+}
+
 .metrics-eyebrow {
   margin: 0;
   color: #6c83a1;
@@ -768,9 +818,14 @@
   }
 
   .metrics-search-card-heading,
-  .metrics-chart-title {
+  .metrics-chart-title,
+  .metrics-heading {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .metrics-report-button {
+    width: 100%;
   }
 
   .metrics-date-action,

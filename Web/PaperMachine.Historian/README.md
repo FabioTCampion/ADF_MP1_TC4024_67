@@ -62,6 +62,11 @@ eixos separados por unidade, consultar evidências e registrar a causa validada
 pelo analista. O índice de alteração é um auxílio estatístico e não é tratado
 como prova automática de causalidade.
 
+A página **Métricas** gera o relatório operacional de produção e quebras em PDF.
+O documento usa a velocidade e a presença de papel do terceiro grupo para
+calcular produtividade e usa `PaperBreakEvents` como fonte das quebras, causas e
+análises. Períodos acima de 12 horas consultam os agregados de um minuto.
+
 O histórico legado em JSON é convertido progressivamente em agregados por minuto
 antes de ser removido pela retenção. A limpeza ocorre em pequenos lotes e só é
 habilitada depois de existir pelo menos 24 horas de telemetria no formato novo.
@@ -151,6 +156,9 @@ Configurações relevantes:
 - `Historian:RetentionEnabled`;
 - `Historian:MappingVersion`;
 - `Database:FilePath`;
+- `Reporting:MachineName`;
+- `Reporting:MaximumRangeDays` (padrão: `31`);
+- `Reporting:MaximumBreaks` (padrão: `500`);
 - `Updates:Enabled`;
 - `Updates:RepositoryOwner`;
 - `Updates:RepositoryName`;
@@ -205,6 +213,7 @@ fluxo completo de publicação da Release e instalação inicial do atualizador.
 - `GET /api/history/commands`;
 - `GET /api/history/alarms`;
 - `GET /api/history/breaks`;
+- `GET /api/reports/production-breaks`;
 - `GET /api/storage`;
 - `GET /api/updates/status`;
 - `POST /api/updates/check`;
@@ -222,6 +231,11 @@ produtividade: MTTR é a duração média das quebras, MTBF é o tempo produtivo
 acumulado dividido pelo número de quebras e MTTF é a duração média dos períodos
 produtivos que terminaram em quebra. Lacunas sem amostras não são tratadas como
 tempo produtivo.
+O relatório PDF aceita `start`, `end` e `productiveSpeedMpm`, exige autenticação
+e respeita os limites de período e quantidade configurados em `Reporting`.
+Ele apresenta resumo operacional, produtividade e quebras por hora, Pareto das
+causas e o detalhamento das quebras. Eventos ainda não analisados aparecem como
+**Causa pendente de análise**.
 A análise de correlação relaciona cada quebra a comandos e mudanças discretas
 de estado ocorridos entre cinco minutos antes e um minuto depois do seu início.
 Ela destaca recorrência temporal, mas não atribui causalidade automaticamente.
@@ -239,4 +253,5 @@ a versão confirmada corresponda exatamente ao pacote validado e preparado.
 - correlações de quebra são indícios temporais e precisam de confirmação por
   alarme, diagnóstico do drive ou análise técnica;
 - campos sem unidade inequívoca no DUT são exibidos como `unidade PLC`;
-- ainda não há relatórios PDF.
+- a primeira entrega de relatórios cobre produção e quebras; relatórios
+  individuais de diagnóstico, alarmes e comandos ficam para as próximas etapas.

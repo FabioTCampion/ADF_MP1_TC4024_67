@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useAuth } from "./Auth";
 import InteractiveChart, { type InteractiveChartOption } from "./InteractiveChart";
 import "./MetricsScreen.css";
 
@@ -861,6 +862,7 @@ function CorrelationAnalysis({
 }
 
 export default function MetricsScreen() {
+  const { user } = useAuth();
   const now = new Date();
   const [periodStart, setPeriodStart] = useState(() => startOfDay());
   const [periodEnd, setPeriodEnd] = useState(now);
@@ -875,6 +877,7 @@ export default function MetricsScreen() {
   const [correlationWarning, setCorrelationWarning] = useState("");
   const [view, setView] = useState<MetricView>("speed");
   const [loading, setLoading] = useState(false);
+  const [generatingReport, setGeneratingReport] = useState(false);
   const [error, setError] = useState("");
 
   const load = useCallback(async (start: Date, end: Date) => {
@@ -983,6 +986,59 @@ export default function MetricsScreen() {
     applyPeriod(start, end);
   };
 
+  const downloadReport = async () => {
+    setGeneratingReport(true);
+    setError("");
+    try {
+      const parameters = new URLSearchParams({
+        start: periodStart.toISOString(),
+        end: periodEnd.toISOString(),
+        productiveSpeedMpm: String(productiveSpeedMpm),
+      });
+      const response = await fetch(`/api/reports/production-breaks?${parameters}`, {
+        headers: { Accept: "application/pdf" },
+      });
+      if (response.status === 401) {
+        window.location.reload();
+        return;
+      }
+      if (!response.ok) {
+        const body = (await response.json().catch(() => null)) as {
+          error?: string;
+          detail?: string;
+        } | null;
+        throw new Error(
+          body?.error ??
+            body?.detail ??
+            `Não foi possível gerar o relatório (${response.status}).`,
+        );
+      }
+
+      const disposition = response.headers.get("Content-Disposition");
+      const encodedFileName = disposition?.match(/filename\*=UTF-8''([^;]+)/i)?.[1];
+      const simpleFileName = disposition?.match(/filename="?([^";]+)"?/i)?.[1];
+      const fileName = encodedFileName
+        ? decodeURIComponent(encodedFileName)
+        : simpleFileName ?? "Relatorio-Producao-Quebras.pdf";
+      const url = URL.createObjectURL(await response.blob());
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    } catch (exception) {
+      setError(
+        exception instanceof Error
+          ? exception.message
+          : "Não foi possível gerar o relatório.",
+      );
+    } finally {
+      setGeneratingReport(false);
+    }
+  };
+
   const summary = useMemo(
     () =>
       summarizeProductivity(
@@ -1038,6 +1094,23 @@ export default function MetricsScreen() {
             terceiro grupo.
           </span>
         </div>
+        {user.permissions.includes("reports.generate") && (
+          <button
+            className="metrics-report-button"
+            type="button"
+            onClick={() => void downloadReport()}
+            disabled={loading || generatingReport}
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M7 3h7l4 4v14H7z" />
+              <path d="M14 3v5h5M9.5 13h6M9.5 16h6" />
+            </svg>
+            <span>
+              <b>{generatingReport ? "Gerando PDF…" : "Gerar relatório PDF"}</b>
+              <small>Produção, indicadores e quebras</small>
+            </span>
+          </button>
+        )}
       </div>
 
       {error && (
