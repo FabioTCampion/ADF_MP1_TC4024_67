@@ -8,7 +8,11 @@ import {
   type ReactNode,
 } from "react";
 import { useAuth } from "./Auth";
+import HistoryPeriodFilter, {
+  useHistoryPeriod,
+} from "./HistoryPeriodFilter";
 import type { InteractiveChartOption } from "./InteractiveChart";
+import { operatorVariableLabel } from "./OperatorTranslations";
 import SideMenu, { type NavigationItem, type PageId } from "./SideMenu";
 
 const InteractiveChart = lazy(() => import("./InteractiveChart"));
@@ -30,6 +34,14 @@ type CurrentSnapshot = {
   commands: Record<string, unknown>;
   alarms: Record<string, boolean>;
   mappingVersion: string;
+};
+
+type HistoryPage<T> = {
+  items: T[];
+  total: number;
+  offset: number;
+  limit: number;
+  hasMore: boolean;
 };
 
 type StorageStatus = {
@@ -291,7 +303,10 @@ async function fetchJson<T>(url: string): Promise<T> {
     window.location.reload();
     throw new Error("Sessão expirada.");
   }
-  if (!response.ok) throw new Error(`Consulta falhou (${response.status}).`);
+  if (!response.ok) {
+    const body = await response.json().catch(() => null) as { error?: string } | null;
+    throw new Error(body?.error ?? `Consulta falhou (${response.status}).`);
+  }
   return response.json() as Promise<T>;
 }
 
@@ -853,7 +868,7 @@ function formatMotorMember(key: string) {
 }
 
 function MotorGraphs() {
-  const range = useDefaultRange();
+  const period = useHistoryPeriod("8h", 31);
   const [trend, setTrend] = useState<MotorTrend>({
     motors: [],
     steamPressures: [],
@@ -869,8 +884,10 @@ function MotorGraphs() {
     setLoading(true);
     setError("");
     try {
-      const parameters = rangeQuery(range.from, range.to);
-      parameters.delete("limit");
+      const parameters = new URLSearchParams({
+        fromUtc: new Date(period.applied.from).toISOString(),
+        toUtc: new Date(period.applied.to).toISOString(),
+      });
       parameters.set("maxPoints", "1200");
       setTrend(await fetchJson<MotorTrend>(`/api/history/motors?${parameters}`));
     } catch (exception) {
@@ -878,7 +895,7 @@ function MotorGraphs() {
     } finally {
       setLoading(false);
     }
-  }, [range.from, range.to]);
+  }, [period.applied.from, period.applied.to, period.revision]);
 
   useEffect(() => { void query(); }, [query]);
 
@@ -954,16 +971,6 @@ function MotorGraphs() {
     }))
     .filter((series) => selectedSteamPressures.includes(series.key));
   const latestSample = trend.samples[trend.samples.length - 1];
-  const applyPeriod = (hours: number) => {
-    const now = new Date();
-    const formatInput = (date: Date) => {
-      const offset = date.getTimezoneOffset();
-      return new Date(date.getTime() - offset * 60_000).toISOString().slice(0, 16);
-    };
-    range.setTo(formatInput(now));
-    range.setFrom(formatInput(new Date(now.getTime() - hours * 60 * 60 * 1000)));
-  };
-
   return (
     <>
       <ScreenTitle
@@ -973,14 +980,13 @@ function MotorGraphs() {
         action={<span className="result-count">{trend.samples.length} amostras</span>}
       />
 
-      <div className="period-presets" aria-label="Períodos rápidos">
-        <button type="button" onClick={() => applyPeriod(1)}>1 hora</button>
-        <button type="button" onClick={() => applyPeriod(8)}>8 horas</button>
-        <button type="button" onClick={() => applyPeriod(24)}>24 horas</button>
-        <button type="button" onClick={() => applyPeriod(24 * 7)}>7 dias</button>
-      </div>
-
-      <div className="query-toolbar graph-toolbar">
+      <HistoryPeriodFilter
+        period={period}
+        loading={loading}
+        maximumRangeLabel="Período máximo: 31 dias"
+        presets={["today", "1h", "8h", "24h", "yesterday", "7d"]}
+        resultSummary={`${trend.samples.length.toLocaleString("pt-BR")} amostras`}
+      >
         <label className="motor-select">
           <span>Grupo</span>
           <select
@@ -995,12 +1001,7 @@ function MotorGraphs() {
             ))}
           </select>
         </label>
-        <label><span>De</span><input type="datetime-local" value={range.from} onChange={(event) => range.setFrom(event.target.value)} /></label>
-        <label><span>Até</span><input type="datetime-local" value={range.to} onChange={(event) => range.setTo(event.target.value)} /></label>
-        <button type="button" className="primary-button" onClick={() => void query()} disabled={loading}>
-          {loading ? "Consultando…" : "Atualizar"}
-        </button>
-      </div>
+      </HistoryPeriodFilter>
 
       {activeGroup && (
         <section className="motor-selection">
@@ -1187,94 +1188,125 @@ function TrendChart({ title, series }: { title: string; series: TrendSeries[] })
   );
 }
 
-function RangeFilters({
-  from,
-  to,
-  search,
-  onFrom,
-  onTo,
-  onSearch,
-  onQuery,
-  children,
+const HISTORY_PAGE_SIZE = 100;
+
+function pagedHistoryParameters(
+  from: string,
+  to: string,
+  search: string,
+  offset: number,
+) {
+  const parameters = new URLSearchParams({
+    fromUtc: new Date(from).toISOString(),
+    toUtc: new Date(to).toISOString(),
+    offset: String(offset),
+    limit: String(HISTORY_PAGE_SIZE),
+  });
+  if (search) parameters.set("search", search);
+  return parameters;
+}
+
+function HistoryPagination({
+  loaded,
+  total,
+  loading,
+  onLoadMore,
 }: {
-  from: string;
-  to: string;
-  search: string;
-  onFrom: (value: string) => void;
-  onTo: (value: string) => void;
-  onSearch: (value: string) => void;
-  onQuery: () => void;
-  children?: ReactNode;
+  loaded: number;
+  total: number;
+  loading: boolean;
+  onLoadMore: () => void;
 }) {
+  if (loaded >= total) return null;
   return (
-    <div className="query-toolbar query-toolbar--range">
-      <label><span>De</span><input type="datetime-local" value={from} onChange={(event) => onFrom(event.target.value)} /></label>
-      <label><span>Até</span><input type="datetime-local" value={to} onChange={(event) => onTo(event.target.value)} /></label>
-      <label className="search-box"><span>Filtrar resultado</span><input value={search} onChange={(event) => onSearch(event.target.value)} placeholder="Nome da variável…" /></label>
-      {children}
-      <button type="button" className="primary-button" onClick={onQuery}>Consultar</button>
+    <div className="history-pagination">
+      <span>
+        Mostrando {loaded.toLocaleString("pt-BR")} de{" "}
+        {total.toLocaleString("pt-BR")}
+      </span>
+      <button type="button" onClick={onLoadMore} disabled={loading}>
+        {loading ? "Carregando…" : "Carregar mais"}
+      </button>
     </div>
   );
 }
 
-function useDefaultRange() {
-  const formatInput = (date: Date) => {
-    const offset = date.getTimezoneOffset();
-    return new Date(date.getTime() - offset * 60_000).toISOString().slice(0, 16);
-  };
-  const now = new Date();
-  const [from, setFrom] = useState(formatInput(new Date(now.getTime() - 24 * 60 * 60 * 1000)));
-  const [to, setTo] = useState(formatInput(now));
-  return { from, to, setFrom, setTo };
-}
-
-function rangeQuery(from: string, to: string) {
-  const parameters = new URLSearchParams({ limit: "1000" });
-  if (from) parameters.set("fromUtc", new Date(from).toISOString());
-  if (to) parameters.set("toUtc", new Date(to).toISOString());
-  return parameters;
-}
-
 function AlarmHistory() {
-  const range = useDefaultRange();
+  const period = useHistoryPeriod("24h", 31);
   const [search, setSearch] = useState("");
+  const [appliedSearch, setAppliedSearch] = useState("");
   const [state, setState] = useState("all");
+  const [appliedState, setAppliedState] = useState("all");
   const [rows, setRows] = useState<AlarmEvent[]>([]);
+  const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState("");
 
-  const query = useCallback(async () => {
-    setLoading(true);
+  const query = useCallback(async (offset = 0, append = false) => {
+    if (append) setLoadingMore(true);
+    else setLoading(true);
     setError("");
     try {
-      const parameters = rangeQuery(range.from, range.to);
-      if (state !== "all") parameters.set("active", String(state === "active"));
-      setRows(await fetchJson<AlarmEvent[]>(`/api/history/alarms?${parameters}`));
+      const parameters = pagedHistoryParameters(
+        period.applied.from,
+        period.applied.to,
+        appliedSearch,
+        offset,
+      );
+      if (appliedState !== "all")
+        parameters.set("active", String(appliedState === "active"));
+      const page = await fetchJson<HistoryPage<AlarmEvent>>(
+        `/api/history/alarms/search?${parameters}`,
+      );
+      setRows((current) => append ? [...current, ...page.items] : page.items);
+      setTotal(page.total);
     } catch (exception) {
       setError(exception instanceof Error ? exception.message : "Consulta falhou.");
     } finally {
-      setLoading(false);
+      if (append) setLoadingMore(false);
+      else setLoading(false);
     }
-  }, [range.from, range.to, state]);
+  }, [
+    appliedSearch,
+    appliedState,
+    period.applied.from,
+    period.applied.to,
+    period.revision,
+  ]);
 
-  useEffect(() => { void query(); }, [query]);
-  const filtered = rows.filter((row) => {
-    const term = search.toLowerCase();
-    return row.alarmName.toLowerCase().includes(term) ||
-      row.displayName.toLowerCase().includes(term) ||
-      row.description.toLowerCase().includes(term) ||
-      row.driveFaultTitle?.toLowerCase().includes(term);
-  });
+  useEffect(() => { void query(0, false); }, [query]);
+  const commitFilters = () => {
+    setAppliedSearch(search.trim());
+    setAppliedState(state);
+  };
 
   return (
     <>
-      <ScreenTitle eyebrow="Consulta de eventos" title="Histórico de alarmes" subtitle="Ativações, normalizações e duração calculada de cada ocorrência." action={<span className="result-count">{filtered.length} registros</span>} />
-      <RangeFilters from={range.from} to={range.to} search={search} onFrom={range.setFrom} onTo={range.setTo} onSearch={setSearch} onQuery={() => void query()}>
-        <label><span>Estado</span><select value={state} onChange={(event) => setState(event.target.value)}><option value="all">Todos</option><option value="active">Ativos</option><option value="cleared">Normalizados</option></select></label>
-      </RangeFilters>
+      <ScreenTitle eyebrow="Consulta de eventos" title="Histórico de alarmes" subtitle="Ativações, normalizações e duração calculada de cada ocorrência." action={<span className="result-count">{total.toLocaleString("pt-BR")} registros</span>} />
+      <HistoryPeriodFilter
+        period={period}
+        loading={loading}
+        maximumRangeLabel="Período máximo: 31 dias"
+        presets={["today", "8h", "24h", "yesterday", "7d"]}
+        search={search}
+        searchPlaceholder="Alarme, área, severidade ou código do drive…"
+        onSearch={setSearch}
+        onCommit={commitFilters}
+        resultSummary={`${rows.length.toLocaleString("pt-BR")} de ${total.toLocaleString("pt-BR")} carregados`}
+      >
+        <label>
+          <span>Estado</span>
+          <select value={state} onChange={(event) => setState(event.target.value)}>
+            <option value="all">Todos</option>
+            <option value="active">Ativos</option>
+            <option value="cleared">Normalizados</option>
+          </select>
+        </label>
+      </HistoryPeriodFilter>
       {error && <div className="error-banner">{error}</div>}
-      <DataTable headers={["Alarme", "Diagnóstico C2000 Plus", "Ativação", "Normalização", "Duração", "Estado"]} loading={loading} empty={filtered.length === 0} layout="alarm">
-        {filtered.map((alarm) => (
+      <DataTable headers={["Alarme", "Diagnóstico C2000 Plus", "Ativação", "Normalização", "Duração", "Estado"]} loading={loading} empty={rows.length === 0} layout="alarm">
+        {rows.map((alarm) => (
           <div className="data-row alarm-row" key={alarm.id}>
             <div className="alarm-copy">
               <div className="alarm-title-line">
@@ -1307,36 +1339,76 @@ function AlarmHistory() {
           </div>
         ))}
       </DataTable>
+      <HistoryPagination
+        loaded={rows.length}
+        total={total}
+        loading={loadingMore}
+        onLoadMore={() => void query(rows.length, true)}
+      />
     </>
   );
 }
 
 function CommandHistory() {
-  const range = useDefaultRange();
+  const period = useHistoryPeriod("24h", 31);
   const [search, setSearch] = useState("");
+  const [appliedSearch, setAppliedSearch] = useState("");
   const [rows, setRows] = useState<CommandEvent[]>([]);
+  const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [error, setError] = useState("");
 
-  const query = useCallback(async () => {
-    setLoading(true);
+  const query = useCallback(async (offset = 0, append = false) => {
+    if (append) setLoadingMore(true);
+    else setLoading(true);
+    setError("");
     try {
-      setRows(await fetchJson<CommandEvent[]>(`/api/history/commands?${rangeQuery(range.from, range.to)}`));
+      const parameters = pagedHistoryParameters(
+        period.applied.from,
+        period.applied.to,
+        appliedSearch,
+        offset,
+      );
+      const page = await fetchJson<HistoryPage<CommandEvent>>(
+        `/api/history/commands/search?${parameters}`,
+      );
+      setRows((current) => append ? [...current, ...page.items] : page.items);
+      setTotal(page.total);
+    } catch (exception) {
+      setError(exception instanceof Error ? exception.message : "Consulta falhou.");
     } finally {
-      setLoading(false);
+      if (append) setLoadingMore(false);
+      else setLoading(false);
     }
-  }, [range.from, range.to]);
+  }, [
+    appliedSearch,
+    period.applied.from,
+    period.applied.to,
+    period.revision,
+  ]);
 
-  useEffect(() => { void query(); }, [query]);
-  const filtered = rows.filter((row) => row.commandName.toLowerCase().includes(search.toLowerCase()));
+  useEffect(() => { void query(0, false); }, [query]);
 
   return (
     <>
-      <ScreenTitle eyebrow="Auditoria somente leitura" title="Datalog de comandos" subtitle="Eventos recebidos diretamente por notificação ADS on-change da estrutura paperMachineHmiCommands." action={<span className="result-count">{filtered.length} registros</span>} />
-      <RangeFilters from={range.from} to={range.to} search={search} onFrom={range.setFrom} onTo={range.setTo} onSearch={setSearch} onQuery={() => void query()} />
-      <DataTable headers={["Comando", "Valor anterior", "Novo valor", "Horário", "Origem"]} loading={loading} empty={filtered.length === 0}>
-        {filtered.map((command) => (
+      <ScreenTitle eyebrow="Auditoria somente leitura" title="Datalog de comandos" subtitle="Eventos recebidos diretamente por notificação ADS on-change da estrutura paperMachineHmiCommands." action={<span className="result-count">{total.toLocaleString("pt-BR")} registros</span>} />
+      <HistoryPeriodFilter
+        period={period}
+        loading={loading}
+        maximumRangeLabel="Período máximo: 31 dias"
+        presets={["today", "8h", "24h", "yesterday", "7d"]}
+        search={search}
+        searchPlaceholder="Variável, valor ou origem…"
+        onSearch={setSearch}
+        onCommit={() => setAppliedSearch(search.trim())}
+        resultSummary={`${rows.length.toLocaleString("pt-BR")} de ${total.toLocaleString("pt-BR")} carregados`}
+      />
+      {error && <div className="error-banner">{error}</div>}
+      <DataTable headers={["Comando", "Valor anterior", "Novo valor", "Horário", "Origem"]} loading={loading} empty={rows.length === 0}>
+        {rows.map((command) => (
           <div className="data-row command-row" key={command.id}>
-            <div><b>{formatFieldName(command.commandName)}</b><small>{command.commandName}</small></div>
+            <div><b>{operatorVariableLabel(command.commandName)}</b><small>{command.commandName}</small></div>
             <span>{parseStoredValue(command.previousValueJson)}</span>
             <span className="changed-value">{parseStoredValue(command.currentValueJson)}</span>
             <span>{formatDate(command.observedAtUtc)}</span>
@@ -1344,42 +1416,88 @@ function CommandHistory() {
           </div>
         ))}
       </DataTable>
+      <HistoryPagination
+        loaded={rows.length}
+        total={total}
+        loading={loadingMore}
+        onLoadMore={() => void query(rows.length, true)}
+      />
     </>
   );
 }
 
 function StatusHistory() {
-  const range = useDefaultRange();
+  const period = useHistoryPeriod("24h", 31);
   const [search, setSearch] = useState("");
+  const [appliedSearch, setAppliedSearch] = useState("");
   const [rows, setRows] = useState<StatusChange[]>([]);
+  const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [error, setError] = useState("");
 
-  const query = useCallback(async () => {
-    setLoading(true);
+  const query = useCallback(async (offset = 0, append = false) => {
+    if (append) setLoadingMore(true);
+    else setLoading(true);
+    setError("");
     try {
-      setRows(await fetchJson<StatusChange[]>(`/api/history/status-changes?${rangeQuery(range.from, range.to)}`));
+      const parameters = pagedHistoryParameters(
+        period.applied.from,
+        period.applied.to,
+        appliedSearch,
+        offset,
+      );
+      const page = await fetchJson<HistoryPage<StatusChange>>(
+        `/api/history/status-changes/search?${parameters}`,
+      );
+      setRows((current) => append ? [...current, ...page.items] : page.items);
+      setTotal(page.total);
+    } catch (exception) {
+      setError(exception instanceof Error ? exception.message : "Consulta falhou.");
     } finally {
-      setLoading(false);
+      if (append) setLoadingMore(false);
+      else setLoading(false);
     }
-  }, [range.from, range.to]);
+  }, [
+    appliedSearch,
+    period.applied.from,
+    period.applied.to,
+    period.revision,
+  ]);
 
-  useEffect(() => { void query(); }, [query]);
-  const filtered = rows.filter((row) => row.fieldName.toLowerCase().includes(search.toLowerCase()));
+  useEffect(() => { void query(0, false); }, [query]);
 
   return (
     <>
-      <ScreenTitle eyebrow="Datalog de processo" title="Histórico de status" subtitle="Alterações detectadas entre snapshots válidos do PLC." action={<span className="result-count">{filtered.length} registros</span>} />
-      <RangeFilters from={range.from} to={range.to} search={search} onFrom={range.setFrom} onTo={range.setTo} onSearch={setSearch} onQuery={() => void query()} />
-      <DataTable headers={["Variável", "Valor anterior", "Novo valor", "Horário"]} loading={loading} empty={filtered.length === 0} compact>
-        {filtered.map((change) => (
+      <ScreenTitle eyebrow="Datalog de processo" title="Histórico de status" subtitle="Alterações detectadas entre snapshots válidos do PLC." action={<span className="result-count">{total.toLocaleString("pt-BR")} registros</span>} />
+      <HistoryPeriodFilter
+        period={period}
+        loading={loading}
+        maximumRangeLabel="Período máximo: 31 dias"
+        presets={["today", "8h", "24h", "yesterday", "7d"]}
+        search={search}
+        searchPlaceholder="Variável ou valor registrado…"
+        onSearch={setSearch}
+        onCommit={() => setAppliedSearch(search.trim())}
+        resultSummary={`${rows.length.toLocaleString("pt-BR")} de ${total.toLocaleString("pt-BR")} carregados`}
+      />
+      {error && <div className="error-banner">{error}</div>}
+      <DataTable headers={["Variável", "Valor anterior", "Novo valor", "Horário"]} loading={loading} empty={rows.length === 0} compact>
+        {rows.map((change) => (
           <div className="data-row status-row" key={change.id}>
-            <div><b>{formatFieldName(change.fieldName)}</b><small>{change.fieldName}</small></div>
+            <div><b>{operatorVariableLabel(change.fieldName)}</b><small>{change.fieldName}</small></div>
             <span>{parseStoredValue(change.previousValueJson)}</span>
             <span className="changed-value">{parseStoredValue(change.currentValueJson)}</span>
             <span>{formatDate(change.observedAtUtc)}</span>
           </div>
         ))}
       </DataTable>
+      <HistoryPagination
+        loaded={rows.length}
+        total={total}
+        loading={loadingMore}
+        onLoadMore={() => void query(rows.length, true)}
+      />
     </>
   );
 }

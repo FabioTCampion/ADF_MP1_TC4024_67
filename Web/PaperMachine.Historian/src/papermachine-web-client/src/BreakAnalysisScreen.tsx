@@ -1,5 +1,6 @@
-import { lazy, Suspense, useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { useAuth } from "./Auth";
+import HistoryPeriodFilter, { useHistoryPeriod } from "./HistoryPeriodFilter";
 import type { InteractiveChartOption } from "./InteractiveChart";
 import {
   operatorCategoryLabel as categoryLabel,
@@ -29,11 +30,16 @@ type Summary = {
   delta: number | null; anomalyScore: number | null;
 };
 type Evidence = {
-  id: number; kind: string; name: string; currentValueJson: string | null;
-  offsetMilliseconds: number; description: string | null; severity: string | null;
+  id: number; kind: string; name: string;
+  previousValueJson: string | null; currentValueJson: string | null;
+  observedAtUtc: string; offsetMilliseconds: number;
+  description: string | null; severity: string | null;
 };
 type Diagnostic = {
   event: BreakEvent; samples: Sample[]; summary: Summary[]; evidence: Evidence[];
+};
+type HistoryPage<T> = {
+  items: T[]; total: number; offset: number; limit: number; hasMore: boolean;
 };
 
 const dateTime = new Intl.DateTimeFormat("pt-BR", {
@@ -62,14 +68,23 @@ async function fetchJson<T>(url: string, init?: RequestInit): Promise<T> {
   return response.status === 204 ? (undefined as T) : response.json() as Promise<T>;
 }
 
-function localInputValue(date: Date) {
-  const shifted = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
-  return shifted.toISOString().slice(0, 16);
-}
 function formatNumber(value: number | null, digits = 2) {
   return value === null ? "—" : value.toLocaleString("pt-BR", {
     minimumFractionDigits: digits, maximumFractionDigits: digits,
   });
+}
+function formatStoredValue(value: string | null) {
+  if (value === null) return "—";
+  try {
+    const parsed = JSON.parse(value) as unknown;
+    if (parsed === true) return "Ligado";
+    if (parsed === false) return "Desligado";
+    if (parsed === null) return "—";
+    if (typeof parsed === "object") return JSON.stringify(parsed);
+    return String(parsed);
+  } catch {
+    return value;
+  }
 }
 function normalizeSearch(value: string) {
   return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("pt-BR");
@@ -87,18 +102,22 @@ function defaultVariables(summary: Summary[]) {
 
 export default function BreakAnalysisScreen() {
   const { user } = useAuth();
-  const initialNow = useMemo(() => new Date(), []);
-  const [from, setFrom] = useState(localInputValue(new Date(initialNow.getTime() - 7 * 86_400_000)));
-  const [to, setTo] = useState(localInputValue(initialNow));
+  const period = useHistoryPeriod("7d", 366);
+  const [search, setSearch] = useState("");
+  const [appliedSearch, setAppliedSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("Todos");
+  const [appliedStatusFilter, setAppliedStatusFilter] = useState("Todos");
   const [causeFilter, setCauseFilter] = useState("Todas");
+  const [appliedCauseFilter, setAppliedCauseFilter] = useState("Todas");
   const [events, setEvents] = useState<BreakEvent[]>([]);
+  const [totalEvents, setTotalEvents] = useState(0);
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [diagnostic, setDiagnostic] = useState<Diagnostic | null>(null);
   const [selectedVariables, setSelectedVariables] = useState<string[]>([]);
   const [category, setCategory] = useState("Todas");
   const [variableSearch, setVariableSearch] = useState("");
   const [loading, setLoading] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [analysisStatus, setAnalysisStatus] = useState("Pendente");
@@ -106,26 +125,50 @@ export default function BreakAnalysisScreen() {
   const [causeDescription, setCauseDescription] = useState("");
   const [analysisNotes, setAnalysisNotes] = useState("");
 
-  const loadEvents = async () => {
-    setLoading(true);
+  const loadEvents = useCallback(async (offset = 0, append = false) => {
+    if (append) setLoadingMore(true);
+    else setLoading(true);
     setError(null);
     try {
       const query = new URLSearchParams({
-        fromUtc: new Date(from).toISOString(), toUtc: new Date(to).toISOString(), limit: "500",
+        fromUtc: new Date(period.applied.from).toISOString(),
+        toUtc: new Date(period.applied.to).toISOString(),
+        offset: String(offset),
+        limit: "100",
       });
-      const rows = await fetchJson<BreakEvent[]>(`/api/history/breaks?${query}`);
-      setEvents(rows);
-      setSelectedId((current) =>
-        current !== null && rows.some((item) => item.id === current)
-          ? current : rows[0]?.id ?? null);
+      if (appliedSearch) query.set("search", appliedSearch);
+      if (appliedStatusFilter !== "Todos")
+        query.set("analysisStatus", appliedStatusFilter);
+      if (appliedCauseFilter !== "Todas")
+        query.set("causeCategory", appliedCauseFilter);
+      const page = await fetchJson<HistoryPage<BreakEvent>>(
+        `/api/history/breaks/search?${query}`,
+      );
+      setTotalEvents(page.total);
+      if (append) {
+        setEvents((current) => [...current, ...page.items]);
+      } else {
+        setEvents(page.items);
+        setSelectedId((current) =>
+          current !== null && page.items.some((item) => item.id === current)
+            ? current : page.items[0]?.id ?? null);
+      }
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "Não foi possível consultar as quebras.");
     } finally {
-      setLoading(false);
+      if (append) setLoadingMore(false);
+      else setLoading(false);
     }
-  };
+  }, [
+    appliedCauseFilter,
+    appliedSearch,
+    appliedStatusFilter,
+    period.applied.from,
+    period.applied.to,
+    period.revision,
+  ]);
 
-  useEffect(() => { void loadEvents(); }, []);
+  useEffect(() => { void loadEvents(0, false); }, [loadEvents]);
   useEffect(() => {
     if (selectedId === null) {
       setDiagnostic(null);
@@ -147,12 +190,12 @@ export default function BreakAnalysisScreen() {
       .finally(() => setLoading(false));
   }, [selectedId]);
 
-  const causeOptions = ["Todas", ...new Set(
-    events.map((event) => event.causeCategory).filter((value): value is string => Boolean(value)),
-  )];
-  const visibleEvents = events.filter((event) =>
-    (statusFilter === "Todos" || event.analysisStatus === statusFilter) &&
-    (causeFilter === "Todas" || event.causeCategory === causeFilter));
+  const causeOptions = ["Todas", ...new Set([
+    ...(causeFilter === "Todas" ? [] : [causeFilter]),
+    ...events
+      .map((event) => event.causeCategory)
+      .filter((value): value is string => Boolean(value)),
+  ])];
   const categories = useMemo(
     () => ["Todas", ...new Set(diagnostic?.summary.map((item) => item.category) ?? [])],
     [diagnostic],
@@ -167,6 +210,14 @@ export default function BreakAnalysisScreen() {
   }, [category, diagnostic, variableSearch]);
   const summaryByField = useMemo(
     () => new Map(diagnostic?.summary.map((item) => [item.fieldName, item]) ?? []),
+    [diagnostic],
+  );
+  const commandsBeforeBreak = useMemo(
+    () => (diagnostic?.evidence ?? [])
+      .filter((item) =>
+        normalizeSearch(item.kind) === "comando" &&
+        item.offsetMilliseconds <= 0)
+      .sort((left, right) => right.offsetMilliseconds - left.offsetMilliseconds),
     [diagnostic],
   );
 
@@ -246,23 +297,50 @@ export default function BreakAnalysisScreen() {
       <div className="break-heading">
         <div><p>DIAGNÓSTICO DE PROCESSO</p><h1>Análise de quebras</h1>
           <span>Janela congelada de T-180 s até T0, sem amostras posteriores ao evento.</span></div>
-        <div className="break-filters">
-          <label>Início<input type="datetime-local" value={from} onChange={(event) => setFrom(event.target.value)} /></label>
-          <label>Fim<input type="datetime-local" value={to} onChange={(event) => setTo(event.target.value)} /></label>
-          <label>Status<select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
-            <option>Todos</option><option>Pendente</option><option>Em análise</option><option>Concluída</option>
-          </select></label>
-          <label>Causa<select value={causeFilter} onChange={(event) => setCauseFilter(event.target.value)}>
-            {causeOptions.map((item) => <option key={item}>{item}</option>)}
-          </select></label>
-          <button type="button" onClick={() => void loadEvents()} disabled={loading}>Consultar</button>
-        </div>
       </div>
+      <HistoryPeriodFilter
+        period={period}
+        loading={loading}
+        maximumRangeLabel="Período máximo: 366 dias"
+        presets={["today", "8h", "24h", "yesterday", "7d"]}
+        search={search}
+        searchPlaceholder="ID, causa, descrição, notas ou responsável…"
+        onSearch={setSearch}
+        onCommit={() => {
+          setAppliedSearch(search.trim());
+          setAppliedStatusFilter(statusFilter);
+          setAppliedCauseFilter(causeFilter);
+        }}
+        resultSummary={`${events.length.toLocaleString("pt-BR")} de ${totalEvents.toLocaleString("pt-BR")} carregadas`}
+      >
+        <label>
+          <span>Status</span>
+          <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
+            <option>Todos</option>
+            <option>Pendente</option>
+            <option>Em análise</option>
+            <option>Concluída</option>
+          </select>
+        </label>
+        <label>
+          <span>Causa</span>
+          <input
+            list="break-cause-options"
+            value={causeFilter}
+            maxLength={100}
+            onChange={(event) => setCauseFilter(event.target.value)}
+            placeholder="Todas"
+          />
+          <datalist id="break-cause-options">
+            {causeOptions.map((item) => <option value={item} key={item} />)}
+          </datalist>
+        </label>
+      </HistoryPeriodFilter>
       {error && <div className="break-error">{error}</div>}
       <div className="break-layout">
         <aside className="break-event-list">
-          <header><b>Quebras encontradas</b><span>{visibleEvents.length}</span></header>
-          {visibleEvents.map((event) => (
+          <header><b>Quebras encontradas</b><span>{totalEvents}</span></header>
+          {events.map((event) => (
             <button type="button" key={event.id}
               className={event.id === selectedId ? "active" : ""}
               onClick={() => setSelectedId(event.id)}>
@@ -272,7 +350,17 @@ export default function BreakAnalysisScreen() {
               {event.causeCategory && <em>{event.causeCategory}</em>}
             </button>
           ))}
-          {!loading && visibleEvents.length === 0 && <p>Nenhuma quebra no período.</p>}
+          {!loading && events.length === 0 && <p>Nenhuma quebra no período.</p>}
+          {events.length < totalEvents && (
+            <button
+              type="button"
+              className="break-load-more"
+              onClick={() => void loadEvents(events.length, true)}
+              disabled={loadingMore}
+            >
+              {loadingMore ? "Carregando…" : `Carregar mais (${events.length}/${totalEvents})`}
+            </button>
+          )}
         </aside>
         <div className="break-workspace">
           {!diagnostic ? <div className="break-empty">Selecione uma quebra com diagnóstico.</div> : <>
@@ -329,8 +417,61 @@ export default function BreakAnalysisScreen() {
                   : <Suspense fallback={<div className="break-empty">Preparando gráfico…</div>}>
                     <InteractiveChart key={diagnostic.event.id} option={chartOption}
                       ariaLabel="Variáveis nos 180 segundos anteriores à quebra" />
-                  </Suspense>}
+                </Suspense>}
               </div>
+            </section>
+            <section className="break-panel break-command-panel">
+              <header>
+                <div>
+                  <h2>Comandos do operador antes da quebra</h2>
+                  <span>
+                    Eventos on-change da estrutura de comandos entre T-180 s e
+                    T0, ordenados do mais próximo para o mais distante.
+                  </span>
+                </div>
+                <strong>{commandsBeforeBreak.length} comando{commandsBeforeBreak.length === 1 ? "" : "s"}</strong>
+              </header>
+              <div className="break-command-table">
+                <div className="break-command-head">
+                  <span>Horário</span>
+                  <span>Antes da quebra</span>
+                  <span>Comando</span>
+                  <span>Valor anterior</span>
+                  <span>Novo valor</span>
+                  <span>Origem</span>
+                </div>
+                {commandsBeforeBreak.map((command) => (
+                  <div className="break-command-row" key={command.id}>
+                    <time>{dateTime.format(new Date(command.observedAtUtc))}</time>
+                    <strong>
+                      {command.offsetMilliseconds === 0
+                        ? "T0"
+                        : `T${Math.round(command.offsetMilliseconds / 1000)}s`}
+                    </strong>
+                    <div>
+                      <b>{fieldLabel(command.name)}</b>
+                      <small>{command.name}</small>
+                    </div>
+                    <span>{formatStoredValue(command.previousValueJson)}</span>
+                    <span className="break-command-new-value">
+                      {formatStoredValue(command.currentValueJson)}
+                    </span>
+                    <em>
+                      {command.description === "AdsOnChange"
+                        ? "ADS on-change"
+                        : command.description ?? "PLC observado"}
+                    </em>
+                  </div>
+                ))}
+                {commandsBeforeBreak.length === 0 && (
+                  <p>Nenhum comando foi registrado nos três minutos anteriores.</p>
+                )}
+              </div>
+              <footer>
+                Estes eventos mostram alterações recebidas pela estrutura de
+                comandos; a identificação nominal do operador depende da HMI
+                disponibilizar essa informação ao CLP.
+              </footer>
             </section>
             <div className="break-details-grid">
               <section className="break-panel"><header><div><h2>Maiores alterações</h2>

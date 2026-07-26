@@ -44,9 +44,23 @@ public interface IHistorianRepository
         DateTimeOffset? toUtc,
         int limit,
         CancellationToken cancellationToken);
+    Task<HistoryPage<CommandEventRow>> SearchCommandEventsAsync(
+        DateTimeOffset fromUtc,
+        DateTimeOffset toUtc,
+        string? search,
+        int offset,
+        int limit,
+        CancellationToken cancellationToken);
     Task<IReadOnlyList<StatusChangeRow>> GetStatusChangesAsync(
         DateTimeOffset? fromUtc,
         DateTimeOffset? toUtc,
+        int limit,
+        CancellationToken cancellationToken);
+    Task<HistoryPage<StatusChangeRow>> SearchStatusChangesAsync(
+        DateTimeOffset fromUtc,
+        DateTimeOffset toUtc,
+        string? search,
+        int offset,
         int limit,
         CancellationToken cancellationToken);
     Task<IReadOnlyList<AlarmEventRow>> GetAlarmEventsAsync(
@@ -55,9 +69,26 @@ public interface IHistorianRepository
         bool? active,
         int limit,
         CancellationToken cancellationToken);
+    Task<HistoryPage<AlarmEventRow>> SearchAlarmEventsAsync(
+        DateTimeOffset fromUtc,
+        DateTimeOffset toUtc,
+        bool? active,
+        string? search,
+        int offset,
+        int limit,
+        CancellationToken cancellationToken);
     Task<IReadOnlyList<PaperBreakEventRow>> GetPaperBreakEventsAsync(
         DateTimeOffset? fromUtc,
         DateTimeOffset? toUtc,
+        int limit,
+        CancellationToken cancellationToken);
+    Task<HistoryPage<PaperBreakEventRow>> SearchPaperBreakEventsAsync(
+        DateTimeOffset fromUtc,
+        DateTimeOffset toUtc,
+        string? analysisStatus,
+        string? causeCategory,
+        string? search,
+        int offset,
         int limit,
         CancellationToken cancellationToken);
     Task<PaperBreakDiagnosticRow?> GetPaperBreakDiagnosticAsync(
@@ -122,6 +153,15 @@ public sealed record TelemetrySampleRow(
     IReadOnlyDictionary<string, bool?> BooleanValues,
     string MappingVersion,
     string Quality);
+
+public sealed record HistoryPage<T>(
+    IReadOnlyList<T> Items,
+    int Total,
+    int Offset,
+    int Limit)
+{
+    public bool HasMore => Offset + Items.Count < Total;
+}
 
 public sealed record CommandEventRow(
     long Id,

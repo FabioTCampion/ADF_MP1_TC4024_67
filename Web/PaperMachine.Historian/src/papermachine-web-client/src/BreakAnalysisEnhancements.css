@@ -197,6 +197,131 @@
   line-height: 1.55;
 }
 
+.break-event-list .break-load-more {
+  align-items: center;
+  border-color: #365a81;
+  background: #14263a;
+  color: #a9c5e5;
+  text-align: center;
+}
+
+.break-event-list .break-load-more:disabled {
+  cursor: wait;
+  opacity: .55;
+}
+
+.break-command-panel {
+  overflow: hidden;
+}
+
+.break-command-panel > header {
+  align-items: center;
+}
+
+.break-command-panel > header > strong {
+  padding: 5px 9px;
+  border: 1px solid #365b82;
+  border-radius: 99px;
+  color: #8dc1ff;
+  background: #152a42;
+  font-size: 9px;
+}
+
+.break-command-table {
+  overflow: auto;
+  border: 1px solid #293c53;
+  border-radius: 9px;
+  background: #0c1623;
+}
+
+.break-command-head,
+.break-command-row {
+  display: grid;
+  grid-template-columns: 125px 90px minmax(240px, 1.6fr) minmax(90px, .7fr) minmax(90px, .7fr) 100px;
+  align-items: center;
+  min-width: 930px;
+  gap: 10px;
+  padding: 9px 11px;
+}
+
+.break-command-head {
+  color: #71869f;
+  background: #0a1420;
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+
+.break-command-row {
+  border-top: 1px solid #22354b;
+  color: #a9b9cb;
+  font-size: 9px;
+}
+
+.break-command-row time {
+  color: #8fa5bf;
+  font-variant-numeric: tabular-nums;
+}
+
+.break-command-row > strong {
+  color: #efaa78;
+  font-family: Consolas, monospace;
+  font-size: 9px;
+}
+
+.break-command-row > div {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: 2px;
+}
+
+.break-command-row b,
+.break-command-row small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.break-command-row b { color: #dbe6f3; }
+.break-command-row small {
+  color: #61768f;
+  font: 8px Consolas, monospace;
+}
+
+.break-command-row > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.break-command-new-value {
+  color: #75dbb0;
+  font-weight: 750;
+}
+
+.break-command-row em {
+  color: #83a6ce;
+  font-size: 8px;
+  font-style: normal;
+}
+
+.break-command-table > p {
+  margin: 0;
+  padding: 28px 14px;
+  color: #6f8299;
+  text-align: center;
+  font-size: 9px;
+}
+
+.break-command-panel > footer {
+  margin-top: 9px;
+  color: #657990;
+  font-size: 8px;
+  line-height: 1.5;
+}
+
 @media (max-width: 1200px) {
   .break-variable-sidebar {
     height: 280px;

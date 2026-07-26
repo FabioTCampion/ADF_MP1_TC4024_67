@@ -86,6 +86,40 @@ public sealed class SqliteHistorianRepositoryTests
             Assert.Contains(
                 commandEvents,
                 item => item.CommandName == "pulse" && item.Origin == "AdsOnChange");
+            var commandPage = await repository.SearchCommandEventsAsync(
+                firstAt.AddMinutes(-1),
+                firstAt.AddMinutes(1),
+                "pulse",
+                0,
+                1,
+                CancellationToken.None);
+            Assert.Equal(1, commandPage.Total);
+            Assert.Single(commandPage.Items);
+            Assert.False(commandPage.HasMore);
+            var firstCommandPage = await repository.SearchCommandEventsAsync(
+                firstAt.AddMinutes(-1),
+                firstAt.AddMinutes(1),
+                null,
+                0,
+                1,
+                CancellationToken.None);
+            Assert.Equal(3, firstCommandPage.Total);
+            Assert.True(firstCommandPage.HasMore);
+
+            var statusPage = await repository.SearchStatusChangesAsync(
+                firstAt.AddMinutes(-1),
+                firstAt.AddMinutes(1),
+                "dryingSectionGroup3PaperPresence",
+                0,
+                10,
+                CancellationToken.None);
+            Assert.True(statusPage.Total >= 1);
+            Assert.All(
+                statusPage.Items,
+                item => Assert.Contains(
+                    "dryingSectionGroup3PaperPresence",
+                    item.FieldName,
+                    StringComparison.OrdinalIgnoreCase));
 
             var alarm = Assert.Single(
                 await repository.GetAlarmEventsAsync(null, null, null, 10, CancellationToken.None));
@@ -96,6 +130,16 @@ public sealed class SqliteHistorianRepositoryTests
             Assert.Equal(1, alarm.DriveFaultCode);
             Assert.Equal("ocA", alarm.DriveFaultMnemonic);
             Assert.Equal(12.3, alarm.DriveFaultTorque);
+            var alarmPage = await repository.SearchAlarmEventsAsync(
+                firstAt.AddMinutes(-1),
+                firstAt.AddMinutes(1),
+                null,
+                "ocA",
+                0,
+                10,
+                CancellationToken.None);
+            Assert.Equal(1, alarmPage.Total);
+            Assert.Single(alarmPage.Items);
 
             var paperBreak = Assert.Single(
                 await repository.GetPaperBreakEventsAsync(
@@ -105,6 +149,17 @@ public sealed class SqliteHistorianRepositoryTests
                     CancellationToken.None));
             Assert.Equal(2, paperBreak.DiagnosticSampleCount);
             Assert.Equal("Pendente", paperBreak.AnalysisStatus);
+            var breakPage = await repository.SearchPaperBreakEventsAsync(
+                firstAt.AddMinutes(-1),
+                firstAt.AddMinutes(1),
+                "Pendente",
+                null,
+                "Pendente",
+                0,
+                10,
+                CancellationToken.None);
+            Assert.Equal(1, breakPage.Total);
+            Assert.Single(breakPage.Items);
             var diagnostic = await repository.GetPaperBreakDiagnosticAsync(
                 paperBreak.Id,
                 CancellationToken.None);

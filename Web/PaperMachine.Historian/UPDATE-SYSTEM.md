@@ -4,6 +4,12 @@ Este documento descreve o atualizador do **CPNTeck Paper Machine Historian**,
 seu fluxo operacional, seus limites de segurança e o padrão recomendado para
 replicá-lo em outras aplicações.
 
+Para uma reprodução componente a componente por outro agente, use também
+[AUTOMATIC-UPDATE-AGENT-HANDOFF.md](AUTOMATIC-UPDATE-AGENT-HANDOFF.md). Esse
+handoff fixa a implementação `v0.1.6` como baseline e detalha contratos,
+arquivos, sequência de execução, matriz de renomeação, testes e critérios de
+aceite.
+
 > Resumo executivo: o fluxo atual é adequado como base para uma rede industrial
 > segregada e protege bem contra corrupção de arquivos, downloads incompletos,
 > downgrade acidental e acionamento por usuários sem privilégio. Ele não é uma

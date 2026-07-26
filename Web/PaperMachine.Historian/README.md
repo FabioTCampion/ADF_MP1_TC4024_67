@@ -128,8 +128,10 @@ Para gerar o pacote autocontido e instalar como serviço Windows com início
 automático, consulte [DEPLOYMENT.md](DEPLOYMENT.md).
 
 Para entender, operar ou reutilizar o atualizador por GitHub Releases, consulte
-[UPDATE-SYSTEM.md](UPDATE-SYSTEM.md). O documento inclui o fluxo ponta a ponta,
-modelo de ameaça, limitações de segurança e checklist de replicação.
+[UPDATE-SYSTEM.md](UPDATE-SYSTEM.md). O documento inclui fluxo ponta a ponta,
+modelo de ameaça, limitações de segurança e checklist de replicação. O guia
+[AUTOMATIC-UPDATE-AGENT-HANDOFF.md](AUTOMATIC-UPDATE-AGENT-HANDOFF.md) descreve
+a reprodução precisa desse fluxo em outra aplicação.
 
 ## Configuração
 

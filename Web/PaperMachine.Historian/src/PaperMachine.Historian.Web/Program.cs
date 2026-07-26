@@ -233,6 +233,35 @@ api.MapGet(
             cancellationToken)));
 
 api.MapGet(
+    "/history/status-changes/search",
+    async (
+        DateTimeOffset fromUtc,
+        DateTimeOffset toUtc,
+        string? search,
+        int? offset,
+        int? limit,
+        IHistorianRepository repository,
+        CancellationToken cancellationToken) =>
+    {
+        var validation = ValidateHistorySearch(
+            fromUtc,
+            toUtc,
+            search,
+            offset ?? 0,
+            limit ?? 100,
+            maximumRangeDays: 31);
+        if (validation is not null)
+            return validation;
+        return Results.Ok(await repository.SearchStatusChangesAsync(
+            fromUtc,
+            toUtc,
+            search,
+            offset ?? 0,
+            limit ?? 100,
+            cancellationToken));
+    });
+
+api.MapGet(
     "/history/motors",
     async (
         DateTimeOffset? fromUtc,
@@ -298,6 +327,35 @@ api.MapGet(
             cancellationToken)));
 
 api.MapGet(
+    "/history/commands/search",
+    async (
+        DateTimeOffset fromUtc,
+        DateTimeOffset toUtc,
+        string? search,
+        int? offset,
+        int? limit,
+        IHistorianRepository repository,
+        CancellationToken cancellationToken) =>
+    {
+        var validation = ValidateHistorySearch(
+            fromUtc,
+            toUtc,
+            search,
+            offset ?? 0,
+            limit ?? 100,
+            maximumRangeDays: 31);
+        if (validation is not null)
+            return validation;
+        return Results.Ok(await repository.SearchCommandEventsAsync(
+            fromUtc,
+            toUtc,
+            search,
+            offset ?? 0,
+            limit ?? 100,
+            cancellationToken));
+    });
+
+api.MapGet(
     "/history/alarms",
     async (
         DateTimeOffset? fromUtc,
@@ -314,6 +372,37 @@ api.MapGet(
             cancellationToken)));
 
 api.MapGet(
+    "/history/alarms/search",
+    async (
+        DateTimeOffset fromUtc,
+        DateTimeOffset toUtc,
+        bool? active,
+        string? search,
+        int? offset,
+        int? limit,
+        IHistorianRepository repository,
+        CancellationToken cancellationToken) =>
+    {
+        var validation = ValidateHistorySearch(
+            fromUtc,
+            toUtc,
+            search,
+            offset ?? 0,
+            limit ?? 100,
+            maximumRangeDays: 31);
+        if (validation is not null)
+            return validation;
+        return Results.Ok(await repository.SearchAlarmEventsAsync(
+            fromUtc,
+            toUtc,
+            active,
+            search,
+            offset ?? 0,
+            limit ?? 100,
+            cancellationToken));
+    });
+
+api.MapGet(
     "/history/breaks",
     async (
         DateTimeOffset? fromUtc,
@@ -326,6 +415,39 @@ api.MapGet(
             toUtc,
             limit ?? 250,
             cancellationToken)));
+
+api.MapGet(
+    "/history/breaks/search",
+    async (
+        DateTimeOffset fromUtc,
+        DateTimeOffset toUtc,
+        string? analysisStatus,
+        string? causeCategory,
+        string? search,
+        int? offset,
+        int? limit,
+        IHistorianRepository repository,
+        CancellationToken cancellationToken) =>
+    {
+        var validation = ValidateHistorySearch(
+            fromUtc,
+            toUtc,
+            search,
+            offset ?? 0,
+            limit ?? 100,
+            maximumRangeDays: 366);
+        if (validation is not null)
+            return validation;
+        return Results.Ok(await repository.SearchPaperBreakEventsAsync(
+            fromUtc,
+            toUtc,
+            analysisStatus,
+            causeCategory,
+            search,
+            offset ?? 0,
+            limit ?? 100,
+            cancellationToken));
+    });
 
 api.MapGet(
     "/history/breaks/{id:long}/diagnostic",
@@ -408,6 +530,32 @@ api.MapGet(
 app.MapFallbackToFile("index.html");
 
 await app.RunAsync();
+
+static IResult? ValidateHistorySearch(
+    DateTimeOffset fromUtc,
+    DateTimeOffset toUtc,
+    string? search,
+    int offset,
+    int limit,
+    int maximumRangeDays)
+{
+    if (fromUtc >= toUtc)
+        return Results.BadRequest(new { error = "O início deve ser anterior ao fim do período." });
+    if (toUtc - fromUtc > TimeSpan.FromDays(maximumRangeDays))
+    {
+        return Results.BadRequest(new
+        {
+            error = $"O período máximo para esta consulta é de {maximumRangeDays} dias."
+        });
+    }
+    if (offset < 0)
+        return Results.BadRequest(new { error = "O deslocamento da consulta não pode ser negativo." });
+    if (limit is < 1 or > 500)
+        return Results.BadRequest(new { error = "O tamanho da página deve estar entre 1 e 500." });
+    if (search?.Length > 120)
+        return Results.BadRequest(new { error = "A busca deve possuir no máximo 120 caracteres." });
+    return null;
+}
 
 static JsonElement ParseJson(string json)
 {

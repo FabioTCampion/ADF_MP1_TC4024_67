@@ -699,6 +699,62 @@ public sealed class SqliteHistorianRepository : IHistorianRepository
         return rows;
     }
 
+    public async Task<HistoryPage<CommandEventRow>> SearchCommandEventsAsync(
+        DateTimeOffset fromUtc,
+        DateTimeOffset toUtc,
+        string? search,
+        int offset,
+        int limit,
+        CancellationToken cancellationToken)
+    {
+        ValidateHistoryPage(fromUtc, toUtc, offset, limit);
+        await using var connection = await OpenAsync(cancellationToken);
+        const string where = """
+            WHERE ObservedAtUtc >= @FromUtc
+              AND ObservedAtUtc < @ToUtc
+              AND (@Search IS NULL
+                   OR CommandName COLLATE NOCASE LIKE @Search ESCAPE '\'
+                   OR COALESCE(PreviousValueJson, '') COLLATE NOCASE LIKE @Search ESCAPE '\'
+                   OR CurrentValueJson COLLATE NOCASE LIKE @Search ESCAPE '\'
+                   OR Origin COLLATE NOCASE LIKE @Search ESCAPE '\')
+            """;
+
+        await using var countCommand = connection.CreateCommand();
+        countCommand.CommandText = $"SELECT COUNT(*) FROM CommandEvents {where};";
+        AddHistorySearchParameters(countCommand, fromUtc, toUtc, search);
+        var total = Convert.ToInt32(
+            await countCommand.ExecuteScalarAsync(cancellationToken),
+            CultureInfo.InvariantCulture);
+
+        await using var command = connection.CreateCommand();
+        command.CommandText = $"""
+            SELECT Id, CommandName, PreviousValueJson, CurrentValueJson,
+                   ObservedAtUtc, Origin, MappingVersion
+            FROM CommandEvents
+            {where}
+            ORDER BY ObservedAtUtc DESC
+            LIMIT @Limit OFFSET @Offset;
+            """;
+        AddHistorySearchParameters(command, fromUtc, toUtc, search);
+        command.Parameters.AddWithValue("@Limit", limit);
+        command.Parameters.AddWithValue("@Offset", offset);
+
+        var rows = new List<CommandEventRow>();
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            rows.Add(new CommandEventRow(
+                reader.GetInt64(0),
+                reader.GetString(1),
+                reader.IsDBNull(2) ? null : reader.GetString(2),
+                reader.GetString(3),
+                ParseDatabaseTimestamp(reader.GetString(4)),
+                reader.GetString(5),
+                reader.GetString(6)));
+        }
+        return new HistoryPage<CommandEventRow>(rows, total, offset, limit);
+    }
+
     public async Task<IReadOnlyList<StatusChangeRow>> GetStatusChangesAsync(
         DateTimeOffset? fromUtc,
         DateTimeOffset? toUtc,
@@ -734,6 +790,60 @@ public sealed class SqliteHistorianRepository : IHistorianRepository
                 reader.GetString(5)));
         }
         return rows;
+    }
+
+    public async Task<HistoryPage<StatusChangeRow>> SearchStatusChangesAsync(
+        DateTimeOffset fromUtc,
+        DateTimeOffset toUtc,
+        string? search,
+        int offset,
+        int limit,
+        CancellationToken cancellationToken)
+    {
+        ValidateHistoryPage(fromUtc, toUtc, offset, limit);
+        await using var connection = await OpenAsync(cancellationToken);
+        const string where = """
+            WHERE ObservedAtUtc >= @FromUtc
+              AND ObservedAtUtc < @ToUtc
+              AND (@Search IS NULL
+                   OR FieldName COLLATE NOCASE LIKE @Search ESCAPE '\'
+                   OR COALESCE(PreviousValueJson, '') COLLATE NOCASE LIKE @Search ESCAPE '\'
+                   OR CurrentValueJson COLLATE NOCASE LIKE @Search ESCAPE '\')
+            """;
+
+        await using var countCommand = connection.CreateCommand();
+        countCommand.CommandText = $"SELECT COUNT(*) FROM StatusChanges {where};";
+        AddHistorySearchParameters(countCommand, fromUtc, toUtc, search);
+        var total = Convert.ToInt32(
+            await countCommand.ExecuteScalarAsync(cancellationToken),
+            CultureInfo.InvariantCulture);
+
+        await using var command = connection.CreateCommand();
+        command.CommandText = $"""
+            SELECT Id, FieldName, PreviousValueJson, CurrentValueJson,
+                   ObservedAtUtc, MappingVersion
+            FROM StatusChanges
+            {where}
+            ORDER BY ObservedAtUtc DESC
+            LIMIT @Limit OFFSET @Offset;
+            """;
+        AddHistorySearchParameters(command, fromUtc, toUtc, search);
+        command.Parameters.AddWithValue("@Limit", limit);
+        command.Parameters.AddWithValue("@Offset", offset);
+
+        var rows = new List<StatusChangeRow>();
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            rows.Add(new StatusChangeRow(
+                reader.GetInt64(0),
+                reader.GetString(1),
+                reader.IsDBNull(2) ? null : reader.GetString(2),
+                reader.GetString(3),
+                ParseDatabaseTimestamp(reader.GetString(4)),
+                reader.GetString(5)));
+        }
+        return new HistoryPage<StatusChangeRow>(rows, total, offset, limit);
     }
 
     public async Task<IReadOnlyList<AlarmEventRow>> GetAlarmEventsAsync(
@@ -803,6 +913,104 @@ public sealed class SqliteHistorianRepository : IHistorianRepository
         return rows;
     }
 
+    public async Task<HistoryPage<AlarmEventRow>> SearchAlarmEventsAsync(
+        DateTimeOffset fromUtc,
+        DateTimeOffset toUtc,
+        bool? active,
+        string? search,
+        int offset,
+        int limit,
+        CancellationToken cancellationToken)
+    {
+        ValidateHistoryPage(fromUtc, toUtc, offset, limit);
+        await using var connection = await OpenAsync(cancellationToken);
+        const string where = """
+            WHERE ActivatedAtUtc >= @FromUtc
+              AND ActivatedAtUtc < @ToUtc
+              AND (@Active IS NULL
+                   OR (@Active = 1 AND ClearedAtUtc IS NULL)
+                   OR (@Active = 0 AND ClearedAtUtc IS NOT NULL))
+              AND (@Search IS NULL
+                   OR AlarmName COLLATE NOCASE LIKE @Search ESCAPE '\'
+                   OR DisplayName COLLATE NOCASE LIKE @Search ESCAPE '\'
+                   OR Description COLLATE NOCASE LIKE @Search ESCAPE '\'
+                   OR RecommendedAction COLLATE NOCASE LIKE @Search ESCAPE '\'
+                   OR Severity COLLATE NOCASE LIKE @Search ESCAPE '\'
+                   OR Area COLLATE NOCASE LIKE @Search ESCAPE '\'
+                   OR COALESCE(DriveFaultCodeHex, '') COLLATE NOCASE LIKE @Search ESCAPE '\'
+                   OR COALESCE(DriveFaultMnemonic, '') COLLATE NOCASE LIKE @Search ESCAPE '\'
+                   OR COALESCE(DriveFaultTitle, '') COLLATE NOCASE LIKE @Search ESCAPE '\'
+                   OR COALESCE(DriveFaultDescription, '') COLLATE NOCASE LIKE @Search ESCAPE '\'
+                   OR COALESCE(DriveRecommendedAction, '') COLLATE NOCASE LIKE @Search ESCAPE '\'
+                   OR CAST(COALESCE(DriveFaultCode, '') AS TEXT) LIKE @Search ESCAPE '\')
+            """;
+
+        await using var countCommand = connection.CreateCommand();
+        countCommand.CommandText = $"SELECT COUNT(*) FROM AlarmEvents {where};";
+        AddHistorySearchParameters(countCommand, fromUtc, toUtc, search);
+        countCommand.Parameters.AddWithValue(
+            "@Active",
+            active.HasValue ? (active.Value ? 1 : 0) : DBNull.Value);
+        var total = Convert.ToInt32(
+            await countCommand.ExecuteScalarAsync(cancellationToken),
+            CultureInfo.InvariantCulture);
+
+        await using var command = connection.CreateCommand();
+        command.CommandText = $"""
+            SELECT Id, AlarmName, DisplayName, Description, RecommendedAction,
+                   Severity, Area, CatalogVersion, ActivatedAtUtc, ClearedAtUtc,
+                   DurationMilliseconds, ActiveAtStartup, MappingVersion,
+                   DriveModel, DriveFaultCode, DriveFaultCodeHex, DriveFaultMnemonic,
+                   DriveFaultTitle, DriveFaultDescription, DriveRecommendedAction,
+                   DriveFaultTorque, DriveFaultEventCounter, ManualReference
+            FROM AlarmEvents
+            {where}
+            ORDER BY ActivatedAtUtc DESC
+            LIMIT @Limit OFFSET @Offset;
+            """;
+        AddHistorySearchParameters(command, fromUtc, toUtc, search);
+        command.Parameters.AddWithValue(
+            "@Active",
+            active.HasValue ? (active.Value ? 1 : 0) : DBNull.Value);
+        command.Parameters.AddWithValue("@Limit", limit);
+        command.Parameters.AddWithValue("@Offset", offset);
+
+        var rows = new List<AlarmEventRow>();
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            var alarmName = reader.GetString(1);
+            var fallback = AlarmCatalog.Resolve(alarmName);
+            var storedCatalogVersion = reader.IsDBNull(7) ? null : reader.GetString(7);
+            var hasStoredCatalog = !string.IsNullOrWhiteSpace(storedCatalogVersion);
+            rows.Add(new AlarmEventRow(
+                reader.GetInt64(0),
+                alarmName,
+                hasStoredCatalog ? ReadCatalogText(reader, 2, fallback.DisplayName) : fallback.DisplayName,
+                hasStoredCatalog ? ReadCatalogText(reader, 3, fallback.Description) : fallback.Description,
+                hasStoredCatalog ? ReadCatalogText(reader, 4, fallback.RecommendedAction) : fallback.RecommendedAction,
+                hasStoredCatalog ? ReadCatalogText(reader, 5, fallback.Severity) : fallback.Severity,
+                hasStoredCatalog ? ReadCatalogText(reader, 6, fallback.Area) : fallback.Area,
+                hasStoredCatalog ? storedCatalogVersion! : fallback.CatalogVersion,
+                ParseDatabaseTimestamp(reader.GetString(8)),
+                reader.IsDBNull(9) ? null : ParseDatabaseTimestamp(reader.GetString(9)),
+                reader.IsDBNull(10) ? null : reader.GetInt64(10),
+                reader.GetInt64(11) == 1,
+                reader.GetString(12),
+                reader.IsDBNull(13) ? null : reader.GetString(13),
+                reader.IsDBNull(14) ? null : reader.GetInt32(14),
+                reader.IsDBNull(15) ? null : reader.GetString(15),
+                reader.IsDBNull(16) ? null : reader.GetString(16),
+                reader.IsDBNull(17) ? null : reader.GetString(17),
+                reader.IsDBNull(18) ? null : reader.GetString(18),
+                reader.IsDBNull(19) ? null : reader.GetString(19),
+                reader.IsDBNull(20) ? null : reader.GetDouble(20),
+                reader.IsDBNull(21) ? null : reader.GetInt64(21),
+                reader.IsDBNull(22) ? null : reader.GetString(22)));
+        }
+        return new HistoryPage<AlarmEventRow>(rows, total, offset, limit);
+    }
+
     public async Task<IReadOnlyList<PaperBreakEventRow>> GetPaperBreakEventsAsync(
         DateTimeOffset? fromUtc,
         DateTimeOffset? toUtc,
@@ -858,6 +1066,75 @@ public sealed class SqliteHistorianRepository : IHistorianRepository
         }
 
         return rows;
+    }
+
+    public async Task<HistoryPage<PaperBreakEventRow>> SearchPaperBreakEventsAsync(
+        DateTimeOffset fromUtc,
+        DateTimeOffset toUtc,
+        string? analysisStatus,
+        string? causeCategory,
+        string? search,
+        int offset,
+        int limit,
+        CancellationToken cancellationToken)
+    {
+        ValidateHistoryPage(fromUtc, toUtc, offset, limit);
+        await using var connection = await OpenAsync(cancellationToken);
+        const string where = """
+            WHERE StartedAtUnixMs >= @FromUnixMs
+              AND StartedAtUnixMs < @ToUnixMs
+              AND (@AnalysisStatus IS NULL OR AnalysisStatus = @AnalysisStatus)
+              AND (@CauseCategory IS NULL OR CauseCategory = @CauseCategory)
+              AND (@Search IS NULL
+                   OR CAST(Id AS TEXT) LIKE @Search ESCAPE '\'
+                   OR AnalysisStatus COLLATE NOCASE LIKE @Search ESCAPE '\'
+                   OR COALESCE(CauseCategory, '') COLLATE NOCASE LIKE @Search ESCAPE '\'
+                   OR COALESCE(CauseDescription, '') COLLATE NOCASE LIKE @Search ESCAPE '\'
+                   OR COALESCE(AnalysisNotes, '') COLLATE NOCASE LIKE @Search ESCAPE '\'
+                   OR COALESCE(AnalyzedBy, '') COLLATE NOCASE LIKE @Search ESCAPE '\')
+            """;
+
+        await using var countCommand = connection.CreateCommand();
+        countCommand.CommandText = $"SELECT COUNT(*) FROM PaperBreakEvents {where};";
+        AddPaperBreakSearchParameters(
+            countCommand,
+            fromUtc,
+            toUtc,
+            analysisStatus,
+            causeCategory,
+            search);
+        var total = Convert.ToInt32(
+            await countCommand.ExecuteScalarAsync(cancellationToken),
+            CultureInfo.InvariantCulture);
+
+        await using var command = connection.CreateCommand();
+        command.CommandText = $"""
+            SELECT Id, StartedAtUnixMs, EndedAtUnixMs, DurationMilliseconds,
+                   ActiveAtStartup, SpeedAtStartMpm, SpeedAtEndMpm, MappingVersion,
+                   (SELECT COUNT(*) FROM PaperBreakDiagnosticSamples samples
+                    WHERE samples.PaperBreakEventId = events.Id),
+                   AnalysisStatus, CauseCategory, CauseDescription, AnalysisNotes,
+                   AnalyzedBy, AnalyzedAtUtc
+            FROM PaperBreakEvents events
+            {where}
+            ORDER BY StartedAtUnixMs DESC
+            LIMIT @Limit OFFSET @Offset;
+            """;
+        AddPaperBreakSearchParameters(
+            command,
+            fromUtc,
+            toUtc,
+            analysisStatus,
+            causeCategory,
+            search);
+        command.Parameters.AddWithValue("@Limit", limit);
+        command.Parameters.AddWithValue("@Offset", offset);
+
+        var rows = new List<PaperBreakEventRow>();
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+            rows.Add(ReadPaperBreakEvent(reader));
+        return new HistoryPage<PaperBreakEventRow>(rows, total, offset, limit);
     }
 
     public async Task<PaperBreakDiagnosticRow?> GetPaperBreakDiagnosticAsync(
@@ -2217,6 +2494,55 @@ public sealed class SqliteHistorianRepository : IHistorianRepository
         return command;
     }
 
+    private static void AddHistorySearchParameters(
+        SqliteCommand command,
+        DateTimeOffset fromUtc,
+        DateTimeOffset toUtc,
+        string? search)
+    {
+        command.Parameters.AddWithValue("@FromUtc", ToDatabaseTimestamp(fromUtc));
+        command.Parameters.AddWithValue("@ToUtc", ToDatabaseTimestamp(toUtc));
+        command.Parameters.AddWithValue(
+            "@Search",
+            BuildLikePattern(search) is { } pattern ? pattern : DBNull.Value);
+    }
+
+    private static void AddPaperBreakSearchParameters(
+        SqliteCommand command,
+        DateTimeOffset fromUtc,
+        DateTimeOffset toUtc,
+        string? analysisStatus,
+        string? causeCategory,
+        string? search)
+    {
+        command.Parameters.AddWithValue("@FromUnixMs", fromUtc.ToUnixTimeMilliseconds());
+        command.Parameters.AddWithValue("@ToUnixMs", toUtc.ToUnixTimeMilliseconds());
+        command.Parameters.AddWithValue(
+            "@AnalysisStatus",
+            string.IsNullOrWhiteSpace(analysisStatus)
+                ? DBNull.Value
+                : analysisStatus.Trim());
+        command.Parameters.AddWithValue(
+            "@CauseCategory",
+            string.IsNullOrWhiteSpace(causeCategory)
+                ? DBNull.Value
+                : causeCategory.Trim());
+        command.Parameters.AddWithValue(
+            "@Search",
+            BuildLikePattern(search) is { } pattern ? pattern : DBNull.Value);
+    }
+
+    private static string? BuildLikePattern(string? search)
+    {
+        if (string.IsNullOrWhiteSpace(search))
+            return null;
+        var escaped = search.Trim()
+            .Replace(@"\", @"\\", StringComparison.Ordinal)
+            .Replace("%", @"\%", StringComparison.Ordinal)
+            .Replace("_", @"\_", StringComparison.Ordinal);
+        return $"%{escaped}%";
+    }
+
     private static async Task ExecuteAsync(
         SqliteConnection connection,
         SqliteTransaction? transaction,
@@ -2281,5 +2607,19 @@ public sealed class SqliteHistorianRepository : IHistorianRepository
     {
         if (limit is < 1 or > 5_000)
             throw new ArgumentOutOfRangeException(nameof(limit), "Limit must be between 1 and 5000.");
+    }
+
+    private static void ValidateHistoryPage(
+        DateTimeOffset fromUtc,
+        DateTimeOffset toUtc,
+        int offset,
+        int limit)
+    {
+        if (fromUtc >= toUtc)
+            throw new ArgumentException("History start must be before its end.");
+        if (offset < 0)
+            throw new ArgumentOutOfRangeException(nameof(offset), "Offset cannot be negative.");
+        if (limit is < 1 or > 500)
+            throw new ArgumentOutOfRangeException(nameof(limit), "Page size must be between 1 and 500.");
     }
 }
