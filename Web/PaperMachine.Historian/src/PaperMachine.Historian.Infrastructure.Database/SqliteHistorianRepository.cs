@@ -8,7 +8,7 @@ namespace PaperMachine.Historian.Infrastructure.Database;
 
 public sealed class SqliteHistorianRepository : IHistorianRepository
 {
-    private const int SchemaVersion = 5;
+    private const int SchemaVersion = 7;
     private readonly string _databasePath;
     private readonly string _connectionString;
     private readonly SemaphoreSlim _writeGate = new(1, 1);
@@ -142,6 +142,7 @@ public sealed class SqliteHistorianRepository : IHistorianRepository
         await EnsureAlarmEventColumnsAsync(connection, cancellationToken);
         await EnsureOptimizedHistorianSchemaAsync(connection, cancellationToken);
         await EnsurePaperBreakDiagnosticSchemaAsync(connection, cancellationToken);
+        await EnsureUserBreakAnalysisFilterSchemaAsync(connection, cancellationToken);
         await ExecuteAsync(
             connection,
             null,
@@ -152,6 +153,10 @@ public sealed class SqliteHistorianRepository : IHistorianRepository
             VALUES (4, @AppliedAtUtc);
             INSERT OR IGNORE INTO SchemaMigrations (Version, AppliedAtUtc)
             VALUES (5, @AppliedAtUtc);
+            INSERT OR IGNORE INTO SchemaMigrations (Version, AppliedAtUtc)
+            VALUES (6, @AppliedAtUtc);
+            INSERT OR IGNORE INTO SchemaMigrations (Version, AppliedAtUtc)
+            VALUES (7, @AppliedAtUtc);
             """,
             cancellationToken,
             ("@AppliedAtUtc", ToDatabaseTimestamp(DateTimeOffset.UtcNow)));
@@ -624,13 +629,16 @@ public sealed class SqliteHistorianRepository : IHistorianRepository
             var timestampColumn = useMinuteAggregates
                 ? "BucketUnixMs"
                 : "CapturedAtUnixMs";
-            var paperField = QuoteIdentifier(TelemetryCatalog.PaperPresenceField);
+            var effectivePaperField = QuoteIdentifier(
+                TelemetryCatalog.EffectivePaperPresenceField);
+            var legacyPaperField = QuoteIdentifier(TelemetryCatalog.PaperPresenceField);
             var speedField = useMinuteAggregates
                 ? QuoteIdentifier(TelemetryCatalog.MachineSpeedField)
                 : QuoteIdentifier(TelemetryCatalog.MachineSpeedField);
             await using var command = connection.CreateCommand();
             command.CommandText = $"""
-                SELECT {timestampColumn}, {speedField}, {paperField}, Quality
+                SELECT {timestampColumn}, {speedField},
+                       COALESCE({effectivePaperField}, {legacyPaperField}), Quality
                 FROM {source}
                 WHERE {timestampColumn} >= @FromUnixMs
                   AND {timestampColumn} < @ToUnixMs
@@ -1689,7 +1697,7 @@ public sealed class SqliteHistorianRepository : IHistorianRepository
             ? "BucketUnixMs"
             : "CapturedAtUnixMs";
         var selectedColumns = TelemetryCatalog.NumericFields
-            .Concat(TelemetryCatalog.PaperPresenceFields)
+            .Concat(TelemetryCatalog.BooleanFields)
             .Select(QuoteIdentifier);
 
         await using var connection = await OpenAsync(cancellationToken);
@@ -1720,7 +1728,7 @@ public sealed class SqliteHistorianRepository : IHistorianRepository
             }
 
             var boolean = new Dictionary<string, bool?>(StringComparer.Ordinal);
-            foreach (var field in TelemetryCatalog.PaperPresenceFields)
+            foreach (var field in TelemetryCatalog.BooleanFields)
             {
                 if (reader.IsDBNull(ordinal))
                 {
@@ -1757,6 +1765,7 @@ public sealed class SqliteHistorianRepository : IHistorianRepository
             SELECT CapturedAtUtc,
                    json_extract(PayloadJson, '$.dryingSectionGroup3UpperMasterSpeedMPM'),
                    json_extract(PayloadJson, '$.dryingSectionGroup3PaperPresence'),
+                   json_extract(PayloadJson, '$.stockPumpState'),
                    Quality
             FROM StatusSnapshots
             WHERE CapturedAtUtc >= @FromUtc
@@ -1772,15 +1781,27 @@ public sealed class SqliteHistorianRepository : IHistorianRepository
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
         while (await reader.ReadAsync(cancellationToken))
         {
+            var legacyPaperPresent = reader.IsDBNull(2)
+                ? (bool?)null
+                : Convert.ToInt64(reader.GetValue(2), CultureInfo.InvariantCulture) != 0;
+            var stockPumpState = reader.IsDBNull(3)
+                ? (int?)null
+                : Convert.ToInt32(reader.GetValue(3), CultureInfo.InvariantCulture);
+            var effectivePaperPresent = legacyPaperPresent == false ||
+                                        stockPumpState is not null and
+                                            not TelemetryCatalog.StockPumpRunningState
+                ? false
+                : legacyPaperPresent == true &&
+                  stockPumpState == TelemetryCatalog.StockPumpRunningState
+                    ? true
+                    : legacyPaperPresent;
             rows.Add(new MachineProductivitySampleRow(
                 ParseDatabaseTimestamp(reader.GetString(0)),
                 reader.IsDBNull(1)
                     ? null
                     : Convert.ToDouble(reader.GetValue(1), CultureInfo.InvariantCulture),
-                reader.IsDBNull(2)
-                    ? null
-                    : Convert.ToInt64(reader.GetValue(2), CultureInfo.InvariantCulture) != 0,
-                reader.GetString(3)));
+                effectivePaperPresent,
+                reader.GetString(4)));
         }
 
         return rows;
@@ -1814,13 +1835,13 @@ public sealed class SqliteHistorianRepository : IHistorianRepository
             TelemetryCatalog.NumericFields.Select(field => $"{QuoteIdentifier(field)} REAL NULL"));
         var booleanColumns = string.Join(
             ",\n                ",
-            TelemetryCatalog.PaperPresenceFields.Select(field => $"{QuoteIdentifier(field)} INTEGER NULL"));
+            TelemetryCatalog.BooleanFields.Select(field => $"{QuoteIdentifier(field)} INTEGER NULL"));
         var aggregateNumericColumns = string.Join(
             ",\n                ",
             TelemetryCatalog.NumericFields.Select(field => $"{QuoteIdentifier(field)} REAL NULL"));
         var aggregateBooleanColumns = string.Join(
             ",\n                ",
-            TelemetryCatalog.PaperPresenceFields.Select(field => $"{QuoteIdentifier(field)} REAL NULL"));
+            TelemetryCatalog.BooleanFields.Select(field => $"{QuoteIdentifier(field)} REAL NULL"));
 
         await ExecuteAsync(
             connection,
@@ -1877,6 +1898,44 @@ public sealed class SqliteHistorianRepository : IHistorianRepository
                 ON AlarmEvents (ActivatedAtUtc);
             """,
             cancellationToken);
+
+        await EnsureBooleanTelemetryColumnsAsync(
+            connection,
+            "TelemetrySamples",
+            "INTEGER NULL",
+            cancellationToken);
+        await EnsureBooleanTelemetryColumnsAsync(
+            connection,
+            "TelemetryMinuteAggregates",
+            "REAL NULL",
+            cancellationToken);
+    }
+
+    private static async Task EnsureBooleanTelemetryColumnsAsync(
+        SqliteConnection connection,
+        string tableName,
+        string columnType,
+        CancellationToken cancellationToken)
+    {
+        var existing = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        await using (var command = connection.CreateCommand())
+        {
+            command.CommandText = $"PRAGMA table_info({QuoteIdentifier(tableName)});";
+            await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+            while (await reader.ReadAsync(cancellationToken))
+                existing.Add(reader.GetString(1));
+        }
+
+        foreach (var field in TelemetryCatalog.BooleanFields)
+        {
+            if (existing.Contains(field))
+                continue;
+            await ExecuteAsync(
+                connection,
+                null,
+                $"ALTER TABLE {QuoteIdentifier(tableName)} ADD COLUMN {QuoteIdentifier(field)} {columnType};",
+                cancellationToken);
+        }
     }
 
     private static async Task EnsurePaperBreakDiagnosticSchemaAsync(
@@ -1970,6 +2029,35 @@ public sealed class SqliteHistorianRepository : IHistorianRepository
             cancellationToken);
     }
 
+    private static async Task EnsureUserBreakAnalysisFilterSchemaAsync(
+        SqliteConnection connection,
+        CancellationToken cancellationToken)
+    {
+        await ExecuteAsync(
+            connection,
+            null,
+            """
+            CREATE TABLE IF NOT EXISTS UserBreakAnalysisFilters (
+                Id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+                UserId INTEGER NOT NULL,
+                Name TEXT NOT NULL COLLATE NOCASE,
+                VariablesJson TEXT NOT NULL,
+                IsDefault INTEGER NOT NULL DEFAULT 0 CHECK (IsDefault IN (0, 1)),
+                Revision INTEGER NOT NULL DEFAULT 1,
+                CreatedAtUtc TEXT NOT NULL,
+                UpdatedAtUtc TEXT NOT NULL,
+                FOREIGN KEY (UserId) REFERENCES ApplicationUsers(Id) ON DELETE CASCADE,
+                UNIQUE (UserId, Name)
+            );
+            CREATE INDEX IF NOT EXISTS IX_UserBreakAnalysisFilters_User
+                ON UserBreakAnalysisFilters (UserId, Name);
+            CREATE UNIQUE INDEX IF NOT EXISTS UX_UserBreakAnalysisFilters_Default
+                ON UserBreakAnalysisFilters (UserId)
+                WHERE IsDefault = 1;
+            """,
+            cancellationToken);
+    }
+
     private static async Task InsertTelemetrySampleAsync(
         SqliteConnection connection,
         SqliteTransaction transaction,
@@ -1979,7 +2067,7 @@ public sealed class SqliteHistorianRepository : IHistorianRepository
         CancellationToken cancellationToken)
     {
         var fields = TelemetryCatalog.NumericFields
-            .Concat(TelemetryCatalog.PaperPresenceFields)
+            .Concat(TelemetryCatalog.BooleanFields)
             .ToArray();
         var columns = string.Join(", ", fields.Select(QuoteIdentifier));
         var parameters = string.Join(", ", fields.Select((_, index) => $"@Value{index}"));
@@ -1995,9 +2083,9 @@ public sealed class SqliteHistorianRepository : IHistorianRepository
             arguments.Add(($"@Value{index}", telemetry.Numeric.GetValueOrDefault(field)));
         }
 
-        for (var index = 0; index < TelemetryCatalog.PaperPresenceFields.Count; index++)
+        for (var index = 0; index < TelemetryCatalog.BooleanFields.Count; index++)
         {
-            var field = TelemetryCatalog.PaperPresenceFields[index];
+            var field = TelemetryCatalog.BooleanFields[index];
             var value = telemetry.Boolean.GetValueOrDefault(field);
             arguments.Add((
                 $"@Value{TelemetryCatalog.NumericFields.Count + index}",
@@ -2034,7 +2122,7 @@ public sealed class SqliteHistorianRepository : IHistorianRepository
         CancellationToken cancellationToken)
     {
         var fields = TelemetryCatalog.NumericFields
-            .Concat(TelemetryCatalog.PaperPresenceFields)
+            .Concat(TelemetryCatalog.BooleanFields)
             .ToArray();
         var columns = string.Join(", ", fields.Select(QuoteIdentifier));
         var parameters = string.Join(", ", fields.Select((_, index) => $"@AggregateValue{index}"));
@@ -2062,9 +2150,9 @@ public sealed class SqliteHistorianRepository : IHistorianRepository
             arguments.Add(($"@AggregateValue{index}", telemetry.Numeric.GetValueOrDefault(field)));
         }
 
-        for (var index = 0; index < TelemetryCatalog.PaperPresenceFields.Count; index++)
+        for (var index = 0; index < TelemetryCatalog.BooleanFields.Count; index++)
         {
-            var field = TelemetryCatalog.PaperPresenceFields[index];
+            var field = TelemetryCatalog.BooleanFields[index];
             var value = telemetry.Boolean.GetValueOrDefault(field);
             arguments.Add((
                 $"@AggregateValue{TelemetryCatalog.NumericFields.Count + index}",

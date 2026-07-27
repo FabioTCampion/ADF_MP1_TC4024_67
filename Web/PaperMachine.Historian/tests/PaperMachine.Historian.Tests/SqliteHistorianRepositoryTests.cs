@@ -28,7 +28,7 @@ public sealed class SqliteHistorianRepositoryTests
             await repository.PersistCycleAsync(
                 processor.Process(HistorianProcessorTests.CreateSnapshot(
                     firstAt,
-                    """{"speed":10.0,"dryingSectionGroup3UpperMasterSpeedMPM":336.7,"dryingSectionGroup3PaperPresence":true,"mixingPumpFaultCode":0,"mixingPumpFaultTorque":0.0,"mixingPumpFaultEventCounter":0}""",
+                    """{"speed":10.0,"dryingSectionGroup3UpperMasterSpeedMPM":336.7,"dryingSectionGroup3PaperPresence":true,"stockPumpState":1,"mixingPumpFaultCode":0,"mixingPumpFaultTorque":0.0,"mixingPumpFaultEventCounter":0}""",
                     """{"start":false}""",
                     """{"mixingPumpFaultAlarm":false}""")),
                 CancellationToken.None);
@@ -43,14 +43,14 @@ public sealed class SqliteHistorianRepositoryTests
             await repository.PersistCycleAsync(
                 processor.Process(HistorianProcessorTests.CreateSnapshot(
                     firstAt.AddSeconds(1),
-                    """{"speed":11.0,"dryingSectionGroup3UpperMasterSpeedMPM":335.0,"dryingSectionGroup3PaperPresence":false,"headBoxMMH2O":245.5,"headboxLipsPosition_mm":8.2,"mixingPumpFaultCode":1,"mixingPumpFaultTorque":12.3,"mixingPumpFaultEventCounter":1}""",
+                    """{"speed":11.0,"dryingSectionGroup3UpperMasterSpeedMPM":335.0,"dryingSectionGroup3PaperPresence":false,"stockPumpState":1,"headBoxMMH2O":245.5,"headboxLipsPosition_mm":8.2,"mixingPumpFaultCode":1,"mixingPumpFaultTorque":12.3,"mixingPumpFaultEventCounter":1}""",
                     """{"start":true}""",
                     """{"mixingPumpFaultAlarm":true}""")),
                 CancellationToken.None);
             await repository.PersistCycleAsync(
                 processor.Process(HistorianProcessorTests.CreateSnapshot(
                     firstAt.AddSeconds(2),
-                    """{"speed":11.0,"dryingSectionGroup3UpperMasterSpeedMPM":334.0,"dryingSectionGroup3PaperPresence":true,"headBoxMMH2O":246.0,"headboxLipsPosition_mm":8.2,"mixingPumpFaultCode":1,"mixingPumpFaultTorque":12.3,"mixingPumpFaultEventCounter":1}""",
+                    """{"speed":11.0,"dryingSectionGroup3UpperMasterSpeedMPM":334.0,"dryingSectionGroup3PaperPresence":true,"stockPumpState":1,"headBoxMMH2O":246.0,"headboxLipsPosition_mm":8.2,"mixingPumpFaultCode":1,"mixingPumpFaultTorque":12.3,"mixingPumpFaultEventCounter":1}""",
                     """{"start":false}""",
                     """{"mixingPumpFaultAlarm":false}""")),
                 CancellationToken.None);

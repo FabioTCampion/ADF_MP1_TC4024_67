@@ -13,6 +13,8 @@ const approvedVariableLabels: Record<string, string> = {
   secondPressSectionTorque: "Torque da segunda prensa",
   stockPumpSpeed: "Velocidade da bomba de massa",
   stockPumpTorque: "Torque da bomba de massa",
+  stockPumpState: "Estado da bomba de massa",
+  effectivePaperPresence: "Papel confirmado (sensor G3 + bomba de massa)",
   mixPumpSpeed: "Velocidade da bomba de mistura",
   mixPumpTorque: "Torque da bomba de mistura",
   winderSpeedMPM: "Velocidade da enroladeira",
@@ -143,6 +145,115 @@ const evidenceKindLabels: Record<string, string> = {
   Status: "Estado",
 };
 
+const exactCommandLabels: Record<string, string> = {
+  machineReset: "Reinicializar a máquina",
+  formingBoardRollUpCmd: "Subir a mesa formadora",
+  formingBoardRollDownCmd: "Descer a mesa formadora",
+  headboxLipsTargetSetpoint_mm: "Abertura desejada do lábio da caixa de entrada",
+  headboxLipsAutoAdjustCmd: "Iniciar ajuste automático do lábio da caixa de entrada",
+  headboxLipsManualOpenCmd: "Abrir manualmente o lábio da caixa de entrada",
+  headboxLipsManualCloseCmd: "Fechar manualmente o lábio da caixa de entrada",
+  formingTailCutterNozzleFwCmd: "Avançar o bico de corte",
+  formingTailCutterNozzleRevCmd: "Recuar o bico de corte",
+  Group1RecoverIncrement: "Incremento de recuperação — Secagem · Grupo 1",
+  dryingSectionLubricationPumpSelector:
+    "Selecionar bomba — Lubrificação da secagem",
+  winderPressureOperatorSideIncCmd:
+    "Aumentar pressão — Enroladeira · Lado do operador",
+  winderPressureOperatorSideDecCmd:
+    "Diminuir pressão — Enroladeira · Lado do operador",
+  winderPressureDriveSideIncCmd:
+    "Aumentar pressão — Enroladeira · Lado do acionamento",
+  winderPressureDriveSideDecCmd:
+    "Diminuir pressão — Enroladeira · Lado do acionamento",
+  winderRiderRollWorkPositionCmd:
+    "Mover rolo cavaleiro para posição de trabalho — Enroladeira",
+  winderRiderRollReleasePositionCmd:
+    "Mover rolo cavaleiro para posição liberada — Enroladeira",
+  winderEnableTorqueControlCmd: "Habilitar controle de torque — Enroladeira",
+  winderTorqueSetpoint: "Referência de torque — Enroladeira",
+  winderCoreLockAutoMan: "Modo automático/manual — Travamento do mandril",
+  winderCoreLockCmd: "Travar mandril — Enroladeira",
+  winderCoreUnlockCmd: "Destravar mandril — Enroladeira",
+  winderCoreAceleratorEngageCmd: "Acoplar acelerador do mandril — Enroladeira",
+  winderCoreAceleratorDisengageCmd:
+    "Desacoplar acelerador do mandril — Enroladeira",
+  winderCoreBrakeAutoMan: "Modo automático/manual — Freio do mandril",
+  winderCoreBrakeEnableCmd: "Habilitar freio do mandril — Enroladeira",
+  winderCoreBrakeDisableCmd: "Desabilitar freio do mandril — Enroladeira",
+  winderCorePositioningArmFwdCmd:
+    "Avançar braço posicionador do mandril — Enroladeira",
+  winderCorePositioningArmRevCmd:
+    "Recuar braço posicionador do mandril — Enroladeira",
+  winderCorePositioningArmPosLimitFwd:
+    "Fim de curso avançado do braço posicionador — Enroladeira",
+  winderCorePositioningArmPosLimitRev:
+    "Fim de curso recuado do braço posicionador — Enroladeira",
+};
+
+const commandEquipmentLabels: Array<[string, string]> = [
+  ["dryingSectionLubricationPump", "Lubrificação da secagem"],
+  ["dryingSectionGroup1", "Secagem · Grupo 1"],
+  ["dryingSectionGroup2", "Secagem · Grupo 2"],
+  ["dryingSectionGroup3", "Secagem · Grupo 3"],
+  ["formingTailCutterNozzle", "Bico de corte"],
+  ["formingWireShower", "Chuveiro da tela formadora"],
+  ["formingBoard", "Mesa formadora"],
+  ["pressVacuumPump1", "Bomba de vácuo 1 da prensa"],
+  ["pressVacuumPump2", "Bomba de vácuo 2 da prensa"],
+  ["pressSection", "Seção de prensas"],
+  ["vacuumWaterSepPump", "Bomba do separador de água do vácuo"],
+  ["suctionRollVacuumPump", "Bomba de vácuo do rolo de sucção"],
+  ["vacuumSealPump", "Bomba de água de selagem do vácuo"],
+  ["wireVacuumPump", "Bomba de vácuo da tela formadora"],
+  ["lowVacuumExhaustFan", "Exaustor do sistema de baixo vácuo"],
+  ["pressureScreen", "Depurador pressurizado"],
+  ["couchPitMixer", "Agitador do Couch Pit"],
+  ["couchPitPump", "Bomba do Couch Pit"],
+  ["wirePitPump", "Bomba do Wire Pit"],
+  ["wirePit", "Wire Pit"],
+  ["whiteWaterSilo", "Silo de água branca"],
+  ["stockPump", "Bomba de massa"],
+  ["mixPump", "Bomba de mistura"],
+  ["winderSection", "Enroladeira"],
+  ["wireSection", "Tela formadora"],
+];
+
+const commandActionLabels: Array<[string, string]> = [
+  ["PaperBreakSteamPressure1", "Pressão de vapor 1 para quebra de papel"],
+  ["PaperBreakSteamPressure2", "Pressão de vapor 2 para quebra de papel"],
+  ["SteamPressureManualSetpoint", "Referência manual da pressão de vapor"],
+  ["SteamPressureAutoSetpoint", "Referência automática da pressão de vapor"],
+  ["SteamPressureAutoMan", "Modo automático/manual da pressão de vapor"],
+  ["RecoverIncrement", "Incremento de recuperação"],
+  ["RecoverSpeedCmd", "Recuperar velocidade"],
+  ["ProductionSpeed", "Velocidade de produção"],
+  ["ManualSetpoint", "Referência manual de velocidade"],
+  ["SetpointManInc", "Aumentar referência manual"],
+  ["SetpointManDec", "Diminuir referência manual"],
+  ["SetpointAutoInc", "Aumentar referência automática"],
+  ["SetpointAutoDec", "Diminuir referência automática"],
+  ["SetpointMan", "Referência manual"],
+  ["SetpointAuto", "Referência automática"],
+  ["SpeedInc", "Aumentar velocidade"],
+  ["SpeedDec", "Diminuir velocidade"],
+  ["FastStop", "Parada rápida"],
+  ["AutoMan", "Modo automático/manual"],
+  ["RatioInc", "Aumentar proporção de mistura"],
+  ["RatioDec", "Diminuir proporção de mistura"],
+  ["Ratio", "Proporção de mistura"],
+  ["StretchExtendCmd", "Esticar"],
+  ["StretchReleaseCmd", "Aliviar tensão"],
+  ["TensionLimitMax", "Limite máximo de tensão"],
+  ["TensionLimitMin", "Limite mínimo de tensão"],
+  ["DisplacementOpSide", "Deslocamento — Lado do operador"],
+  ["DisplacementDriveSide", "Deslocamento — Lado do acionamento"],
+  ["StartCmd", "Ligar"],
+  ["StopCmd", "Parar"],
+  ["Start", "Ligar"],
+  ["Stop", "Parar"],
+];
+
 export function operatorVariableLabel(field: string) {
   if (exactVariableLabels[field]) return exactVariableLabels[field];
 
@@ -209,6 +320,29 @@ export function operatorVariableLabel(field: string) {
     .replace(/EventCounter/gi, " Contador de eventos")
     .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
     .replace(/_/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+export function operatorCommandLabel(command: string) {
+  if (exactCommandLabels[command]) return exactCommandLabels[command];
+
+  for (const [prefix, equipment] of commandEquipmentLabels) {
+    if (!command.startsWith(prefix)) continue;
+    const actionName = command.slice(prefix.length);
+    const action = commandActionLabels.find(([suffix]) => suffix === actionName)?.[1];
+    if (action) return `${action} — ${equipment}`;
+  }
+
+  return operatorVariableLabel(command)
+    .replace(/\bFast Stop\b/gi, "Parada rápida")
+    .replace(/\bAuto Man\b/gi, "Modo automático/manual")
+    .replace(/\bStart\b/gi, "Ligar")
+    .replace(/\bStop\b/gi, "Parar")
+    .replace(/\bInc\b/gi, "Aumentar")
+    .replace(/\bDec\b/gi, "Diminuir")
+    .replace(/\bCmd\b/gi, "Comando")
+    .replace(/\bManual\b/gi, "Manual")
     .replace(/\s+/g, " ")
     .trim();
 }

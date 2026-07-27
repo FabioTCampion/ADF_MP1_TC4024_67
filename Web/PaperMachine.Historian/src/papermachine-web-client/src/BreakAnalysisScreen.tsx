@@ -4,6 +4,7 @@ import HistoryPeriodFilter, { useHistoryPeriod } from "./HistoryPeriodFilter";
 import type { InteractiveChartOption } from "./InteractiveChart";
 import {
   operatorCategoryLabel as categoryLabel,
+  operatorCommandLabel as commandLabel,
   operatorEvidenceKindLabel as evidenceKindLabel,
   operatorVariableLabel as fieldLabel,
 } from "./OperatorTranslations";
@@ -40,6 +41,11 @@ type Diagnostic = {
 };
 type HistoryPage<T> = {
   items: T[]; total: number; offset: number; limit: number; hasMore: boolean;
+};
+type BreakAnalysisFilter = {
+  id: number; userId: number; name: string; variables: string[];
+  isDefault: boolean; revision: number;
+  createdAtUtc: string; updatedAtUtc: string;
 };
 
 const dateTime = new Intl.DateTimeFormat("pt-BR", {
@@ -99,6 +105,11 @@ function defaultVariables(summary: Summary[]) {
   }
   return selected.length ? selected : summary.slice(0, 6).map((item) => item.fieldName);
 }
+function sortFilters(filters: BreakAnalysisFilter[]) {
+  return [...filters].sort((left, right) =>
+    Number(right.isDefault) - Number(left.isDefault) ||
+    left.name.localeCompare(right.name, "pt-BR"));
+}
 
 export default function BreakAnalysisScreen() {
   const { user } = useAuth();
@@ -114,6 +125,16 @@ export default function BreakAnalysisScreen() {
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [diagnostic, setDiagnostic] = useState<Diagnostic | null>(null);
   const [selectedVariables, setSelectedVariables] = useState<string[]>([]);
+  const [filters, setFilters] = useState<BreakAnalysisFilter[]>([]);
+  const [filtersLoaded, setFiltersLoaded] = useState(false);
+  const [filtersAvailable, setFiltersAvailable] = useState(true);
+  const [activeFilterId, setActiveFilterId] = useState<number | null>(null);
+  const [filterName, setFilterName] = useState("");
+  const [selectionDirty, setSelectionDirty] = useState(false);
+  const [unavailableVariableCount, setUnavailableVariableCount] = useState(0);
+  const [selectionInitializedFor, setSelectionInitializedFor] = useState<number | null>(null);
+  const [filterNotice, setFilterNotice] = useState("");
+  const [filterMutating, setFilterMutating] = useState(false);
   const [category, setCategory] = useState("Todas");
   const [variableSearch, setVariableSearch] = useState("");
   const [loading, setLoading] = useState(false);
@@ -170,6 +191,21 @@ export default function BreakAnalysisScreen() {
 
   useEffect(() => { void loadEvents(0, false); }, [loadEvents]);
   useEffect(() => {
+    setFiltersLoaded(false);
+    setFiltersAvailable(true);
+    setFilterNotice("");
+    fetchJson<BreakAnalysisFilter[]>("/api/me/break-analysis-filters")
+      .then((result) => setFilters(sortFilters(result)))
+      .catch(() => {
+        setFilters([]);
+        setFiltersAvailable(false);
+        setFilterNotice(
+          "Filtros personalizados indisponíveis. A seleção automática foi aplicada e as alterações estão desabilitadas.",
+        );
+      })
+      .finally(() => setFiltersLoaded(true));
+  }, [user.id]);
+  useEffect(() => {
     if (selectedId === null) {
       setDiagnostic(null);
       return;
@@ -178,7 +214,7 @@ export default function BreakAnalysisScreen() {
     fetchJson<Diagnostic>(`/api/history/breaks/${selectedId}/diagnostic`)
       .then((result) => {
         setDiagnostic(result);
-        setSelectedVariables(defaultVariables(result.summary));
+        setSelectionInitializedFor(null);
         setCategory("Todas");
         setVariableSearch("");
         setAnalysisStatus(result.event.analysisStatus);
@@ -189,6 +225,31 @@ export default function BreakAnalysisScreen() {
       .catch((reason) => setError(reason instanceof Error ? reason.message : "Falha ao abrir diagnóstico."))
       .finally(() => setLoading(false));
   }, [selectedId]);
+  useEffect(() => {
+    if (
+      !diagnostic ||
+      !filtersLoaded ||
+      selectionInitializedFor === diagnostic.event.id
+    ) return;
+
+    const defaultFilter = filters.find((filter) => filter.isDefault);
+    if (defaultFilter) {
+      const available = new Set(diagnostic.summary.map((item) => item.fieldName));
+      setSelectedVariables(defaultFilter.variables.filter((field) => available.has(field)));
+      setUnavailableVariableCount(
+        defaultFilter.variables.filter((field) => !available.has(field)).length,
+      );
+      setActiveFilterId(defaultFilter.id);
+      setFilterName(defaultFilter.name);
+    } else {
+      setSelectedVariables(defaultVariables(diagnostic.summary));
+      setUnavailableVariableCount(0);
+      setActiveFilterId(null);
+      setFilterName("");
+    }
+    setSelectionDirty(false);
+    setSelectionInitializedFor(diagnostic.event.id);
+  }, [diagnostic, filters, filtersLoaded, selectionInitializedFor]);
 
   const causeOptions = ["Todas", ...new Set([
     ...(causeFilter === "Todas" ? [] : [causeFilter]),
@@ -211,6 +272,10 @@ export default function BreakAnalysisScreen() {
   const summaryByField = useMemo(
     () => new Map(diagnostic?.summary.map((item) => [item.fieldName, item]) ?? []),
     [diagnostic],
+  );
+  const activeFilter = useMemo(
+    () => filters.find((filter) => filter.id === activeFilterId) ?? null,
+    [activeFilterId, filters],
   );
   const commandsBeforeBreak = useMemo(
     () => (diagnostic?.evidence ?? [])
@@ -269,8 +334,189 @@ export default function BreakAnalysisScreen() {
     };
   }, [diagnostic, selectedVariables, summaryByField]);
 
-  const toggleVariable = (field: string) => setSelectedVariables((current) =>
-    current.includes(field) ? current.filter((item) => item !== field) : [...current, field]);
+  const applyFilter = (filter: BreakAnalysisFilter) => {
+    if (!diagnostic) return;
+    const available = new Set(diagnostic.summary.map((item) => item.fieldName));
+    setSelectedVariables(filter.variables.filter((field) => available.has(field)));
+    setUnavailableVariableCount(
+      filter.variables.filter((field) => !available.has(field)).length,
+    );
+    setActiveFilterId(filter.id);
+    setFilterName(filter.name);
+    setSelectionDirty(false);
+    setFilterNotice("");
+  };
+
+  const restoreAutomaticSelection = () => {
+    if (!diagnostic) return;
+    setSelectedVariables(defaultVariables(diagnostic.summary));
+    setUnavailableVariableCount(0);
+    setActiveFilterId(null);
+    setFilterName("");
+    setSelectionDirty(false);
+    if (filtersAvailable) setFilterNotice("");
+  };
+
+  const toggleVariable = (field: string) => {
+    if (!selectedVariables.includes(field) && selectedVariables.length >= 32) {
+      setFilterNotice("Cada filtro pode conter no máximo 32 variáveis.");
+      return;
+    }
+    setSelectedVariables((current) =>
+      current.includes(field)
+        ? current.filter((item) => item !== field)
+        : [...current, field]);
+    setSelectionDirty(true);
+  };
+
+  const replaceFilter = (updated: BreakAnalysisFilter) => {
+    setFilters((current) => sortFilters([
+      ...current
+        .filter((filter) => filter.id !== updated.id)
+        .map((filter) =>
+          updated.isDefault && filter.isDefault
+            ? {
+                ...filter,
+                isDefault: false,
+                revision: filter.revision + 1,
+                updatedAtUtc: updated.updatedAtUtc,
+              }
+            : filter),
+      updated,
+    ]));
+  };
+
+  const variablesForUpdate = (filter: BreakAnalysisFilter) => {
+    if (!diagnostic) return selectedVariables;
+    const available = new Set(diagnostic.summary.map((item) => item.fieldName));
+    const remainingSelected = new Set(selectedVariables);
+    const merged: string[] = [];
+    for (const variable of filter.variables) {
+      if (!available.has(variable) || remainingSelected.delete(variable))
+        merged.push(variable);
+    }
+    for (const variable of selectedVariables) {
+      if (remainingSelected.delete(variable))
+        merged.push(variable);
+    }
+    return merged;
+  };
+
+  const saveNewFilter = async () => {
+    if (!filtersAvailable || !filterName.trim() || selectedVariables.length === 0) return;
+    setFilterMutating(true);
+    setFilterNotice("");
+    try {
+      const created = await fetchJson<BreakAnalysisFilter>(
+        "/api/me/break-analysis-filters",
+        {
+          method: "POST",
+          body: JSON.stringify({
+            name: filterName.trim(),
+            variables: selectedVariables,
+            isDefault: false,
+          }),
+        },
+      );
+      replaceFilter(created);
+      applyFilter(created);
+      setFilterNotice("Filtro salvo.");
+    } catch (reason) {
+      setFilterNotice(
+        reason instanceof Error ? reason.message : "Não foi possível salvar o filtro.",
+      );
+    } finally {
+      setFilterMutating(false);
+    }
+  };
+
+  const updateActiveFilter = async () => {
+    if (
+      !filtersAvailable ||
+      !activeFilter ||
+      !filterName.trim() ||
+      (selectedVariables.length === 0 && unavailableVariableCount === 0)
+    ) return;
+    setFilterMutating(true);
+    setFilterNotice("");
+    try {
+      const updated = await fetchJson<BreakAnalysisFilter>(
+        `/api/me/break-analysis-filters/${activeFilter.id}`,
+        {
+          method: "PUT",
+          body: JSON.stringify({
+            name: filterName.trim(),
+            variables: variablesForUpdate(activeFilter),
+            isDefault: activeFilter.isDefault,
+            revision: activeFilter.revision,
+          }),
+        },
+      );
+      replaceFilter(updated);
+      applyFilter(updated);
+      setFilterNotice("Filtro atualizado.");
+    } catch (reason) {
+      setFilterNotice(
+        reason instanceof Error ? reason.message : "Não foi possível atualizar o filtro.",
+      );
+    } finally {
+      setFilterMutating(false);
+    }
+  };
+
+  const makeActiveFilterDefault = async () => {
+    if (!filtersAvailable || !activeFilter || activeFilter.isDefault) return;
+    setFilterMutating(true);
+    setFilterNotice("");
+    try {
+      const updated = await fetchJson<BreakAnalysisFilter>(
+        `/api/me/break-analysis-filters/${activeFilter.id}`,
+        {
+          method: "PUT",
+          body: JSON.stringify({
+            name: activeFilter.name,
+            variables: activeFilter.variables,
+            isDefault: true,
+            revision: activeFilter.revision,
+          }),
+        },
+      );
+      replaceFilter(updated);
+      setActiveFilterId(updated.id);
+      setFilterNotice("Filtro definido como padrão.");
+    } catch (reason) {
+      setFilterNotice(
+        reason instanceof Error ? reason.message : "Não foi possível definir o filtro padrão.",
+      );
+    } finally {
+      setFilterMutating(false);
+    }
+  };
+
+  const deleteActiveFilter = async () => {
+    if (
+      !filtersAvailable ||
+      !activeFilter ||
+      !window.confirm(`Excluir o filtro "${activeFilter.name}"?`)
+    ) return;
+    setFilterMutating(true);
+    setFilterNotice("");
+    try {
+      await fetchJson<void>(
+        `/api/me/break-analysis-filters/${activeFilter.id}?revision=${activeFilter.revision}`,
+        { method: "DELETE" },
+      );
+      setFilters((current) => current.filter((filter) => filter.id !== activeFilter.id));
+      restoreAutomaticSelection();
+      setFilterNotice("Filtro excluído.");
+    } catch (reason) {
+      setFilterNotice(
+        reason instanceof Error ? reason.message : "Não foi possível excluir o filtro.",
+      );
+    } finally {
+      setFilterMutating(false);
+    }
+  };
 
   const saveAnalysis = async () => {
     if (!diagnostic) return;
@@ -340,11 +586,11 @@ export default function BreakAnalysisScreen() {
       <div className="break-layout">
         <aside className="break-event-list">
           <header><b>Quebras encontradas</b><span>{totalEvents}</span></header>
-          {events.map((event) => (
+          {events.map((event, index) => (
             <button type="button" key={event.id}
               className={event.id === selectedId ? "active" : ""}
               onClick={() => setSelectedId(event.id)}>
-              <div><b>#{event.id}</b><time>{dateTime.format(new Date(event.startedAtUtc))}</time></div>
+              <div><b>#{index + 1}</b><time>{dateTime.format(new Date(event.startedAtUtc))}</time></div>
               <span>{event.speedAtStartMpm.toFixed(1)} m/min</span>
               <small>{event.diagnosticSampleCount} amostras · {event.analysisStatus}</small>
               {event.causeCategory && <em>{event.causeCategory}</em>}
@@ -376,10 +622,16 @@ export default function BreakAnalysisScreen() {
                 <div className="break-chart-actions">
                   <div className="break-selection-count" aria-live="polite">
                     <b>{selectedVariables.length}</b>
-                    <span>{selectedVariables.length === 1 ? "selecionada" : "selecionadas"}</span>
+                    <span>
+                      {selectedVariables.length === 1 ? "selecionada" : "selecionadas"}
+                      {selectionDirty && " · não salvo"}
+                    </span>
                   </div>
                   <button type="button" className="break-clear-selection"
-                    onClick={() => setSelectedVariables([])}
+                    onClick={() => {
+                      setSelectedVariables([]);
+                      setSelectionDirty(true);
+                    }}
                     disabled={selectedVariables.length === 0}>
                     Limpar seleção
                   </button>
@@ -387,6 +639,118 @@ export default function BreakAnalysisScreen() {
                     {categories.map((item) => <option key={item} value={item}>{categoryLabel(item)}</option>)}
                   </select></label>
                 </div></header>
+              <div className="break-filter-manager">
+                <label>
+                  <span>Meus filtros</span>
+                  <select
+                    value={activeFilterId === null ? "automatic" : String(activeFilterId)}
+                    onChange={(event) => {
+                      if (event.target.value === "automatic") {
+                        restoreAutomaticSelection();
+                        return;
+                      }
+                      const selected = filters.find(
+                        (filter) => filter.id === Number(event.target.value),
+                      );
+                      if (selected) applyFilter(selected);
+                    }}
+                    disabled={!filtersLoaded}
+                  >
+                    <option value="automatic">Seleção automática</option>
+                    {filters.map((filter) => (
+                      <option value={filter.id} key={filter.id}>
+                        {filter.name}{filter.isDefault ? " · padrão" : ""}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="break-filter-name">
+                  <span>Nome do filtro</span>
+                  <input
+                    value={filterName}
+                    maxLength={80}
+                    placeholder="Ex.: Velocidade G1/G2/G3"
+                    onChange={(event) => {
+                      setFilterName(event.target.value);
+                      if (activeFilter) setSelectionDirty(true);
+                    }}
+                    disabled={!filtersAvailable || filterMutating}
+                  />
+                </label>
+                <div className="break-filter-actions">
+                  <button
+                    type="button"
+                    onClick={() => void saveNewFilter()}
+                    disabled={
+                      !filtersAvailable ||
+                      filterMutating ||
+                      !filterName.trim() ||
+                      selectedVariables.length === 0 ||
+                      filters.length >= 25
+                    }
+                  >
+                    Salvar como novo
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void updateActiveFilter()}
+                    disabled={
+                      !filtersAvailable ||
+                      filterMutating ||
+                      !activeFilter ||
+                      !filterName.trim() ||
+                      (selectedVariables.length === 0 && unavailableVariableCount === 0)
+                    }
+                  >
+                    Atualizar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void makeActiveFilterDefault()}
+                    disabled={
+                      !filtersAvailable ||
+                      filterMutating ||
+                      !activeFilter ||
+                      activeFilter.isDefault
+                    }
+                  >
+                    Definir padrão
+                  </button>
+                  <button
+                    type="button"
+                    className="danger"
+                    onClick={() => void deleteActiveFilter()}
+                    disabled={!filtersAvailable || filterMutating || !activeFilter}
+                  >
+                    Excluir
+                  </button>
+                  <button
+                    type="button"
+                    onClick={restoreAutomaticSelection}
+                    disabled={!diagnostic || filterMutating}
+                  >
+                    Restaurar automática
+                  </button>
+                </div>
+                {(filterNotice || unavailableVariableCount > 0) && (
+                  <div
+                    className={`break-filter-notice ${
+                      !filtersAvailable || unavailableVariableCount > 0 ? "warning" : ""
+                    }`}
+                    role="status"
+                  >
+                    {filterNotice && <span>{filterNotice}</span>}
+                    {unavailableVariableCount > 0 && (
+                      <span>
+                        {unavailableVariableCount} variável
+                        {unavailableVariableCount === 1 ? "" : "is"} deste filtro não
+                        {unavailableVariableCount === 1 ? " está" : " estão"} disponível
+                        {unavailableVariableCount === 1 ? "" : "is"} nesta quebra.
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
               <div className="break-chart-layout">
                 <div className="break-variable-sidebar">
                   <div className="break-variable-search">
@@ -449,7 +813,7 @@ export default function BreakAnalysisScreen() {
                         : `T${Math.round(command.offsetMilliseconds / 1000)}s`}
                     </strong>
                     <div>
-                      <b>{fieldLabel(command.name)}</b>
+                      <b>{commandLabel(command.name)}</b>
                       <small>{command.name}</small>
                     </div>
                     <span>{formatStoredValue(command.previousValueJson)}</span>
@@ -492,8 +856,12 @@ export default function BreakAnalysisScreen() {
                 <div className="break-evidence-list">{diagnostic.evidence.map((item) => (
                   <article key={item.id}>
                     <time>{item.offsetMilliseconds === 0 ? "T0" : `T${Math.round(item.offsetMilliseconds / 1000)}s`}</time>
-                    <em>{evidenceKindLabel(item.kind)}</em><div><b>{item.description ?? fieldLabel(item.name)}</b><small>{item.name}</small></div>
-                    <span>{item.currentValueJson ?? "—"}</span>
+                    <em>{evidenceKindLabel(item.kind)}</em><div><b>{
+                      normalizeSearch(item.kind) === "comando"
+                        ? commandLabel(item.name)
+                        : item.description ?? fieldLabel(item.name)
+                    }</b><small>{item.name}</small></div>
+                    <span>{formatStoredValue(item.currentValueJson)}</span>
                   </article>
                 ))}{diagnostic.evidence.length === 0 && <p>Nenhuma evidência discreta na janela.</p>}</div>
               </section>

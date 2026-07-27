@@ -65,6 +65,9 @@ builder.Services.AddSingleton(reportingOptions);
 builder.Services.AddSingleton<IPaperMachineReader, AdsPaperMachineReader>();
 builder.Services.AddSingleton<IHistorianRepository, SqliteHistorianRepository>();
 builder.Services.AddSingleton<IUserRepository, SqliteUserRepository>();
+builder.Services.AddSingleton<
+    IUserBreakAnalysisFilterRepository,
+    SqliteUserBreakAnalysisFilterRepository>();
 builder.Services.AddSingleton<IProductionBreakReportService, ProductionBreakReportService>();
 builder.Services.AddSingleton<IPasswordHasher<ApplicationUser>, PasswordHasher<ApplicationUser>>();
 builder.Services.AddSingleton(TimeProvider.System);
@@ -179,12 +182,24 @@ app.MapGet("/api/version", () =>
     });
 });
 app.MapHistorianAuthentication();
+app.MapBreakAnalysisFilters();
 app.MapHistorianUpdates();
 app.MapReportEndpoints();
 
 var api = app.MapGroup("/api").RequireAuthorization();
 
-api.MapGet("/runtime", (HistorianRuntimeState state) => Results.Ok(state.GetStatus()));
+api.MapGet("/runtime", (HistorianRuntimeState state, TimeProvider clock) =>
+{
+    var status = state.GetStatus();
+    return Results.Ok(new
+    {
+        status.AdsConnected,
+        ServerTimeUtc = clock.GetUtcNow(),
+        status.LastSuccessfulReadAtUtc,
+        status.LastError,
+        status.MappingVersion
+    });
+});
 
 api.MapGet("/current", (HistorianRuntimeState state) =>
 {

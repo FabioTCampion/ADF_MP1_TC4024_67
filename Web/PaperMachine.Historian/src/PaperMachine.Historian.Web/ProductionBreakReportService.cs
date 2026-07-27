@@ -299,7 +299,7 @@ public sealed class ProductionBreakReportService(
         metadata.AddText($"Solicitado por: {data.RequestedBy}");
         metadata.AddLineBreak();
         metadata.AddText(
-            $"Regra: papel presente + {FormatNumber(data.ProductiveSpeedMpm, 1)} m/min");
+            $"Regra: sensor G3 + bomba de massa ligada + {FormatNumber(data.ProductiveSpeedMpm, 1)} m/min");
 
         var separator = section.AddParagraph();
         separator.Format.Borders.Bottom.Width = Unit.FromPoint(1.2);
@@ -336,7 +336,7 @@ public sealed class ProductionBreakReportService(
             ("Tempo coberto", FormatDuration(productivity.CoveredMinutes)),
             ("Tempo produtivo", FormatDuration(productivity.ProductiveMinutes)),
             ("Sem produção", FormatDuration(productivity.UnproductiveMinutes)),
-            ("Papel presente", productivity.CoveredMinutes > 0
+            ("Papel confirmado", productivity.CoveredMinutes > 0
                 ? $"{FormatNumber(productivity.PaperPresencePercent, 1)}%"
                 : "-"),
             ("Média produtiva", $"{FormatNumber(productivity.ProductiveAverageSpeed, 1)} m/min"),

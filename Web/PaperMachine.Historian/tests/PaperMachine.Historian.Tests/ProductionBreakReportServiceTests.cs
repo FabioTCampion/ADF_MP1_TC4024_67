@@ -127,7 +127,8 @@ public sealed class ProductionBreakReportServiceTests
                 $$"""
                 {
                   "dryingSectionGroup3UpperMasterSpeedMPM": {{speedMpm.ToString(System.Globalization.CultureInfo.InvariantCulture)}},
-                  "dryingSectionGroup3PaperPresence": {{paperPresent.ToString().ToLowerInvariant()}}
+                  "dryingSectionGroup3PaperPresence": {{paperPresent.ToString().ToLowerInvariant()}},
+                  "stockPumpState": 1
                 }
                 """,
                 "{}",

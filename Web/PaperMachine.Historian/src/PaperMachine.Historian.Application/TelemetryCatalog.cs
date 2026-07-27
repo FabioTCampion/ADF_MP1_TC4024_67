@@ -6,6 +6,9 @@ public static class TelemetryCatalog
 {
     public const string MachineSpeedField = "dryingSectionGroup3UpperMasterSpeedMPM";
     public const string PaperPresenceField = "dryingSectionGroup3PaperPresence";
+    public const string StockPumpStateField = "stockPumpState";
+    public const int StockPumpRunningState = 1;
+    public const string EffectivePaperPresenceField = "effectivePaperPresence";
 
     public static IReadOnlyList<TelemetryMotorDefinition> Motors { get; } =
     [
@@ -53,6 +56,10 @@ public static class TelemetryCatalog
         "winderPaperPresence"
     ];
 
+    public static IReadOnlyList<string> BooleanFields { get; } = PaperPresenceFields
+        .Append(EffectivePaperPresenceField)
+        .ToArray();
+
     public static IReadOnlyList<string> NumericFields { get; } = Motors
         .SelectMany(motor => new[] { motor.SpeedField, motor.TorqueField })
         .Concat(SteamPressures.Select(item => item.Field))
@@ -83,8 +90,39 @@ public static class TelemetryCatalog
                     ? value.GetBoolean()
                     : null;
         }
+        boolean[EffectivePaperPresenceField] = TryReadEffectivePaperPresence(properties);
 
         return new TelemetryValues(numeric, boolean);
+    }
+
+    public static bool? TryReadEffectivePaperPresence(JsonElement status)
+    {
+        var properties = status.EnumerateObject()
+            .ToDictionary(item => item.Name, item => item.Value, StringComparer.OrdinalIgnoreCase);
+        return TryReadEffectivePaperPresence(properties);
+    }
+
+    private static bool? TryReadEffectivePaperPresence(
+        IReadOnlyDictionary<string, JsonElement> properties)
+    {
+        var sensorPresent =
+            properties.TryGetValue(PaperPresenceField, out var sensorValue) &&
+            sensorValue.ValueKind is JsonValueKind.True or JsonValueKind.False
+                ? sensorValue.GetBoolean()
+                : (bool?)null;
+        var stockPumpState =
+            properties.TryGetValue(StockPumpStateField, out var pumpValue) &&
+            pumpValue.ValueKind == JsonValueKind.Number &&
+            pumpValue.TryGetInt32(out var state)
+                ? state
+                : (int?)null;
+
+        if (sensorPresent == false || stockPumpState is not null and not StockPumpRunningState)
+            return false;
+
+        return sensorPresent == true && stockPumpState == StockPumpRunningState
+            ? true
+            : null;
     }
 
     public static bool IsDiscreteStatusField(string fieldName, JsonElement value)

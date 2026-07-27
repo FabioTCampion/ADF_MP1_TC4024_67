@@ -63,9 +63,10 @@ pelo analista. O índice de alteração é um auxílio estatístico e não é tr
 como prova automática de causalidade.
 
 A página **Métricas** gera o relatório operacional de produção e quebras em PDF.
-O documento usa a velocidade e a presença de papel do terceiro grupo para
-calcular produtividade e usa `PaperBreakEvents` como fonte das quebras, causas e
-análises. Períodos acima de 12 horas consultam os agregados de um minuto.
+O documento usa a velocidade, o sensor de papel do terceiro grupo e
+`stockPumpState = 1` (bomba de massa ligada) para calcular produtividade. Usa
+`PaperBreakEvents` como fonte das quebras, causas e análises. Períodos acima de
+12 horas consultam os agregados de um minuto.
 
 O histórico legado em JSON é convertido progressivamente em agregados por minuto
 antes de ser removido pela retenção. A limpeza ocorre em pequenos lotes e só é
@@ -126,6 +127,11 @@ Os testes não escrevem no PLC. Um banco SQLite temporário é usado no teste de
 
 Para gerar o pacote autocontido e instalar como serviço Windows com início
 automático, consulte [DEPLOYMENT.md](DEPLOYMENT.md).
+
+Para gerar pacote, tag e GitHub Release com um único comando, consulte
+[RELEASE-PROCESS.md](RELEASE-PROCESS.md). O fluxo reutiliza caches com validação
+do lockfile, compila o frontend uma vez, evita bloquear o servidor local e mede
+o tempo de cada etapa.
 
 Para entender, operar ou reutilizar o atualizador por GitHub Releases, consulte
 [UPDATE-SYSTEM.md](UPDATE-SYSTEM.md). O documento inclui fluxo ponta a ponta,

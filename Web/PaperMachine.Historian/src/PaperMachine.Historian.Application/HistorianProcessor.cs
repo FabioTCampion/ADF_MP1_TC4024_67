@@ -145,7 +145,7 @@ public sealed class HistorianProcessor
         DateTimeOffset observedAtUtc,
         bool initialObservation)
     {
-        var paperPresent = TryReadBoolean(status, TelemetryCatalog.PaperPresenceField);
+        var paperPresent = TelemetryCatalog.TryReadEffectivePaperPresence(status);
         var speedMpm = TryReadNumber(status, TelemetryCatalog.MachineSpeedField) ?? 0;
         if (!paperPresent.HasValue)
             return [];

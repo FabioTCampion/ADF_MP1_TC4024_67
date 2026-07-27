@@ -127,17 +127,17 @@ public sealed class HistorianProcessorTests
         var firstAt = new DateTimeOffset(2026, 7, 24, 12, 0, 0, TimeSpan.Zero);
         var baseline = processor.Process(CreateSnapshot(
             firstAt,
-            """{"dryingSectionGroup3UpperMasterSpeedMPM":120.0,"dryingSectionGroup3PaperPresence":true}""",
+            """{"dryingSectionGroup3UpperMasterSpeedMPM":120.0,"dryingSectionGroup3PaperPresence":true,"stockPumpState":1}""",
             """{"start":false}""",
             """{"fault":false}"""));
         var started = processor.Process(CreateSnapshot(
             firstAt.AddSeconds(1),
-            """{"dryingSectionGroup3UpperMasterSpeedMPM":119.0,"dryingSectionGroup3PaperPresence":false}""",
+            """{"dryingSectionGroup3UpperMasterSpeedMPM":119.0,"dryingSectionGroup3PaperPresence":false,"stockPumpState":1}""",
             """{"start":false}""",
             """{"fault":false}"""));
         var ended = processor.Process(CreateSnapshot(
             firstAt.AddSeconds(8),
-            """{"dryingSectionGroup3UpperMasterSpeedMPM":121.0,"dryingSectionGroup3PaperPresence":true}""",
+            """{"dryingSectionGroup3UpperMasterSpeedMPM":121.0,"dryingSectionGroup3PaperPresence":true,"stockPumpState":1}""",
             """{"start":false}""",
             """{"fault":false}"""));
 
@@ -154,6 +154,27 @@ public sealed class HistorianProcessorTests
     }
 
     [Fact]
+    public void StockPumpMustBeRunningToConfirmPaperPresence()
+    {
+        var processor = CreateProcessor();
+        var firstAt = new DateTimeOffset(2026, 7, 24, 12, 0, 0, TimeSpan.Zero);
+        var baseline = processor.Process(CreateSnapshot(
+            firstAt,
+            """{"dryingSectionGroup3UpperMasterSpeedMPM":120.0,"dryingSectionGroup3PaperPresence":true,"stockPumpState":1}""",
+            """{"start":false}""",
+            """{"fault":false}"""));
+        var pumpStopped = processor.Process(CreateSnapshot(
+            firstAt.AddSeconds(1),
+            """{"dryingSectionGroup3UpperMasterSpeedMPM":120.0,"dryingSectionGroup3PaperPresence":true,"stockPumpState":0}""",
+            """{"start":false}""",
+            """{"fault":false}"""));
+
+        Assert.False(Assert.Single(baseline.PaperBreakTransitions).IsActive);
+        Assert.True(Assert.Single(pumpStopped.PaperBreakTransitions).IsActive);
+        Assert.Single(pumpStopped.PaperBreakDiagnostics);
+    }
+
+    [Fact]
     public void PaperBreakDiagnosticKeepsOnlyConfiguredPreBreakWindow()
     {
         var options = new HistorianOptions
@@ -164,17 +185,17 @@ public sealed class HistorianProcessorTests
         var firstAt = new DateTimeOffset(2026, 7, 24, 12, 0, 0, TimeSpan.Zero);
         processor.Process(CreateSnapshot(
             firstAt,
-            """{"dryingSectionGroup3UpperMasterSpeedMPM":120.0,"dryingSectionGroup3PaperPresence":true}""",
+            """{"dryingSectionGroup3UpperMasterSpeedMPM":120.0,"dryingSectionGroup3PaperPresence":true,"stockPumpState":1}""",
             """{"start":false}""",
             """{"fault":false}"""));
         processor.Process(CreateSnapshot(
             firstAt.AddSeconds(20),
-            """{"dryingSectionGroup3UpperMasterSpeedMPM":121.0,"dryingSectionGroup3PaperPresence":true}""",
+            """{"dryingSectionGroup3UpperMasterSpeedMPM":121.0,"dryingSectionGroup3PaperPresence":true,"stockPumpState":1}""",
             """{"start":false}""",
             """{"fault":false}"""));
         var started = processor.Process(CreateSnapshot(
             firstAt.AddSeconds(40),
-            """{"dryingSectionGroup3UpperMasterSpeedMPM":119.0,"dryingSectionGroup3PaperPresence":false}""",
+            """{"dryingSectionGroup3UpperMasterSpeedMPM":119.0,"dryingSectionGroup3PaperPresence":false,"stockPumpState":1}""",
             """{"start":false}""",
             """{"fault":false}"""));
 

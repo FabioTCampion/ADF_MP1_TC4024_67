@@ -145,7 +145,9 @@ O agente deve ler estes arquivos antes de portar o fluxo:
 
 | Arquivo | Responsabilidade |
 | --- | --- |
-| `scripts/Publish-PaperMachineHistorian.ps1` | Teste, `dotnet publish`, montagem do pacote, manifesto e SHA-256 |
+| `scripts/Publish-PaperMachineHistorian.ps1` | Cache validado, lint, testes isolados, `dotnet publish`, ZIP rápido, manifesto e SHA-256 |
+| `scripts/Release-PaperMachineHistorian.ps1` | Versão automática, preflight, tag, push, draft, upload, publicação e verificação da Release |
+| `RELEASE-PROCESS.md` | Operação e diagnóstico do fluxo de build/Release otimizado |
 | `deploy/appsettings.Production.json` | Valores padrão da seção `Updates` |
 | `UpdateOptions.cs` | Binding, defaults, resolução de caminhos e validação |
 | `UpdateModels.cs` | DTO público, modelo da Release e estado persistido |
@@ -382,6 +384,18 @@ mover a tag para outro.
 ## 9. Protocolo de publicação
 
 Executar na estação de build, nunca no servidor industrial.
+
+Na implementação de referência, todo o protocolo das seções 9.1 a 9.6 é
+orquestrado por:
+
+```powershell
+.\scripts\Release-PaperMachineHistorian.ps1 -Version X.Y.Z
+```
+
+Se a versão for omitida, o patch da última Release estável é incrementado. O
+script pode retomar uma tag/draft somente quando eles apontam para o mesmo
+commit. Uma Release estável existente nunca é sobrescrita. As etapas manuais
+abaixo continuam sendo o contrato detalhado e o procedimento de contingência.
 
 ### 9.1 Pré-condições
 

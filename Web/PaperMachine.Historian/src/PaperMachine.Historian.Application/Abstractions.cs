@@ -134,6 +134,34 @@ public interface IUserRepository
     Task MarkLoginAsync(long id, DateTimeOffset loggedInAtUtc, CancellationToken cancellationToken);
 }
 
+public interface IUserBreakAnalysisFilterRepository
+{
+    Task<IReadOnlyList<UserBreakAnalysisFilter>> ListAsync(
+        long userId,
+        CancellationToken cancellationToken);
+    Task<UserBreakAnalysisFilterWriteResult> CreateAsync(
+        long userId,
+        string name,
+        IReadOnlyList<string> variables,
+        bool isDefault,
+        DateTimeOffset createdAtUtc,
+        CancellationToken cancellationToken);
+    Task<UserBreakAnalysisFilterWriteResult> UpdateAsync(
+        long id,
+        long userId,
+        string name,
+        IReadOnlyList<string> variables,
+        bool isDefault,
+        int expectedRevision,
+        DateTimeOffset updatedAtUtc,
+        CancellationToken cancellationToken);
+    Task<UserBreakAnalysisFilterWriteStatus> DeleteAsync(
+        long id,
+        long userId,
+        int expectedRevision,
+        CancellationToken cancellationToken);
+}
+
 public sealed record StatusSnapshotRow(
     long Id,
     DateTimeOffset CapturedAtUtc,

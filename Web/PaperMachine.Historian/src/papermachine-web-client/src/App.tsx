@@ -14,6 +14,7 @@ import HistoryPeriodFilter, {
 import type { InteractiveChartOption } from "./InteractiveChart";
 import { operatorVariableLabel } from "./OperatorTranslations";
 import SideMenu, { type NavigationItem, type PageId } from "./SideMenu";
+import { ServerClockProvider } from "./ServerClock";
 
 const InteractiveChart = lazy(() => import("./InteractiveChart"));
 const MetricsScreen = lazy(() => import("./MetricsScreen"));
@@ -23,6 +24,7 @@ const UpdatesScreen = lazy(() => import("./UpdatesScreen"));
 
 type RuntimeStatus = {
   adsConnected: boolean;
+  serverTimeUtc: string;
   lastSuccessfulReadAtUtc: string | null;
   lastError: string | null;
   mappingVersion: string | null;
@@ -146,6 +148,8 @@ const dateFormatter = new Intl.DateTimeFormat("pt-BR", {
 
 const machineSpeedField = "dryingSectionGroup3UpperMasterSpeedMPM";
 const paperPresenceField = "dryingSectionGroup3PaperPresence";
+const stockPumpStateField = "stockPumpState";
+const stockPumpRunningState = 1;
 const steamPressureCatalog = [
   { key: "drying-1", shortLabel: "G1", label: "Grupo 1", field: "dryingSectionGroup1SteamPressure" },
   { key: "drying-2", shortLabel: "G2", label: "Grupo 2", field: "dryingSectionGroup2SteamPressure" },
@@ -215,6 +219,37 @@ const readStatusBoolean = (
 ) => {
   const value = current?.status[fieldName];
   return typeof value === "boolean" ? value : null;
+};
+
+const readEffectivePaperPresence = (current: CurrentSnapshot | null) => {
+  const sensorPresent = readStatusBoolean(current, paperPresenceField);
+  const stockPumpState = readStatusNumber(current, stockPumpStateField);
+
+  if (sensorPresent === false ||
+      (stockPumpState !== null && stockPumpState !== stockPumpRunningState)) {
+    return false;
+  }
+
+  return sensorPresent === true && stockPumpState === stockPumpRunningState
+    ? true
+    : null;
+};
+
+const paperPresenceDetail = (current: CurrentSnapshot | null) => {
+  const sensorPresent = readStatusBoolean(current, paperPresenceField);
+  const stockPumpState = readStatusNumber(current, stockPumpStateField);
+
+  if (sensorPresent === true && stockPumpState !== null &&
+      stockPumpState !== stockPumpRunningState) {
+    return stockPumpState === 2
+      ? "Sensor G3 ativo · bomba de massa em falha"
+      : "Sensor G3 ativo · bomba de massa parada";
+  }
+  if (sensorPresent === false) return "Sensor do terceiro grupo sem papel";
+  if (stockPumpState === stockPumpRunningState) return "Sensor G3 + bomba de massa ligada";
+  if (stockPumpState === 2) return "Bomba de massa em falha";
+  if (stockPumpState === 0) return "Bomba de massa parada";
+  return "Aguardando sensor G3 e bomba de massa";
 };
 
 const formatMachineSpeed = (speed: number | null) =>
@@ -320,8 +355,18 @@ export default function App() {
   const [current, setCurrent] = useState<CurrentSnapshot | null>(null);
   const [storage, setStorage] = useState<StorageStatus | null>(null);
   const [clock, setClock] = useState(new Date());
+  const serverOffsetMilliseconds = runtime?.serverTimeUtc
+    ? new Date(runtime.serverTimeUtc).getTime() - Date.now()
+    : null;
+  const serverClock = new Date(
+    clock.getTime() + (serverOffsetMilliseconds ?? 0),
+  );
+  const clockDifferenceMinutes = serverOffsetMilliseconds === null
+    ? null
+    : Math.round(Math.abs(serverOffsetMilliseconds) / 60_000);
   const machineSpeed = readStatusNumber(current, machineSpeedField);
-  const paperPresent = readStatusBoolean(current, paperPresenceField);
+  const paperPresent = readEffectivePaperPresence(current);
+  const paperDetail = paperPresenceDetail(current);
   const steamPressures = steamPressureCatalog.map((pressure) => ({
     ...pressure,
     value: readStatusNumber(current, pressure.field),
@@ -393,6 +438,7 @@ export default function App() {
   }, [collapseMenu]);
 
   return (
+    <ServerClockProvider serverTimeUtc={runtime?.serverTimeUtc}>
     <div className={`app-shell${collapsed ? " app-shell--collapsed" : ""}`}>
       <SideMenu
         currentPage={page}
@@ -440,14 +486,14 @@ export default function App() {
             <div className={`top-paper-state top-paper-state--${paperPresenceClass(paperPresent)}`}>
               <i />
               <div>
-                <span>Sensor de papel</span>
+                <span>{paperDetail}</span>
                 <b>{paperPresenceLabel(paperPresent)}</b>
               </div>
             </div>
           </div>
           <div className="top-clock">
-            <span>{clock.toLocaleDateString("pt-BR")}</span>
-            <b>{clock.toLocaleTimeString("pt-BR")}</b>
+            <span>{serverClock.toLocaleDateString("pt-BR")}</span>
+            <b>{serverClock.toLocaleTimeString("pt-BR")}</b>
           </div>
           <div className="current-user">
             <div className="user-avatar">{user.displayName.slice(0, 2).toUpperCase()}</div>
@@ -460,6 +506,13 @@ export default function App() {
         </header>
 
         <div className="screen-content">
+          {clockDifferenceMinutes !== null && clockDifferenceMinutes >= 5 && (
+            <div className="clock-warning" role="alert">
+              Divergência de relógio detectada: servidor e dispositivo diferem em
+              {" "}{clockDifferenceMinutes.toLocaleString("pt-BR")} minutos.
+              Os períodos abaixo usam o horário do servidor.
+            </div>
+          )}
           {page === "dashboard" && (
             <Dashboard runtime={runtime} current={current} storage={storage} />
           )}
@@ -491,6 +544,7 @@ export default function App() {
         </div>
       </main>
     </div>
+    </ServerClockProvider>
   );
 }
 
@@ -546,7 +600,8 @@ function Dashboard({
     ? Object.values(current.status).filter((value) => value === true).length
     : 0;
   const machineSpeed = readStatusNumber(current, machineSpeedField);
-  const paperPresent = readStatusBoolean(current, paperPresenceField);
+  const paperPresent = readEffectivePaperPresence(current);
+  const paperDetail = paperPresenceDetail(current);
   const steamPressures = steamPressureCatalog.map((pressure) => ({
     ...pressure,
     value: readStatusNumber(current, pressure.field),
@@ -592,7 +647,7 @@ function Dashboard({
           <div>
             <span>Presença de papel</span>
             <strong>{paperPresenceLabel(paperPresent)}</strong>
-            <small>Sensor do terceiro grupo</small>
+            <small>{paperDetail}</small>
           </div>
         </div>
       </section>

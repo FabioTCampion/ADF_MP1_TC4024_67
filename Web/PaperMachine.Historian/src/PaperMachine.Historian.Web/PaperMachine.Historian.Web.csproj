@@ -23,7 +23,7 @@
     <ClientAppDirectory>..\papermachine-web-client</ClientAppDirectory>
   </PropertyGroup>
   <Target Name="BuildClientForPublish" BeforeTargets="ComputeFilesToPublish" Condition="'$(SkipClientBuild)' != 'true'">
-    <Exec WorkingDirectory="$(ClientAppDirectory)" Command="npm ci" />
+    <Exec WorkingDirectory="$(ClientAppDirectory)" Command="npm ci --prefer-offline --no-audit --fund=false" />
     <Exec WorkingDirectory="$(ClientAppDirectory)" Command="npm run build" />
     <ItemGroup>
       <ClientDistFiles Include="wwwroot\**\*" />

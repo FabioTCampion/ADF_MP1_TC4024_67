@@ -167,6 +167,11 @@ Na pasta `Web\PaperMachine.Historian`:
 
 Para uma publicação oficial, não use `-SkipTests`.
 
+O empacotador otimizado restaura as dependências uma vez, compila o frontend
+uma vez, executa os testes em uma saída que não bloqueia o servidor local e usa
+compactação rápida. Consulte [RELEASE-PROCESS.md](RELEASE-PROCESS.md) para os
+parâmetros, cache, tempos por etapa e procedimentos de retomada.
+
 Confira no manifesto interno:
 
 ```text
@@ -176,6 +181,19 @@ GitDirty: false
 ```
 
 ### 4.3 Criar e enviar a tag
+
+O fluxo recomendado automatiza as seções 4.2 até 4.5:
+
+```powershell
+.\scripts\Release-PaperMachineHistorian.ps1 -Version X.Y.Z
+```
+
+Sem `-Version`, o script consulta a última Release estável e incrementa
+automaticamente o patch. Ele exige a pasta da aplicação limpa, gera e valida o
+pacote, envia branch e tag juntos, cria a Release como draft e somente depois
+publica e verifica stable/latest.
+
+Os comandos manuais abaixo permanecem documentados como contingência:
 
 ```powershell
 git tag -a vX.Y.Z -m "CPNTeck Paper Machine Historian X.Y.Z"

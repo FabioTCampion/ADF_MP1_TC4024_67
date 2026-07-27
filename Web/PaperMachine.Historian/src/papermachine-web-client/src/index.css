@@ -573,6 +573,17 @@ button { color: inherit; }
   font-size: 11px;
 }
 
+.clock-warning {
+  margin-bottom: 16px;
+  padding: 12px 16px;
+  border: 1px solid #d89535;
+  border-radius: 10px;
+  background: #d895351a;
+  color: #ffd99b;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
 .query-toolbar {
   display: flex;
   align-items: flex-end;

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAuth } from "./Auth";
 import InteractiveChart, { type InteractiveChartOption } from "./InteractiveChart";
 import "./MetricsScreen.css";
+import { useServerClock } from "./ServerClock";
 
 type MetricView =
   | "speed"
@@ -87,6 +88,7 @@ const CONTINUOUS_STATUS_FIELD_PATTERN =
 const BREAK_SOURCE_FIELDS = new Set([
   "dryingSectionGroup3UpperMasterSpeedMPM",
   "dryingSectionGroup3PaperPresence",
+  "stockPumpState",
 ]);
 
 const startOfDay = (value = new Date()) =>
@@ -863,7 +865,8 @@ function CorrelationAnalysis({
 
 export default function MetricsScreen() {
   const { user } = useAuth();
-  const now = new Date();
+  const { now: serverNow } = useServerClock();
+  const now = serverNow();
   const [periodStart, setPeriodStart] = useState(() => startOfDay());
   const [periodEnd, setPeriodEnd] = useState(now);
   const [draftStart, setDraftStart] = useState(() => startOfDay());
@@ -974,7 +977,7 @@ export default function MetricsScreen() {
   };
 
   const applyShortcut = (kind: "today" | "8h" | "24h" | "yesterday") => {
-    const current = new Date();
+    const current = serverNow();
     let start = startOfDay(current);
     let end = current;
     if (kind === "8h") start = new Date(current.getTime() - 8 * 60 * 60_000);
@@ -1090,8 +1093,8 @@ export default function MetricsScreen() {
           <p className="metrics-eyebrow">Produção</p>
           <h1>Métricas da máquina</h1>
           <span>
-            Produtividade calculada pela velocidade e presença de papel no
-            terceiro grupo.
+            Produtividade calculada pela velocidade, sensor de papel do terceiro
+            grupo e bomba de massa ligada.
           </span>
         </div>
         {user.permissions.includes("reports.generate") && (
@@ -1179,7 +1182,7 @@ export default function MetricsScreen() {
             <span>Condição produtiva</span>
             <strong>
               <i />
-              Papel presente
+              Sensor G3 + bomba de massa
               <em>+</em>
               velocidade mínima
             </strong>
@@ -1203,8 +1206,8 @@ export default function MetricsScreen() {
             </span>
           </label>
           <small>
-            Fonte: dryingSectionGroup3UpperMasterSpeedMPM e
-            dryingSectionGroup3PaperPresence.
+            Fontes: dryingSectionGroup3UpperMasterSpeedMPM,
+            dryingSectionGroup3PaperPresence e stockPumpState = 1.
           </small>
         </div>
       </section>

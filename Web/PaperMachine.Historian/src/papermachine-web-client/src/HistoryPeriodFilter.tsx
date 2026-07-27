@@ -1,4 +1,5 @@
 import { useMemo, useState, type ReactNode } from "react";
+import { useServerClock } from "./ServerClock";
 
 export type HistoryPeriodPreset =
   | "today"
@@ -70,9 +71,10 @@ export function useHistoryPeriod(
   initialPreset: HistoryPeriodPreset,
   maximumRangeDays: number,
 ): HistoryPeriodController {
+  const { now } = useServerClock();
   const initial = useMemo(
-    () => historyPeriodForPreset(initialPreset),
-    [initialPreset],
+    () => historyPeriodForPreset(initialPreset, now()),
+    [initialPreset, now],
   );
   const [draft, setDraft] = useState<HistoryPeriod>(initial);
   const [applied, setApplied] = useState<HistoryPeriod>(initial);
@@ -127,7 +129,7 @@ export function useHistoryPeriod(
       return true;
     },
     applyPreset: (preset) => {
-      const period = historyPeriodForPreset(preset);
+      const period = historyPeriodForPreset(preset, now());
       setDraft(period);
       setApplied(period);
       setActivePreset(preset);
