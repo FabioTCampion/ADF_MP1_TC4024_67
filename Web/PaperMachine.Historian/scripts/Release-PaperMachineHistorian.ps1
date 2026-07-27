@@ -126,9 +126,17 @@ Invoke-CheckedCommand -Command $ghCommand -Arguments @('auth', 'status')
 Invoke-CheckedCommand -Command $ghCommand -Arguments @('auth', 'setup-git')
 
 if ([string]::IsNullOrWhiteSpace($Version)) {
-    $latestTagOutput =
-        & $ghCommand api "repos/$Repository/releases/latest" --jq '.tag_name' 2>$null
-    if ($LASTEXITCODE -eq 0 -and $latestTagOutput) {
+    $previousErrorActionPreference = $ErrorActionPreference
+    $ErrorActionPreference = 'SilentlyContinue'
+    try {
+        $latestTagOutput =
+            & $ghCommand api "repos/$Repository/releases/latest" --jq '.tag_name' 2>$null
+        $latestTagExitCode = $LASTEXITCODE
+    }
+    finally {
+        $ErrorActionPreference = $previousErrorActionPreference
+    }
+    if ($latestTagExitCode -eq 0 -and $latestTagOutput) {
         $latestTag = ($latestTagOutput | Select-Object -First 1).Trim()
         if ($latestTag -notmatch '^v?([0-9]+)\.([0-9]+)\.([0-9]+)$') {
             throw "Latest stable tag is not a simple semantic version: $latestTag"
@@ -159,10 +167,18 @@ $zipHashPath = "$zipPath.sha256"
 $manifestPath = Join-Path $projectRoot "artifacts\$packageName\deployment-manifest.json"
 $publishScript = Join-Path $PSScriptRoot 'Publish-PaperMachineHistorian.ps1'
 
-$existingReleaseJson =
-    & $ghCommand release view $tag --repo $Repository `
-        --json isDraft,isPrerelease,url,assets 2>$null
-$existingRelease = if ($LASTEXITCODE -eq 0 -and $existingReleaseJson) {
+$previousErrorActionPreference = $ErrorActionPreference
+$ErrorActionPreference = 'SilentlyContinue'
+try {
+    $existingReleaseJson =
+        & $ghCommand release view $tag --repo $Repository `
+            --json isDraft,isPrerelease,url,assets 2>$null
+    $existingReleaseExitCode = $LASTEXITCODE
+}
+finally {
+    $ErrorActionPreference = $previousErrorActionPreference
+}
+$existingRelease = if ($existingReleaseExitCode -eq 0 -and $existingReleaseJson) {
     $existingReleaseJson | ConvertFrom-Json
 }
 else {
