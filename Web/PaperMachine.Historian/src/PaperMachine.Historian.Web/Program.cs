@@ -68,6 +68,9 @@ builder.Services.AddSingleton<IUserRepository, SqliteUserRepository>();
 builder.Services.AddSingleton<
     IUserBreakAnalysisFilterRepository,
     SqliteUserBreakAnalysisFilterRepository>();
+builder.Services.AddSingleton<
+    IUserGraphLayoutRepository,
+    SqliteUserGraphLayoutRepository>();
 builder.Services.AddSingleton<IProductionBreakReportService, ProductionBreakReportService>();
 builder.Services.AddSingleton<IPasswordHasher<ApplicationUser>, PasswordHasher<ApplicationUser>>();
 builder.Services.AddSingleton(TimeProvider.System);
@@ -183,6 +186,8 @@ app.MapGet("/api/version", () =>
 });
 app.MapHistorianAuthentication();
 app.MapBreakAnalysisFilters();
+app.MapGraphLayouts();
+app.MapProcessTrends();
 app.MapHistorianUpdates();
 app.MapReportEndpoints();
 

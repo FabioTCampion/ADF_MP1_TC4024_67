@@ -163,6 +163,19 @@ public interface IUserBreakAnalysisFilterRepository
         CancellationToken cancellationToken);
 }
 
+public interface IUserGraphLayoutRepository
+{
+    Task<UserGraphLayout?> GetAsync(
+        long userId,
+        CancellationToken cancellationToken);
+    Task<UserGraphLayoutWriteResult> SaveAsync(
+        long userId,
+        IReadOnlyList<UserGraphPanel> charts,
+        int expectedRevision,
+        DateTimeOffset updatedAtUtc,
+        CancellationToken cancellationToken);
+}
+
 public sealed record StatusSnapshotRow(
     long Id,
     DateTimeOffset CapturedAtUtc,

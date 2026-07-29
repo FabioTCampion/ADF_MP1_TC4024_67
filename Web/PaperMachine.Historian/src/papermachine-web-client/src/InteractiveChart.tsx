@@ -1,5 +1,11 @@
 import { useEffect, useRef } from "react";
-import { init, use as registerECharts, type EChartsCoreOption } from "echarts/core";
+import {
+  connect,
+  disconnect,
+  init,
+  use as registerECharts,
+  type EChartsCoreOption,
+} from "echarts/core";
 import { BarChart, LineChart } from "echarts/charts";
 import {
   DataZoomComponent,
@@ -28,9 +34,11 @@ export type InteractiveChartOption = EChartsCoreOption;
 export default function InteractiveChart({
   option,
   ariaLabel,
+  connectGroup,
 }: {
   option: InteractiveChartOption;
   ariaLabel: string;
+  connectGroup?: string;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<ReturnType<typeof init> | null>(null);
@@ -40,15 +48,20 @@ export default function InteractiveChart({
     if (!container) return;
 
     const chart = init(container, "dark", { renderer: "canvas" });
+    if (connectGroup) {
+      chart.group = connectGroup;
+      connect(connectGroup);
+    }
     chartRef.current = chart;
     const observer = new ResizeObserver(() => chart.resize());
     observer.observe(container);
     return () => {
       observer.disconnect();
       chart.dispose();
+      if (connectGroup) disconnect(connectGroup);
       chartRef.current = null;
     };
-  }, []);
+  }, [connectGroup]);
 
   useEffect(() => {
     const chart = chartRef.current;

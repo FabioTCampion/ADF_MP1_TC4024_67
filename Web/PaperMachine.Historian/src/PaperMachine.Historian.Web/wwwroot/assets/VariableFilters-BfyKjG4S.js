@@ -1,0 +1,1 @@
+function e(e){return[...e].sort((e,t)=>Number(t.isDefault)-Number(e.isDefault)||e.name.localeCompare(t.name,`pt-BR`))}export{e as t};

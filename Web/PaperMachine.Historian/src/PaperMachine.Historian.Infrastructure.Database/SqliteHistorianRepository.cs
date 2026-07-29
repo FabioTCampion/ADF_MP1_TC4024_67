@@ -143,6 +143,7 @@ public sealed class SqliteHistorianRepository : IHistorianRepository
         await EnsureOptimizedHistorianSchemaAsync(connection, cancellationToken);
         await EnsurePaperBreakDiagnosticSchemaAsync(connection, cancellationToken);
         await EnsureUserBreakAnalysisFilterSchemaAsync(connection, cancellationToken);
+        await EnsureUserGraphLayoutSchemaAsync(connection, cancellationToken);
         await ExecuteAsync(
             connection,
             null,
@@ -2071,6 +2072,25 @@ public sealed class SqliteHistorianRepository : IHistorianRepository
             cancellationToken);
     }
 
+    private static async Task EnsureUserGraphLayoutSchemaAsync(
+        SqliteConnection connection,
+        CancellationToken cancellationToken)
+    {
+        await ExecuteAsync(
+            connection,
+            null,
+            """
+            CREATE TABLE IF NOT EXISTS UserGraphLayouts (
+                UserId INTEGER NOT NULL PRIMARY KEY,
+                LayoutJson TEXT NOT NULL,
+                Revision INTEGER NOT NULL DEFAULT 1,
+                UpdatedAtUtc TEXT NOT NULL,
+                FOREIGN KEY (UserId) REFERENCES ApplicationUsers(Id) ON DELETE CASCADE
+            );
+            """,
+            cancellationToken);
+    }
+
     private static async Task InsertTelemetrySampleAsync(
         SqliteConnection connection,
         SqliteTransaction transaction,
@@ -2377,64 +2397,12 @@ public sealed class SqliteHistorianRepository : IHistorianRepository
     }
 
     private static bool IsPaperBreakDiagnosticField(string fieldName, JsonElement value)
-    {
-        if (value.ValueKind is JsonValueKind.True or JsonValueKind.False)
-            return true;
-        if (value.ValueKind != JsonValueKind.Number)
-            return false;
-
-        return fieldName.Contains("Speed", StringComparison.OrdinalIgnoreCase) ||
-               fieldName.Contains("Torque", StringComparison.OrdinalIgnoreCase) ||
-               fieldName.Contains("Pressure", StringComparison.OrdinalIgnoreCase) ||
-               fieldName.Contains("MMH2O", StringComparison.OrdinalIgnoreCase) ||
-               fieldName.Contains("Position", StringComparison.OrdinalIgnoreCase) ||
-               fieldName.Contains("Temperature", StringComparison.OrdinalIgnoreCase) ||
-               fieldName.Contains("Level", StringComparison.OrdinalIgnoreCase) ||
-               fieldName.Contains("Vacuum", StringComparison.OrdinalIgnoreCase) ||
-               fieldName.Contains("Flow", StringComparison.OrdinalIgnoreCase) ||
-               fieldName.Contains("Setpoint", StringComparison.OrdinalIgnoreCase) ||
-               fieldName.Contains("CtrlOutput", StringComparison.OrdinalIgnoreCase) ||
-               fieldName.Contains("Ratio", StringComparison.OrdinalIgnoreCase) ||
-               fieldName.Contains("Current", StringComparison.OrdinalIgnoreCase) ||
-               fieldName.Contains("Voltage", StringComparison.OrdinalIgnoreCase) ||
-               fieldName.Contains("Frequency", StringComparison.OrdinalIgnoreCase) ||
-               fieldName.Contains("Diameter", StringComparison.OrdinalIgnoreCase) ||
-               fieldName.EndsWith("State", StringComparison.OrdinalIgnoreCase) ||
-               fieldName.Contains("FaultCode", StringComparison.OrdinalIgnoreCase) ||
-               fieldName.Contains("EventCounter", StringComparison.OrdinalIgnoreCase);
-    }
+        => ProcessVariableCatalog.IsSupportedField(fieldName, value);
 
     private static (string Category, string Unit) DescribeDiagnosticField(string fieldName)
     {
-        if (fieldName.Contains("Torque", StringComparison.OrdinalIgnoreCase))
-            return ("Torque", "%");
-        if (fieldName.Contains("Speed", StringComparison.OrdinalIgnoreCase))
-        {
-            var isPump = fieldName.Contains("Pump", StringComparison.OrdinalIgnoreCase);
-            return (isPump ? "Bombas" : "Velocidade", isPump ? "%" : "m/min");
-        }
-        if (fieldName.Contains("Pressure", StringComparison.OrdinalIgnoreCase))
-            return ("Pressão", "bar");
-        if (fieldName.Contains("MMH2O", StringComparison.OrdinalIgnoreCase))
-            return ("Headbox", "mmH₂O");
-        if (fieldName.Contains("Position", StringComparison.OrdinalIgnoreCase))
-            return ("Posição", "mm");
-        if (fieldName.Contains("Temperature", StringComparison.OrdinalIgnoreCase))
-            return ("Temperatura", "°C");
-        if (fieldName.Contains("Level", StringComparison.OrdinalIgnoreCase) ||
-            fieldName.Contains("CtrlOutput", StringComparison.OrdinalIgnoreCase) ||
-            fieldName.Contains("Setpoint", StringComparison.OrdinalIgnoreCase) ||
-            fieldName.Contains("Ratio", StringComparison.OrdinalIgnoreCase))
-        {
-            return ("Processo", "%");
-        }
-        if (fieldName.EndsWith("State", StringComparison.OrdinalIgnoreCase) ||
-            fieldName.Contains("FaultCode", StringComparison.OrdinalIgnoreCase) ||
-            fieldName.Contains("EventCounter", StringComparison.OrdinalIgnoreCase))
-        {
-            return ("Estado", "código");
-        }
-        return ("Processo", "unidade PLC");
+        var definition = ProcessVariableCatalog.Describe(fieldName);
+        return (definition.Category, definition.Unit);
     }
 
     private static async Task InsertPaperBreakEvidenceAsync(

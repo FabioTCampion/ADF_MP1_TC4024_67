@@ -8,6 +8,10 @@ import {
   operatorEvidenceKindLabel as evidenceKindLabel,
   operatorVariableLabel as fieldLabel,
 } from "./OperatorTranslations";
+import {
+  sortVariableFilters,
+  type SharedVariableFilter,
+} from "./VariableFilters";
 import "./BreakAnalysisScreen.css";
 import "./BreakAnalysisEnhancements.css";
 
@@ -43,11 +47,7 @@ type Diagnostic = {
 type HistoryPage<T> = {
   items: T[]; total: number; offset: number; limit: number; hasMore: boolean;
 };
-type BreakAnalysisFilter = {
-  id: number; userId: number; name: string; variables: string[];
-  isDefault: boolean; revision: number;
-  createdAtUtc: string; updatedAtUtc: string;
-};
+type BreakAnalysisFilter = SharedVariableFilter;
 
 const dateTime = new Intl.DateTimeFormat("pt-BR", {
   dateStyle: "short", timeStyle: "medium",
@@ -123,15 +123,9 @@ function defaultVariables(summary: Summary[]) {
   }
   return selected.length ? selected : summary.slice(0, 6).map((item) => item.fieldName);
 }
-function sortFilters(filters: BreakAnalysisFilter[]) {
-  return [...filters].sort((left, right) =>
-    Number(right.isDefault) - Number(left.isDefault) ||
-    left.name.localeCompare(right.name, "pt-BR"));
-}
-
 export default function BreakAnalysisScreen() {
   const { user } = useAuth();
-  const period = useHistoryPeriod("7d", 366);
+  const period = useHistoryPeriod("today", 366);
   const [search, setSearch] = useState("");
   const [appliedSearch, setAppliedSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("Todos");
@@ -213,7 +207,7 @@ export default function BreakAnalysisScreen() {
     setFiltersAvailable(true);
     setFilterNotice("");
     fetchJson<BreakAnalysisFilter[]>("/api/me/break-analysis-filters")
-      .then((result) => setFilters(sortFilters(result)))
+      .then((result) => setFilters(sortVariableFilters(result)))
       .catch(() => {
         setFilters([]);
         setFiltersAvailable(false);
@@ -388,7 +382,7 @@ export default function BreakAnalysisScreen() {
   };
 
   const replaceFilter = (updated: BreakAnalysisFilter) => {
-    setFilters((current) => sortFilters([
+    setFilters((current) => sortVariableFilters([
       ...current
         .filter((filter) => filter.id !== updated.id)
         .map((filter) =>
@@ -670,7 +664,7 @@ export default function BreakAnalysisScreen() {
                 </div></header>
               <div className="break-filter-manager">
                 <label>
-                  <span>Meus filtros</span>
+                  <span>Filtros compartilhados</span>
                   <select
                     value={activeFilterId === null ? "automatic" : String(activeFilterId)}
                     onChange={(event) => {
@@ -694,7 +688,7 @@ export default function BreakAnalysisScreen() {
                   </select>
                 </label>
                 <label className="break-filter-name">
-                  <span>Nome do filtro</span>
+                  <span>Nome do filtro compartilhado</span>
                   <input
                     value={filterName}
                     maxLength={80}

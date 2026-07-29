@@ -19,6 +19,7 @@ import { ServerClockProvider } from "./ServerClock";
 const InteractiveChart = lazy(() => import("./InteractiveChart"));
 const MetricsScreen = lazy(() => import("./MetricsScreen"));
 const BreakAnalysisScreen = lazy(() => import("./BreakAnalysisScreen"));
+const GraphWorkspace = lazy(() => import("./GraphWorkspace"));
 const UsersScreen = lazy(() => import("./UsersScreen"));
 const UpdatesScreen = lazy(() => import("./UpdatesScreen"));
 
@@ -527,7 +528,11 @@ export default function App() {
             </Suspense>
           )}
           {page === "status" && <CurrentStatus current={current} />}
-          {page === "graphs" && <MotorGraphs />}
+          {page === "graphs" && (
+            <Suspense fallback={<EmptyState text="Preparando gráficos…" />}>
+              <GraphWorkspace currentStatus={current?.status ?? {}} />
+            </Suspense>
+          )}
           {page === "alarms" && <AlarmHistory />}
           {page === "commands" && <CommandHistory />}
           {page === "history" && <StatusHistory />}
@@ -923,7 +928,7 @@ function formatMotorMember(key: string) {
 }
 
 function MotorGraphs() {
-  const period = useHistoryPeriod("8h", 31);
+  const period = useHistoryPeriod("today", 31);
   const [trend, setTrend] = useState<MotorTrend>({
     motors: [],
     steamPressures: [],
@@ -1164,6 +1169,9 @@ function MotorGraphs() {
   );
 }
 
+// Mantido durante a transição para preservar o contrato visual anterior como referência.
+void MotorGraphs;
+
 function formatTrendUnit(unit: string) {
   return unit === "PLC" ? "unidade PLC" : unit;
 }
@@ -1287,7 +1295,7 @@ function HistoryPagination({
 }
 
 function AlarmHistory() {
-  const period = useHistoryPeriod("24h", 31);
+  const period = useHistoryPeriod("today", 31);
   const [search, setSearch] = useState("");
   const [appliedSearch, setAppliedSearch] = useState("");
   const [state, setState] = useState("all");
@@ -1405,7 +1413,7 @@ function AlarmHistory() {
 }
 
 function CommandHistory() {
-  const period = useHistoryPeriod("24h", 31);
+  const period = useHistoryPeriod("today", 31);
   const [search, setSearch] = useState("");
   const [appliedSearch, setAppliedSearch] = useState("");
   const [rows, setRows] = useState<CommandEvent[]>([]);
@@ -1482,7 +1490,7 @@ function CommandHistory() {
 }
 
 function StatusHistory() {
-  const period = useHistoryPeriod("24h", 31);
+  const period = useHistoryPeriod("today", 31);
   const [search, setSearch] = useState("");
   const [appliedSearch, setAppliedSearch] = useState("");
   const [rows, setRows] = useState<StatusChange[]>([]);
