@@ -1022,10 +1022,15 @@ public sealed class SqliteHistorianRepository : IHistorianRepository
     public async Task<IReadOnlyList<PaperBreakEventRow>> GetPaperBreakEventsAsync(
         DateTimeOffset? fromUtc,
         DateTimeOffset? toUtc,
+        long? minimumDurationMilliseconds,
         int limit,
         CancellationToken cancellationToken)
     {
         ValidateLimit(limit);
+        if (minimumDurationMilliseconds is < 0)
+            throw new ArgumentOutOfRangeException(
+                nameof(minimumDurationMilliseconds),
+                "A duração mínima da quebra não pode ser negativa.");
         await using var connection = await OpenAsync(cancellationToken);
         await using var command = connection.CreateCommand();
         command.CommandText = """
@@ -1038,6 +1043,9 @@ public sealed class SqliteHistorianRepository : IHistorianRepository
             FROM PaperBreakEvents events
             WHERE (@FromUnixMs IS NULL OR StartedAtUnixMs >= @FromUnixMs)
               AND (@ToUnixMs IS NULL OR StartedAtUnixMs < @ToUnixMs)
+              AND (@MinimumDurationMilliseconds IS NULL
+                   OR DurationMilliseconds IS NULL
+                   OR DurationMilliseconds >= @MinimumDurationMilliseconds)
             ORDER BY StartedAtUnixMs DESC
             LIMIT @Limit;
             """;
@@ -1047,6 +1055,11 @@ public sealed class SqliteHistorianRepository : IHistorianRepository
         command.Parameters.AddWithValue(
             "@ToUnixMs",
             toUtc.HasValue ? toUtc.Value.ToUnixTimeMilliseconds() : DBNull.Value);
+        command.Parameters.AddWithValue(
+            "@MinimumDurationMilliseconds",
+            minimumDurationMilliseconds.HasValue
+                ? minimumDurationMilliseconds.Value
+                : DBNull.Value);
         command.Parameters.AddWithValue("@Limit", limit);
 
         var rows = new List<PaperBreakEventRow>();

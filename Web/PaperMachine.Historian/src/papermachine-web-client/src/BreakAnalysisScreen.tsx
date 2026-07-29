@@ -15,6 +15,7 @@ const InteractiveChart = lazy(() => import("./InteractiveChart"));
 
 type BreakEvent = {
   id: number; startedAtUtc: string; speedAtStartMpm: number;
+  endedAtUtc: string | null; durationMilliseconds: number | null;
   diagnosticSampleCount: number; analysisStatus: string;
   causeCategory: string | null; causeDescription: string | null;
   analysisNotes: string | null; analyzedBy: string | null;
@@ -78,6 +79,23 @@ function formatNumber(value: number | null, digits = 2) {
   return value === null ? "—" : value.toLocaleString("pt-BR", {
     minimumFractionDigits: digits, maximumFractionDigits: digits,
   });
+}
+function formatBreakDuration(event: BreakEvent) {
+  if (event.durationMilliseconds === null)
+    return event.endedAtUtc === null ? "Em andamento" : "—";
+
+  const seconds = Math.max(0, event.durationMilliseconds) / 1_000;
+  if (seconds < 60)
+    return `${formatNumber(seconds, 1)} s`;
+
+  const minutes = seconds / 60;
+  if (minutes < 60)
+    return `${formatNumber(minutes, 1)} min`;
+
+  const roundedMinutes = Math.round(minutes);
+  const hours = Math.floor(roundedMinutes / 60);
+  const remainingMinutes = roundedMinutes % 60;
+  return `${hours}h ${remainingMinutes.toString().padStart(2, "0")}min`;
 }
 function formatStoredValue(value: string | null) {
   if (value === null) return "—";
@@ -591,7 +609,17 @@ export default function BreakAnalysisScreen() {
               className={event.id === selectedId ? "active" : ""}
               onClick={() => setSelectedId(event.id)}>
               <div><b>#{index + 1}</b><time>{dateTime.format(new Date(event.startedAtUtc))}</time></div>
-              <span>{event.speedAtStartMpm.toFixed(1)} m/min</span>
+              <div className="break-event-metrics">
+                <span>{event.speedAtStartMpm.toFixed(1)} m/min</span>
+                <strong className={
+                  event.durationMilliseconds !== null &&
+                  event.durationMilliseconds < 60_000
+                    ? "short"
+                    : ""
+                }>
+                  {formatBreakDuration(event)}
+                </strong>
+              </div>
               <small>{event.diagnosticSampleCount} amostras · {event.analysisStatus}</small>
               {event.causeCategory && <em>{event.causeCategory}</em>}
             </button>
@@ -612,6 +640,7 @@ export default function BreakAnalysisScreen() {
           {!diagnostic ? <div className="break-empty">Selecione uma quebra com diagnóstico.</div> : <>
             <div className="break-overview">
               <article><span>Instante</span><b>{dateTime.format(new Date(diagnostic.event.startedAtUtc))}</b></article>
+              <article><span>Duração</span><b>{formatBreakDuration(diagnostic.event)}</b></article>
               <article><span>Velocidade T0</span><b>{diagnostic.event.speedAtStartMpm.toFixed(1)} <small>m/min</small></b></article>
               <article><span>Amostras</span><b>{diagnostic.samples.length}</b></article>
               <article><span>Evidências</span><b>{diagnostic.evidence.length}</b></article>

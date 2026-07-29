@@ -80,6 +80,7 @@ public interface IHistorianRepository
     Task<IReadOnlyList<PaperBreakEventRow>> GetPaperBreakEventsAsync(
         DateTimeOffset? fromUtc,
         DateTimeOffset? toUtc,
+        long? minimumDurationMilliseconds,
         int limit,
         CancellationToken cancellationToken);
     Task<HistoryPage<PaperBreakEventRow>> SearchPaperBreakEventsAsync(

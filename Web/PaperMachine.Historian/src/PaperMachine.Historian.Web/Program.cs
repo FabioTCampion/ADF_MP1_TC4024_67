@@ -428,6 +428,7 @@ api.MapGet(
         Results.Ok(await repository.GetPaperBreakEventsAsync(
             fromUtc,
             toUtc,
+            minimumDurationMilliseconds: null,
             limit ?? 250,
             cancellationToken)));
 

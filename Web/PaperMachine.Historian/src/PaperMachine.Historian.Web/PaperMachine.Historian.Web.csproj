@@ -6,6 +6,9 @@
     <ProjectReference Include="..\PaperMachine.Historian.Infrastructure.Database\PaperMachine.Historian.Infrastructure.Database.csproj" />
   </ItemGroup>
   <ItemGroup>
+    <InternalsVisibleTo Include="PaperMachine.Historian.Tests" />
+  </ItemGroup>
+  <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.Hosting.WindowsServices" Version="10.0.10" />
     <PackageReference Include="OpenSans" Version="1.0.1" GeneratePathProperty="true" />
     <PackageReference Include="PDFsharp-MigraDoc" Version="6.2.4" />

@@ -7,6 +7,7 @@ public sealed class ReportingOptions
     public string MachineName { get; init; } = "Máquina de Papel";
     public int MaximumRangeDays { get; init; } = 31;
     public int MaximumBreaks { get; init; } = 500;
+    public int MinimumBreakDurationSeconds { get; init; } = 60;
 
     public void Validate()
     {
@@ -19,5 +20,8 @@ public sealed class ReportingOptions
         if (MaximumBreaks is < 1 or > 5_000)
             throw new InvalidOperationException(
                 "Reporting:MaximumBreaks deve estar entre 1 e 5000.");
+        if (MinimumBreakDurationSeconds is < 1 or > 3_600)
+            throw new InvalidOperationException(
+                "Reporting:MinimumBreakDurationSeconds deve estar entre 1 e 3600.");
     }
 }

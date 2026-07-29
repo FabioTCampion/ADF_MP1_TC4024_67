@@ -145,10 +145,17 @@ public sealed class SqliteHistorianRepositoryTests
                 await repository.GetPaperBreakEventsAsync(
                     null,
                     null,
+                    minimumDurationMilliseconds: null,
                     10,
                     CancellationToken.None));
             Assert.Equal(2, paperBreak.DiagnosticSampleCount);
             Assert.Equal("Pendente", paperBreak.AnalysisStatus);
+            Assert.Empty(await repository.GetPaperBreakEventsAsync(
+                null,
+                null,
+                minimumDurationMilliseconds: 60_000,
+                10,
+                CancellationToken.None));
             var breakPage = await repository.SearchPaperBreakEventsAsync(
                 firstAt.AddMinutes(-1),
                 firstAt.AddMinutes(1),

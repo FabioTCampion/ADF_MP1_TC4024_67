@@ -10,6 +10,45 @@ namespace PaperMachine.Historian.Tests;
 public sealed class ProductionBreakReportServiceTests
 {
     [Fact]
+    public void AnalyzeBreaks_UsesOneMinuteAsInclusiveConfirmationBoundary()
+    {
+        var start = new DateTimeOffset(2026, 7, 28, 12, 0, 0, TimeSpan.Zero);
+        var events = new[]
+        {
+            BreakEvent(1, start, durationMilliseconds: 59_999),
+            BreakEvent(2, start.AddMinutes(2), durationMilliseconds: 60_000),
+            BreakEvent(3, start.AddMinutes(4), durationMilliseconds: 120_000)
+        };
+        var productivity = new MachineProductivityAnalysis(
+            TimeSpan.FromSeconds(5),
+            [],
+            [],
+            CoveredMinutes: 60,
+            ProductiveMinutes: 57,
+            UnproductiveMinutes: 3,
+            PaperPresentMinutes: 57,
+            ProductivityPercent: 95,
+            PaperPresencePercent: 95,
+            ProductiveAverageSpeed: 300,
+            GeneralAverageSpeed: 285,
+            MaximumSpeed: 320,
+            LongestProductiveRunMinutes: 57,
+            HourlyProductivity: new double[24],
+            HourlyUnproductiveMinutes: new double[24]);
+
+        var analysis = ProductionBreakReportService.AnalyzeBreaks(
+            events,
+            productivity,
+            start.AddHours(1),
+            start.AddHours(1),
+            TimeSpan.FromMinutes(1));
+
+        Assert.Equal([2L, 3L], analysis.Breaks.Select(item => item.Event.Id));
+        Assert.Equal(1.5, analysis.MttrMinutes);
+        Assert.Equal(2, analysis.HourlyBreaks.Sum());
+    }
+
+    [Fact]
     public async Task GenerateAsync_CreatesAValidOperationalPdf()
     {
         var testDirectory = Path.Combine(
@@ -134,4 +173,25 @@ public sealed class ProductionBreakReportServiceTests
                 "{}",
                 "{}")),
             CancellationToken.None);
+
+    private static PaperBreakEventRow BreakEvent(
+        long id,
+        DateTimeOffset startedAtUtc,
+        long durationMilliseconds) =>
+        new(
+            id,
+            startedAtUtc,
+            startedAtUtc.AddMilliseconds(durationMilliseconds),
+            durationMilliseconds,
+            ActiveAtStartup: false,
+            SpeedAtStartMpm: 300,
+            SpeedAtEndMpm: 300,
+            MappingVersion: "test",
+            DiagnosticSampleCount: 0,
+            AnalysisStatus: "Pendente",
+            CauseCategory: null,
+            CauseDescription: null,
+            AnalysisNotes: null,
+            AnalyzedBy: null,
+            AnalyzedAtUtc: null);
 }

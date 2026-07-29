@@ -53,6 +53,7 @@ public sealed class ProductionBreakReportService(
         var breaksTask = repository.GetPaperBreakEventsAsync(
             startUtc,
             endUtc,
+            options.MinimumBreakDurationSeconds * 1_000L,
             options.MaximumBreaks + 1,
             cancellationToken);
         await Task.WhenAll(samplesTask, breaksTask);
@@ -74,7 +75,8 @@ public sealed class ProductionBreakReportService(
             breaks.OrderBy(item => item.StartedAtUtc).ToArray(),
             productivity,
             endUtc,
-            generatedAt);
+            generatedAt,
+            TimeSpan.FromSeconds(options.MinimumBreakDurationSeconds));
         var data = new ProductionBreakReportData(
             options.MachineName.Trim(),
             localStart,
@@ -84,6 +86,7 @@ public sealed class ProductionBreakReportService(
                 ? "Usuário não identificado"
                 : requestedBy.Trim(),
             productiveSpeedMpm,
+            TimeSpan.FromSeconds(options.MinimumBreakDurationSeconds),
             productivity,
             analysis);
 
@@ -96,7 +99,7 @@ public sealed class ProductionBreakReportService(
             data.RequestedBy,
             start,
             end,
-            breaks.Count,
+            analysis.Breaks.Count,
             content.Length);
         return new GeneratedReport(content, fileName);
     }
@@ -118,12 +121,15 @@ public sealed class ProductionBreakReportService(
                 "A velocidade mínima produtiva deve estar entre 0 e 500 m/min.");
     }
 
-    private static BreakReportAnalysis AnalyzeBreaks(
+    internal static BreakReportAnalysis AnalyzeBreaks(
         IReadOnlyList<PaperBreakEventRow> breaks,
         MachineProductivityAnalysis productivity,
         DateTimeOffset periodEndUtc,
-        DateTimeOffset generatedAtUtc)
+        DateTimeOffset generatedAtUtc,
+        TimeSpan minimumBreakDuration)
     {
+        if (minimumBreakDuration < TimeSpan.Zero)
+            throw new ArgumentOutOfRangeException(nameof(minimumBreakDuration));
         var effectiveNow = generatedAtUtc < periodEndUtc ? generatedAtUtc : periodEndUtc;
         var analyzedBreaks = breaks
             .Select(item =>
@@ -138,6 +144,7 @@ public sealed class ProductionBreakReportService(
                     : (effectiveEnd - item.StartedAtUtc).TotalMinutes;
                 return new ReportBreak(item, Math.Max(0, duration));
             })
+            .Where(item => item.DurationMinutes >= minimumBreakDuration.TotalMinutes)
             .ToArray();
 
         var hourlyBreaks = new int[24];
@@ -385,7 +392,8 @@ public sealed class ProductionBreakReportService(
         note.AddText(
             $"Maior quebra: {FormatDuration(breaks.LongestBreakMinutes)} | " +
             $"MTTF com sequência produtiva identificada: {breaks.FailuresWithOperatingRun} | " +
-            $"Ciclo inferido: {FormatNumber(productivity.SampleInterval.TotalSeconds, 0)} s");
+            $"Ciclo inferido: {FormatNumber(productivity.SampleInterval.TotalSeconds, 0)} s | " +
+            $"Filtro mínimo: {FormatDuration(data.MinimumBreakDuration.TotalMinutes)}");
     }
 
     private static void AddHourlyPerformance(
@@ -658,6 +666,7 @@ public sealed class ProductionBreakReportService(
         DateTimeOffset GeneratedAt,
         string RequestedBy,
         double ProductiveSpeedMpm,
+        TimeSpan MinimumBreakDuration,
         MachineProductivityAnalysis Productivity,
         BreakReportAnalysis Breaks);
 }
