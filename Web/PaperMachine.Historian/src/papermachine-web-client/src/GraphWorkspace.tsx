@@ -4,6 +4,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import HistoryPeriodFilter, { useHistoryPeriod } from "./HistoryPeriodFilter";
@@ -207,6 +208,7 @@ function replaceFilter(
 
 export default function GraphWorkspace({ currentStatus }: GraphWorkspaceProps) {
   const period = useHistoryPeriod("today", 31);
+  const initialStatus = useRef(currentStatus);
   const [charts, setCharts] = useState<GraphPanel[]>(cloneDefaultCharts);
   const [layoutRevision, setLayoutRevision] = useState(0);
   const [layoutDirty, setLayoutDirty] = useState(false);
@@ -229,7 +231,7 @@ export default function GraphWorkspace({ currentStatus }: GraphWorkspaceProps) {
 
   useEffect(() => {
     let cancelled = false;
-    const fallbackCatalog = Object.entries(currentStatus)
+    const fallbackCatalog = Object.entries(initialStatus.current)
       .filter(([fieldName, value]) => isProcessVariable(fieldName, value))
       .map(([fieldName, value]) => describeVariable(fieldName, value));
 
@@ -271,7 +273,7 @@ export default function GraphWorkspace({ currentStatus }: GraphWorkspaceProps) {
         if (!cancelled) setInitializing(false);
       });
     return () => { cancelled = true; };
-  }, [currentStatus]);
+  }, []);
 
   const variableCatalog = useMemo(() => {
     const byField = new Map<string, ProcessVariable>();
