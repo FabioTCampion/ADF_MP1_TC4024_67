@@ -316,7 +316,7 @@ public static class DriveDiagnosticCatalog
 {
     public const string Model = "Delta C2000 Plus";
     public const string ManualReference =
-        "Delta C2000 Plus User Manual — capítulo 14, Fault Codes and Descriptions";
+        "Delta CMC-EC01 EtherCAT Operation Manual — objeto 603Fh (CiA 402 Error Code)";
 
     private static readonly IReadOnlyDictionary<string, string> AlarmToStatusPrefix =
         new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
@@ -353,7 +353,7 @@ public static class DriveDiagnosticCatalog
             !TryReadUInt32(status, $"{prefix}FaultEventCounter", out var eventCounter))
             return null;
 
-        var definition = C2000PlusFaultCatalog.Resolve(code);
+        var definition = Cia402ErrorCodeCatalog.Resolve(code);
         return new DriveFaultContext(
             Model,
             code,
@@ -392,116 +392,147 @@ public static class DriveDiagnosticCatalog
     }
 }
 
-public sealed record C2000PlusFaultDefinition(
+public sealed record Cia402ErrorCodeDefinition(
     string? Mnemonic,
     string Title,
     string Description,
     string RecommendedAction);
 
-public static class C2000PlusFaultCatalog
+public static class Cia402ErrorCodeCatalog
 {
-    private static readonly IReadOnlyDictionary<ushort, C2000PlusFaultDefinition> Entries =
+    private static readonly IReadOnlyDictionary<ushort, Cia402ErrorCodeDefinition> Entries =
         BuildEntries();
 
-    public static C2000PlusFaultDefinition Resolve(ushort code) =>
+    public static Cia402ErrorCodeDefinition Resolve(ushort code) =>
         Entries.TryGetValue(code, out var definition)
             ? definition
             : new(
                 null,
-                "Código C2000 Plus não cadastrado",
-                $"O inversor informou o código {code} (0x{code:X4}), ainda sem descrição cadastrada nesta versão.",
-                "Confirme o código no display do inversor e consulte o capítulo 14 do manual C2000 Plus antes de realizar o reset.");
+                "Código CiA 402 não cadastrado",
+                $"O objeto EtherCAT 603Fh informou 0x{code:X4} ({code}), ainda sem descrição específica cadastrada.",
+                "Registre o código hexadecimal, consulte o histórico interno do C2000 Plus e confirme a condição antes de realizar o reset.");
 
-    private static IReadOnlyDictionary<ushort, C2000PlusFaultDefinition> BuildEntries()
+    private static IReadOnlyDictionary<ushort, Cia402ErrorCodeDefinition> BuildEntries()
     {
         const string currentAction =
-            "Verifique curto-circuito, isolamento e cabos do motor, travamento mecânico, carga e dimensionamento do inversor.";
+            "Verifique curto-circuito, fuga à terra, cabos e isolamento do motor, travamento mecânico, carga e dimensionamento do inversor.";
         const string voltageAction =
-            "Verifique a tensão de alimentação e do barramento CC, tempos de aceleração/desaceleração, carga regenerativa e o sistema de frenagem.";
+            "Verifique tensão e equilíbrio da alimentação, fusíveis, contatores, bornes, barramento CC, rampas, regeneração e frenagem.";
         const string temperatureAction =
             "Verifique ventilação, filtros, ventiladores, temperatura ambiente, carga e sensores térmicos antes do reset.";
-        const string feedbackAction =
-            "Verifique encoder, alimentação, blindagem, aterramento, cabos e parâmetros do cartão de realimentação.";
+        const string communicationAction =
+            "Verifique o mestre EtherCAT, estado da rede, cabos, conectores, sincronismo, watchdog e configuração dos objetos de comunicação.";
         const string serviceAction =
             "Desenergize conforme o procedimento de segurança. Se a falha permanecer após a inspeção, encaminhe o inversor para assistência técnica.";
 
-        var entries = new Dictionary<ushort, C2000PlusFaultDefinition>();
-        Add(entries, 0, null, "Sem código de falha", "O objeto de diagnóstico não contém um código de falha ativo.", "Use o estado do alarme e a comunicação para confirmar a ocorrência.");
-        Add(entries, 1, "ocA", "Sobrecorrente durante a aceleração", "A corrente de saída ultrapassou o limite durante a aceleração.", currentAction);
-        Add(entries, 2, "ocd", "Sobrecorrente durante a desaceleração", "A corrente de saída ultrapassou o limite durante a desaceleração.", currentAction);
-        Add(entries, 3, "ocn", "Sobrecorrente em velocidade constante", "A corrente de saída ultrapassou o limite durante operação estável.", currentAction);
-        Add(entries, 4, "GFF", "Falha à terra", "Foi detectada corrente anormal entre a saída do inversor e o terra.", "Verifique isolamento do motor, cabos, caixa de ligação e aterramento antes de energizar.");
-        Add(entries, 5, "occ", "Curto-circuito no módulo IGBT", "O inversor detectou curto entre braços do módulo de potência.", serviceAction);
-        Add(entries, 6, "ocS", "Sobrecorrente com o drive parado", "Foi detectada sobrecorrente ou falha no circuito de medição com o inversor parado.", serviceAction);
-        Add(entries, 7, "ovA", "Sobretensão durante a aceleração", "O barramento CC ultrapassou o limite durante a aceleração.", voltageAction);
-        Add(entries, 8, "ovd", "Sobretensão durante a desaceleração", "O barramento CC ultrapassou o limite durante a desaceleração.", voltageAction);
-        Add(entries, 9, "ovn", "Sobretensão em velocidade constante", "O barramento CC ultrapassou o limite durante operação estável.", voltageAction);
-        Add(entries, 10, "ovS", "Sobretensão com o drive parado", "O barramento CC ultrapassou o limite com o inversor parado.", voltageAction);
-        Add(entries, 11, "LvA", "Subtensão durante a aceleração", "A tensão do barramento CC ficou abaixo do limite durante a aceleração.", voltageAction);
-        Add(entries, 12, "Lvd", "Subtensão durante a desaceleração", "A tensão do barramento CC ficou abaixo do limite durante a desaceleração.", voltageAction);
-        Add(entries, 13, "Lvn", "Subtensão em velocidade constante", "A tensão do barramento CC ficou abaixo do limite durante operação estável.", voltageAction);
-        Add(entries, 14, "LvS", "Subtensão com o drive parado", "A tensão do barramento CC ficou abaixo do limite com o inversor parado.", voltageAction);
-        Add(entries, 15, "OrP", "Falta de fase", "O inversor detectou ausência ou forte desequilíbrio de fase.", "Verifique fusíveis, contatores, bornes, cabos e equilíbrio da alimentação trifásica.");
-        Add(entries, 16, "oH1", "Superaquecimento do IGBT", "A temperatura do módulo de potência ultrapassou o limite.", temperatureAction);
-        Add(entries, 17, "oH2", "Superaquecimento do dissipador", "A temperatura do dissipador ultrapassou o limite.", temperatureAction);
-        Add(entries, 18, "tH1o", "Falha no sensor de temperatura do IGBT", "O circuito de medição da temperatura do IGBT apresentou falha.", serviceAction);
-        Add(entries, 19, "tH2o", "Falha térmica do módulo de capacitores", "O circuito térmico ou o hardware do módulo de capacitores apresentou falha.", serviceAction);
-        Add(entries, 21, "oL", "Sobrecarga do inversor", "A carga permaneceu acima da capacidade térmica configurada para o inversor.", "Verifique carga, aceleração, regime de trabalho, parâmetros do motor e dimensionamento.");
-        Add(entries, 22, "EoL1", "Proteção térmica eletrônica do motor 1", "O modelo térmico eletrônico indicou sobrecarga do motor 1.", "Verifique carga, ventilação do motor, corrente nominal e parâmetros da proteção térmica.");
-        Add(entries, 23, "EoL2", "Proteção térmica eletrônica do motor 2", "O modelo térmico eletrônico indicou sobrecarga do motor 2.", "Verifique carga, ventilação do motor, corrente nominal e parâmetros da proteção térmica.");
-        Add(entries, 24, "oH3", "Superaquecimento do motor", "O sensor PTC ou PT100 indicou temperatura excessiva no motor.", "Aguarde o resfriamento e verifique ventilação, carga, sensor e cabeamento.");
-        Add(entries, 26, "ot1", "Sobretorque 1", "O torque ultrapassou o nível de detecção configurado para a função 1.", "Verifique travamento, carga mecânica e parâmetros de detecção de sobretorque.");
-        Add(entries, 27, "ot2", "Sobretorque 2", "O torque ultrapassou o nível de detecção configurado para a função 2.", "Verifique travamento, carga mecânica e parâmetros de detecção de sobretorque.");
-        Add(entries, 28, "uC", "Corrente abaixo do limite", "A corrente de saída permaneceu abaixo do nível configurado.", "Verifique desacoplamento mecânico, correia, carga, motor e parâmetros de subcorrente.");
-        Add(entries, 29, "LiT", "Erro de limite", "O inversor detectou uma condição inválida de limite operacional.", "Verifique limites configurados, referências e condições mecânicas do acionamento.");
-        Add(entries, 30, "cF1", "Erro de gravação da EEPROM", "A memória interna não pôde ser programada.", serviceAction);
-        Add(entries, 31, "cF2", "Erro de leitura da EEPROM", "A memória interna não pôde ser lida.", serviceAction);
-        Add(entries, 33, "cd1", "Erro de medição da fase U", "O circuito de detecção de corrente da fase U apresentou falha.", serviceAction);
-        Add(entries, 34, "cd2", "Erro de medição da fase V", "O circuito de detecção de corrente da fase V apresentou falha.", serviceAction);
-        Add(entries, 35, "cd3", "Erro de medição da fase W", "O circuito de detecção de corrente da fase W apresentou falha.", serviceAction);
-        Add(entries, 36, "Hd0", "Erro de hardware do limitador de corrente", "O circuito de limitação de corrente apresentou falha.", serviceAction);
-        Add(entries, 37, "Hd1", "Erro de hardware de sobrecorrente", "O circuito de detecção de sobrecorrente apresentou falha.", serviceAction);
-        Add(entries, 38, "Hd2", "Erro de hardware de sobretensão", "O circuito de detecção de sobretensão apresentou falha.", serviceAction);
-        Add(entries, 39, "Hd3", "Erro de hardware do IGBT", "O circuito de detecção do módulo de potência apresentou falha.", serviceAction);
-        Add(entries, 40, "AUE", "Erro de autoajuste", "O procedimento de identificação automática do motor não foi concluído.", "Verifique cabos, dados de placa, capacidade do motor e condições para o autoajuste.");
-        Add(entries, 41, "AFE", "Perda do sinal PID", "O sinal de realimentação analógica do PID foi perdido.", "Verifique transmissor, alimentação, escala, cabos e entrada analógica configurada.");
-        Add(entries, 42, "PGF1", "Erro no feedback do encoder", "O inversor detectou sinal inválido no feedback do encoder.", feedbackAction);
-        Add(entries, 43, "PGF2", "Perda do feedback do encoder", "O sinal do encoder deixou de ser detectado.", feedbackAction);
-        Add(entries, 44, "PGF3", "Travamento detectado pelo encoder", "O feedback não acompanhou o movimento esperado.", feedbackAction);
-        Add(entries, 45, "PGF4", "Erro de escorregamento do encoder", "A diferença entre referência e feedback ultrapassou o limite.", feedbackAction);
-        Add(entries, 48, "ACE", "Perda da entrada ACI", "O sinal de corrente da entrada analógica ACI foi perdido.", "Verifique transmissor, alimentação, cabos, bornes e escala da entrada ACI.");
-        Add(entries, 49, "EF", "Falha externa", "Uma entrada configurada como falha externa foi acionada.", "Identifique o dispositivo ligado à entrada de falha externa e elimine a causa antes do reset.");
-        Add(entries, 50, "EF1", "Parada de emergência", "Uma entrada configurada como parada de emergência foi acionada.", "Confirme a segurança da área e libere o circuito somente após identificar a causa.");
-        Add(entries, 51, "bb", "Base block externo", "A saída do inversor foi bloqueada por um comando externo.", "Verifique a entrada de base block e o intertravamento responsável pelo bloqueio.");
-        Add(entries, 52, "Pcod", "Senha bloqueada", "O teclado foi bloqueado após tentativas de senha incorretas.", "Siga o procedimento autorizado para desbloqueio e configuração do inversor.");
-        Add(entries, 86, "UvoF", "Perda das fases UVW do encoder", "O cartão de feedback não detectou corretamente as fases UVW.", feedbackAction);
-        Add(entries, 87, "oL3", "Sobrecarga em baixa frequência", "O acionamento permaneceu sobrecarregado em baixa velocidade.", "Verifique ventilação do motor, carga, torque requerido e dimensionamento.");
-        Add(entries, 89, "RoPd", "Erro de detecção da posição do rotor", "A posição inicial do rotor não pôde ser determinada.", feedbackAction);
-        Add(entries, 90, "FStp", "Parada forçada", "O inversor recebeu ou gerou uma condição de parada forçada.", "Verifique entradas, intertravamentos e a origem do comando de parada.");
-        Add(entries, 92, "LEr", "Erro de ajuste Ld/Lq", "A identificação das indutâncias do motor não foi concluída.", "Verifique parâmetros, ligação e condições do motor antes de repetir o ajuste.");
-        Add(entries, 93, "TRAP", "Erro interno da CPU", "O firmware detectou uma condição interna inesperada.", serviceAction);
-        Add(entries, 101, "CGdE", "Erro de guarda CANopen", "A supervisão de comunicação CANopen expirou.", "Verifique rede, mestre, tempos de supervisão, cabos e terminação.");
-        Add(entries, 102, "CHbE", "Erro de heartbeat CANopen", "O heartbeat CANopen esperado não foi recebido.", "Verifique rede, mestre, tempos de heartbeat, cabos e terminação.");
-        Add(entries, 104, "CbFE", "CANopen em bus-off", "O controlador CANopen entrou em estado bus-off.", "Verifique curto, polaridade, blindagem, aterramento, terminação e taxa da rede.");
-        Add(entries, 105, "CidE", "Erro de índice CANopen", "Foi solicitado um objeto ou índice CANopen inválido.", "Confirme o dicionário de objetos e a configuração do mestre.");
-        Add(entries, 106, "CAdE", "Erro de endereço CANopen", "O endereço de estação CANopen é inválido ou está duplicado.", "Verifique o endereço configurado e possíveis duplicidades na rede.");
-        Add(entries, 107, "CFrE", "Erro de memória CANopen", "O módulo de comunicação detectou falha interna de memória.", serviceAction);
-        Add(entries, 111, "ictE", "Tempo esgotado na comunicação interna", "A comunicação interna entre módulos do inversor expirou.", serviceAction);
-        Add(entries, 112, "SfLK", "Rotor bloqueado em modo sensorless", "O controle sensorless detectou que o eixo não acompanhou o comando.", "Verifique travamento, carga, parâmetros do motor e capacidade de torque.");
-        Add(entries, 142, "AUE1", "Autoajuste: ausência de corrente", "Não foi detectada corrente durante a identificação do motor.", "Verifique contatores, cabos, ligação e dados de placa do motor.");
-        Add(entries, 143, "AUE2", "Autoajuste: falta de fase do motor", "O inversor detectou fase ausente durante o autoajuste.", "Verifique cabos, bornes e continuidade das três fases do motor.");
-        Add(entries, 144, "AUE3", "Autoajuste: erro de corrente sem carga", "A corrente sem carga não pôde ser medida corretamente.", "Verifique corrente nominal configurada, condição mecânica e funcionamento do motor.");
-        Add(entries, 148, "AUE4", "Autoajuste: erro de indutância", "A indutância de dispersão do motor não pôde ser medida.", "Verifique frequência base, dados do motor, ligação e condições para o autoajuste.");
-        Add(entries, 171, "oPEE", "Erro de posição excedida", "A posição ultrapassou o limite permitido pelo controle.", "Verifique referência, feedback, limites de posição e integridade mecânica.");
+        var entries = new Dictionary<ushort, Cia402ErrorCodeDefinition>();
+        Add(entries, 0x0000, "Sem erro", "O objeto 603Fh não contém um erro ativo.", "Use também o estado do inversor e o contador de eventos para confirmar a ocorrência.");
+        Add(entries, 0x1000, "Erro genérico", "O inversor informou uma falha genérica sem uma classe mais específica.", serviceAction);
+
+        Add(entries, 0x2000, "Falha de corrente", "Foi detectada uma condição anormal de corrente.", currentAction);
+        Add(entries, 0x2100, "Falha de corrente na entrada", "Foi detectada corrente anormal no lado de entrada.", currentAction);
+        Add(entries, 0x2110, "Sobrecorrente na entrada", "A corrente de entrada ultrapassou o limite permitido.", currentAction);
+        Add(entries, 0x2120, "Subcorrente na entrada", "A corrente de entrada ficou abaixo do limite esperado.", currentAction);
+        Add(entries, 0x2130, "Falha de fase na entrada", "Foi detectada perda ou desequilíbrio de fase na entrada.", voltageAction);
+        Add(entries, 0x2200, "Falha de corrente interna", "Foi detectada uma condição anormal de corrente dentro do inversor.", serviceAction);
+        Add(entries, 0x2210, "Sobrecorrente interna", "A corrente interna ultrapassou o limite permitido.", serviceAction);
+        Add(entries, 0x2220, "Subcorrente interna", "A corrente interna ficou abaixo do limite esperado.", serviceAction);
+        Add(entries, 0x2230, "Falha de fase de corrente interna", "O circuito interno detectou uma condição de fase anormal.", serviceAction);
+        Add(entries, 0x2300, "Falha de corrente na saída", "Foi detectada uma condição anormal na corrente de saída para o motor.", currentAction);
+        Add(entries, 0x2310, "Sobrecorrente contínua na saída", "A corrente de saída permaneceu acima do limite permitido.", currentAction);
+        Add(entries, 0x2320, "Curto-circuito ou fuga à terra", "Foi detectado curto-circuito ou corrente de fuga na saída.", currentAction);
+        Add(entries, 0x2330, "Nível de carga excessivo", "A carga do acionamento ultrapassou o nível permitido.", currentAction);
+
+        Add(entries, 0x3000, "Falha de tensão", "Foi detectada uma condição anormal de tensão.", voltageAction);
+        Add(entries, 0x3100, "Falha de tensão da rede", "A tensão de alimentação ficou fora da condição esperada.", voltageAction);
+        Add(entries, 0x3110, "Sobretensão da rede", "A tensão de alimentação ultrapassou o limite permitido.", voltageAction);
+        Add(entries, 0x3120, "Subtensão da rede", "A tensão de alimentação ficou abaixo do limite permitido.", voltageAction);
+        Add(entries, 0x3130, "Falta de fase na rede", "Foi detectada ausência ou forte desequilíbrio de fase na alimentação.", voltageAction);
+        Add(entries, 0x3200, "Falha de tensão no barramento CC", "A tensão do circuito intermediário CC ficou fora da condição esperada.", voltageAction);
+        Add(entries, 0x3210, "Sobretensão no barramento CC", "A tensão do circuito intermediário CC ultrapassou o limite permitido.", voltageAction);
+        Add(
+            entries,
+            0x3220,
+            "Subtensão no barramento CC",
+            "O objeto 603Fh informou que a tensão do circuito intermediário CC ficou abaixo do limite permitido.",
+            "Verifique alimentação, falta ou desequilíbrio de fase, contatores, fusíveis, bornes e quedas de tensão; confira o histórico interno do C2000 Plus para identificar a etapa da operação.");
+        Add(entries, 0x3230, "Falha de carga no barramento CC", "Foi detectada uma condição anormal de carga no circuito intermediário CC.", voltageAction);
+        Add(entries, 0x3300, "Falha de tensão na saída", "A tensão de saída para o motor ficou fora da condição esperada.", voltageAction);
+        Add(entries, 0x3310, "Sobretensão na saída", "A tensão de saída ultrapassou o limite permitido.", voltageAction);
+        Add(entries, 0x3320, "Subtensão na saída", "A tensão de saída ficou abaixo do limite permitido.", voltageAction);
+        Add(entries, 0x3330, "Falta de fase na saída", "Foi detectada ausência ou condição anormal de fase na saída.", currentAction);
+
+        Add(entries, 0x4000, "Falha de temperatura", "Foi detectada uma condição térmica anormal.", temperatureAction);
+        Add(entries, 0x4100, "Temperatura ambiente", "A temperatura ambiente ficou fora da faixa permitida.", temperatureAction);
+        Add(entries, 0x4110, "Temperatura ambiente excessiva", "A temperatura ambiente ultrapassou o limite permitido.", temperatureAction);
+        Add(entries, 0x4120, "Temperatura ambiente baixa", "A temperatura ambiente ficou abaixo do limite permitido.", temperatureAction);
+        Add(entries, 0x4200, "Temperatura do equipamento", "A temperatura interna do equipamento ficou fora da faixa permitida.", temperatureAction);
+        Add(entries, 0x4210, "Equipamento superaquecido", "A temperatura interna do equipamento ultrapassou o limite permitido.", temperatureAction);
+        Add(entries, 0x4220, "Temperatura interna baixa", "A temperatura interna do equipamento ficou abaixo do limite permitido.", temperatureAction);
+        Add(entries, 0x4300, "Temperatura do acionamento", "A temperatura do acionamento ficou fora da faixa permitida.", temperatureAction);
+        Add(entries, 0x4310, "Acionamento superaquecido", "A temperatura do acionamento ultrapassou o limite permitido.", temperatureAction);
+        Add(entries, 0x4320, "Temperatura baixa no acionamento", "A temperatura do acionamento ficou abaixo do limite permitido.", temperatureAction);
+        Add(entries, 0x4400, "Temperatura da alimentação", "A temperatura do estágio de alimentação ficou fora da faixa permitida.", temperatureAction);
+        Add(entries, 0x4410, "Alimentação superaquecida", "A temperatura do estágio de alimentação ultrapassou o limite permitido.", temperatureAction);
+        Add(entries, 0x4420, "Temperatura baixa na alimentação", "A temperatura do estágio de alimentação ficou abaixo do limite permitido.", temperatureAction);
+        Add(entries, 0x4500, "Temperatura do drive", "A temperatura do drive ficou fora da faixa permitida.", temperatureAction);
+        Add(entries, 0x4510, "Drive superaquecido", "A temperatura do drive ultrapassou o limite permitido.", temperatureAction);
+        Add(entries, 0x4520, "Temperatura baixa no drive", "A temperatura do drive ficou abaixo do limite permitido.", temperatureAction);
+
+        Add(entries, 0x5000, "Falha de hardware", "O inversor detectou uma falha de hardware.", serviceAction);
+        Add(entries, 0x5100, "Falha na fonte interna", "A fonte interna do inversor ficou fora da condição esperada.", serviceAction);
+        Add(entries, 0x5110, "Baixa tensão na fonte interna", "A tensão da fonte interna ficou abaixo do limite permitido.", serviceAction);
+        Add(entries, 0x5120, "Alta tensão na fonte interna", "A tensão da fonte interna ultrapassou o limite permitido.", serviceAction);
+        Add(entries, 0x5200, "Falha no controle", "O hardware de controle detectou uma condição anormal.", serviceAction);
+        Add(entries, 0x5210, "Falha no circuito de medição", "O circuito de medição apresentou uma condição anormal.", serviceAction);
+        Add(entries, 0x5220, "Falha no circuito de processamento", "O circuito de processamento apresentou uma condição anormal.", serviceAction);
+        Add(entries, 0x5300, "Falha na unidade de operação", "A interface ou unidade de operação apresentou uma falha.", serviceAction);
+        Add(entries, 0x5400, "Falha no estágio de potência", "O estágio de potência apresentou uma condição anormal.", serviceAction);
+        Add(entries, 0x5410, "Falha no estágio de saída", "O estágio de saída apresentou uma condição anormal.", serviceAction);
+        Add(entries, 0x5420, "Falha no chopper de frenagem", "O circuito chopper de frenagem apresentou uma condição anormal.", serviceAction);
+        Add(entries, 0x5430, "Falha no estágio de entrada", "O estágio de entrada apresentou uma condição anormal.", serviceAction);
+
+        Add(entries, 0x6000, "Falha de software", "O inversor detectou uma falha de software.", serviceAction);
+        Add(entries, 0x6100, "Falha de software interno", "O software interno detectou uma condição anormal.", serviceAction);
+        Add(entries, 0x6200, "Falha de software de aplicação", "A aplicação ou parametrização detectou uma condição anormal.", "Verifique parâmetros e sequência de operação; se persistir, registre o evento e acione a assistência técnica.");
+        Add(entries, 0x6300, "Erro no conjunto de parâmetros", "Foi detectada inconsistência em dados ou parâmetros armazenados.", "Valide o conjunto de parâmetros e restaure uma cópia homologada antes de operar.");
+
+        Add(entries, 0x7000, "Falha em módulo adicional", "Um módulo adicional do acionamento apresentou uma condição anormal.", serviceAction);
+        Add(entries, 0x7100, "Falha no módulo de potência", "O módulo de potência apresentou uma condição anormal.", serviceAction);
+        Add(entries, 0x7110, "Falha na resistência ou chopper de frenagem", "O sistema de frenagem apresentou uma condição anormal.", voltageAction);
+        Add(entries, 0x7120, "Falha do motor", "Foi detectada uma condição anormal relacionada ao motor.", currentAction);
+        Add(entries, 0x7200, "Falha de medição", "Um sistema de medição apresentou uma condição anormal.", serviceAction);
+        Add(entries, 0x7300, "Falha de sensor", "Um sensor do acionamento apresentou sinal ausente ou inválido.", "Verifique alimentação, cabos, conectores, blindagem, aterramento e parametrização do sensor.");
+        Add(entries, 0x7310, "Falha no sensor de velocidade", "O sinal de velocidade está ausente ou inválido.", "Verifique encoder, alimentação, cabos, conectores, blindagem e parametrização.");
+        Add(entries, 0x7320, "Falha no sensor de posição", "O sinal de posição está ausente ou inválido.", "Verifique encoder, alimentação, cabos, conectores, blindagem e parametrização.");
+        Add(entries, 0x7400, "Falha no circuito de cálculo", "O circuito responsável pelos cálculos de controle apresentou uma condição anormal.", serviceAction);
+        Add(entries, 0x7500, "Falha de comunicação", "Uma interface de comunicação apresentou uma condição anormal.", communicationAction);
+        Add(entries, 0x7510, "Falha na interface serial 1", "A primeira interface serial apresentou uma condição anormal.", communicationAction);
+        Add(entries, 0x7520, "Falha na interface serial 2", "A segunda interface serial apresentou uma condição anormal.", communicationAction);
+        Add(entries, 0x7600, "Falha no armazenamento de dados", "O armazenamento de dados ou parâmetros apresentou uma condição anormal.", serviceAction);
+
+        Add(entries, 0x8000, "Falha de supervisão", "Uma função de supervisão detectou uma condição anormal.", "Verifique intertravamentos, limites configurados, sinais de realimentação e sequência de operação.");
+        Add(entries, 0x8100, "Falha de supervisão da comunicação", "A supervisão da comunicação detectou perda ou inconsistência de dados.", communicationAction);
+        Add(entries, 0x8110, "Estouro do barramento CAN", "O controlador CAN recebeu mais dados do que conseguiu processar.", communicationAction);
+        Add(entries, 0x8120, "CAN em estado passivo", "O controlador CAN entrou em estado de erro passivo.", communicationAction);
+        Add(entries, 0x8130, "Falha de heartbeat ou life guard", "A mensagem de supervisão esperada não foi recebida.", communicationAction);
+        Add(entries, 0x8140, "Recuperação de bus-off", "A interface CAN registrou recuperação após estado bus-off.", communicationAction);
+        Add(entries, 0x8150, "Colisão de COB-ID", "Foi detectada duplicidade de identificador na rede CANopen.", communicationAction);
+        Add(entries, 0x8200, "Erro de protocolo", "A pilha de comunicação detectou uma violação de protocolo.", communicationAction);
+        Add(entries, 0x8210, "Comprimento incorreto de PDO", "O PDO recebido possui comprimento diferente do configurado.", communicationAction);
+        Add(entries, 0x8220, "Comprimento de PDO excedido", "O PDO excedeu o comprimento permitido.", communicationAction);
+
+        Add(entries, 0x9000, "Erro externo", "Uma entrada ou equipamento externo informou uma condição de falha.", "Identifique o intertravamento ou dispositivo externo que originou a falha antes do reset.");
+        Add(entries, 0xF000, "Função adicional", "Uma função adicional do perfil informou uma condição de erro.", "Registre o código e consulte a documentação da função correspondente.");
+        Add(entries, 0xFF00, "Erro específico do fabricante", "O inversor informou uma falha específica do fabricante.", "Consulte o histórico interno e o manual do Delta C2000 Plus usando o código exibido no teclado.");
         return entries;
     }
 
     private static void Add(
-        IDictionary<ushort, C2000PlusFaultDefinition> entries,
+        IDictionary<ushort, Cia402ErrorCodeDefinition> entries,
         ushort code,
-        string? mnemonic,
         string title,
         string description,
         string action) =>
-        entries.Add(code, new(mnemonic, title, description, action));
+        entries.Add(code, new(null, title, description, action));
 }

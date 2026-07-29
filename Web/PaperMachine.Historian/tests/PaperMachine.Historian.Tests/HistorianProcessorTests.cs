@@ -205,7 +205,7 @@ public sealed class HistorianProcessorTests
     }
 
     [Fact]
-    public void DriveAlarmIncludesPortugueseCatalogCodeAndTorqueCapturedByPlc()
+    public void DriveAlarmResolvesCia402DcLinkUndervoltageCodeAndTorqueCapturedByPlc()
     {
         var processor = CreateProcessor();
         var firstAt = new DateTimeOffset(2026, 7, 24, 12, 0, 0, TimeSpan.Zero);
@@ -213,7 +213,7 @@ public sealed class HistorianProcessorTests
             firstAt,
             """
             {
-              "dryingSectionGroup1UpperMasterFaultCode": 1,
+              "dryingSectionGroup1UpperMasterFaultCode": 12832,
               "dryingSectionGroup1UpperMasterFaultTorque": 0.0,
               "dryingSectionGroup1UpperMasterFaultEventCounter": 0
             }
@@ -225,7 +225,7 @@ public sealed class HistorianProcessorTests
             firstAt.AddSeconds(1),
             """
             {
-              "dryingSectionGroup1UpperMasterFaultCode": 1,
+              "dryingSectionGroup1UpperMasterFaultCode": 12832,
               "dryingSectionGroup1UpperMasterFaultTorque": 82.35,
               "dryingSectionGroup1UpperMasterFaultEventCounter": 7
             }
@@ -238,9 +238,12 @@ public sealed class HistorianProcessorTests
         Assert.Contains("Falha", alarm.Definition.DisplayName);
         Assert.NotNull(alarm.DriveFault);
         Assert.Equal("Delta C2000 Plus", alarm.DriveFault.Model);
-        Assert.Equal((ushort)1, alarm.DriveFault.Code);
-        Assert.Equal("0x0001", alarm.DriveFault.CodeHex);
-        Assert.Equal("ocA", alarm.DriveFault.Mnemonic);
+        Assert.Equal((ushort)0x3220, alarm.DriveFault.Code);
+        Assert.Equal("0x3220", alarm.DriveFault.CodeHex);
+        Assert.Null(alarm.DriveFault.Mnemonic);
+        Assert.Equal("Subtensão no barramento CC", alarm.DriveFault.Title);
+        Assert.Contains("603Fh", alarm.DriveFault.Description);
+        Assert.Contains("objeto 603Fh", alarm.DriveFault.ManualReference);
         Assert.Equal(82.35, alarm.DriveFault.TorqueAtTrip);
         Assert.Equal((uint)7, alarm.DriveFault.EventCounter);
     }
