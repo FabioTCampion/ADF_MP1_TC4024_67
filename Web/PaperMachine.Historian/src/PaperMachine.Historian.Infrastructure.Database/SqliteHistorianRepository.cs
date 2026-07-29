@@ -8,7 +8,7 @@ namespace PaperMachine.Historian.Infrastructure.Database;
 
 public sealed class SqliteHistorianRepository : IHistorianRepository
 {
-    private const int SchemaVersion = 7;
+    private const int SchemaVersion = 8;
     private readonly string _databasePath;
     private readonly string _connectionString;
     private readonly SemaphoreSlim _writeGate = new(1, 1);
@@ -144,6 +144,12 @@ public sealed class SqliteHistorianRepository : IHistorianRepository
         await EnsurePaperBreakDiagnosticSchemaAsync(connection, cancellationToken);
         await EnsureUserBreakAnalysisFilterSchemaAsync(connection, cancellationToken);
         await EnsureUserGraphLayoutSchemaAsync(connection, cancellationToken);
+        var driveCatalogMigrationApplied = await ScalarAsync<long>(
+            connection,
+            "SELECT COUNT(*) FROM SchemaMigrations WHERE Version = 8;",
+            cancellationToken) > 0;
+        if (!driveCatalogMigrationApplied)
+            await RefreshPersistedDriveFaultDiagnosticsAsync(connection, cancellationToken);
         await ExecuteAsync(
             connection,
             null,
@@ -158,6 +164,8 @@ public sealed class SqliteHistorianRepository : IHistorianRepository
             VALUES (6, @AppliedAtUtc);
             INSERT OR IGNORE INTO SchemaMigrations (Version, AppliedAtUtc)
             VALUES (7, @AppliedAtUtc);
+            INSERT OR IGNORE INTO SchemaMigrations (Version, AppliedAtUtc)
+            VALUES (8, @AppliedAtUtc);
             """,
             cancellationToken,
             ("@AppliedAtUtc", ToDatabaseTimestamp(DateTimeOffset.UtcNow)));
@@ -169,6 +177,59 @@ public sealed class SqliteHistorianRepository : IHistorianRepository
         if (version != SchemaVersion)
             throw new InvalidOperationException(
                 $"Unsupported historian database schema version {version}; expected {SchemaVersion}.");
+    }
+
+    private static async Task RefreshPersistedDriveFaultDiagnosticsAsync(
+        SqliteConnection connection,
+        CancellationToken cancellationToken)
+    {
+        var faults = new List<(long Id, ushort Code)>();
+        await using (var select = connection.CreateCommand())
+        {
+            select.CommandText = """
+                SELECT Id, DriveFaultCode
+                FROM AlarmEvents
+                WHERE DriveFaultCode BETWEEN 0 AND 65535;
+                """;
+            await using var reader = await select.ExecuteReaderAsync(cancellationToken);
+            while (await reader.ReadAsync(cancellationToken))
+            {
+                faults.Add((
+                    reader.GetInt64(0),
+                    checked((ushort)reader.GetInt32(1))));
+            }
+        }
+
+        await using var transaction =
+            (SqliteTransaction)await connection.BeginTransactionAsync(cancellationToken);
+        foreach (var fault in faults)
+        {
+            var definition = Cia402ErrorCodeCatalog.Resolve(fault.Code);
+            await ExecuteAsync(
+                connection,
+                transaction,
+                """
+                UPDATE AlarmEvents
+                SET DriveModel = @DriveModel,
+                    DriveFaultCodeHex = @DriveFaultCodeHex,
+                    DriveFaultMnemonic = @DriveFaultMnemonic,
+                    DriveFaultTitle = @DriveFaultTitle,
+                    DriveFaultDescription = @DriveFaultDescription,
+                    DriveRecommendedAction = @DriveRecommendedAction,
+                    ManualReference = @ManualReference
+                WHERE Id = @Id;
+                """,
+                cancellationToken,
+                ("@DriveModel", DriveDiagnosticCatalog.Model),
+                ("@DriveFaultCodeHex", $"0x{fault.Code:X4}"),
+                ("@DriveFaultMnemonic", definition.Mnemonic),
+                ("@DriveFaultTitle", definition.Title),
+                ("@DriveFaultDescription", definition.Description),
+                ("@DriveRecommendedAction", definition.RecommendedAction),
+                ("@ManualReference", DriveDiagnosticCatalog.ManualReference),
+                ("@Id", fault.Id));
+        }
+        await transaction.CommitAsync(cancellationToken);
     }
 
     public async Task PersistCycleAsync(HistorianCycle cycle, CancellationToken cancellationToken)

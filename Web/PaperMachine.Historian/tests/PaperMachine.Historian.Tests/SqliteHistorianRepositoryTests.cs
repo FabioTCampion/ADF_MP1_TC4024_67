@@ -228,4 +228,71 @@ public sealed class SqliteHistorianRepositoryTests
                 Directory.Delete(testDirectory, recursive: true);
         }
     }
+
+    [Fact]
+    public async Task UpgradesPersistedDriveFaultDescriptionsToCia402Catalog()
+    {
+        var testDirectory = Path.Combine(
+            Path.GetTempPath(),
+            "PaperMachine.Historian.Tests",
+            Guid.NewGuid().ToString("N"));
+        var databasePath = Path.Combine(testDirectory, "historian.db");
+
+        try
+        {
+            var repository = new SqliteHistorianRepository(
+                new DatabaseOptions { FilePath = databasePath });
+            await repository.InitializeAsync(CancellationToken.None);
+
+            await using (var connection =
+                new SqliteConnection($"Data Source={databasePath}"))
+            {
+                await connection.OpenAsync();
+                await using var command = connection.CreateCommand();
+                command.CommandText = """
+                    DELETE FROM SchemaMigrations WHERE Version = 8;
+                    INSERT INTO AlarmEvents
+                        (AlarmName, ActivatedAtUtc, ActiveAtStartup, MappingVersion,
+                         DriveModel, DriveFaultCode, DriveFaultCodeHex,
+                         DriveFaultMnemonic, DriveFaultTitle, DriveFaultDescription,
+                         DriveRecommendedAction, ManualReference)
+                    VALUES
+                        ('mixingPumpFaultAlarm',
+                         '2026-07-29T12:00:00.0000000+00:00',
+                         0,
+                         'legacy-test',
+                         'Delta C2000 Plus',
+                         12832,
+                         '0x3220',
+                         NULL,
+                         'Código C2000 Plus não cadastrado',
+                         'Descrição anterior incorreta.',
+                         'Ação anterior.',
+                         'Referência anterior.');
+                    """;
+                await command.ExecuteNonQueryAsync();
+            }
+
+            await repository.InitializeAsync(CancellationToken.None);
+
+            var alarm = Assert.Single(
+                await repository.GetAlarmEventsAsync(
+                    null,
+                    null,
+                    null,
+                    10,
+                    CancellationToken.None));
+            Assert.Equal(0x3220, alarm.DriveFaultCode);
+            Assert.Equal("0x3220", alarm.DriveFaultCodeHex);
+            Assert.Equal("Subtensão no barramento CC", alarm.DriveFaultTitle);
+            Assert.Contains("603Fh", alarm.DriveFaultDescription);
+            Assert.Contains("objeto 603Fh", alarm.ManualReference);
+        }
+        finally
+        {
+            SqliteConnection.ClearAllPools();
+            if (Directory.Exists(testDirectory))
+                Directory.Delete(testDirectory, recursive: true);
+        }
+    }
 }
