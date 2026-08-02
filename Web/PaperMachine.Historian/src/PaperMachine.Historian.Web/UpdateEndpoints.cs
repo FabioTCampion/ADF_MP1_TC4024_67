@@ -9,8 +9,7 @@ internal static class UpdateEndpoints
     {
         var updates = app.MapGroup("/api/updates")
             .RequireAuthorization(policy =>
-                policy.RequireRole(HistorianRoles.Administrator))
-            .RequireRateLimiting("updates");
+                policy.RequireRole(HistorianRoles.Administrator));
 
         updates.MapGet(
             "/status",
@@ -28,7 +27,8 @@ internal static class UpdateEndpoints
                 UpdateOptions options,
                 CancellationToken cancellationToken) =>
                 await ExecuteAsync(
-                    () => service.CheckAsync(options.AutoDownload, cancellationToken)));
+                    () => service.CheckAsync(options.AutoDownload, cancellationToken)))
+            .RequireRateLimiting("updates");
 
         updates.MapPost(
             "/download",
@@ -36,7 +36,8 @@ internal static class UpdateEndpoints
                 ApplicationUpdateService service,
                 CancellationToken cancellationToken) =>
                 await ExecuteAsync(
-                    () => service.DownloadAsync(cancellationToken)));
+                    () => service.DownloadAsync(cancellationToken)))
+            .RequireRateLimiting("updates");
 
         updates.MapPost(
             "/install",
@@ -52,7 +53,8 @@ internal static class UpdateEndpoints
                         principal.Identity?.Name ?? "administrator",
                         cancellationToken);
                     return Results.Accepted("/api/updates/status", status);
-                }));
+                }))
+            .RequireRateLimiting("updates");
     }
 
     private static async Task<IResult> ExecuteAsync(

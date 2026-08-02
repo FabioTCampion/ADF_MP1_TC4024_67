@@ -94,6 +94,11 @@ async function updateRequest(
     window.location.reload();
     throw new Error("Sessão expirada.");
   }
+  if (response.status === 503) {
+    throw new Error(
+      "Limite temporário de ações atingido. Aguarde um minuto e tente novamente.",
+    );
+  }
   if (!response.ok) {
     const result = (await response.json().catch(() => null)) as { error?: string } | null;
     throw new Error(result?.error ?? `Operação falhou (${response.status}).`);

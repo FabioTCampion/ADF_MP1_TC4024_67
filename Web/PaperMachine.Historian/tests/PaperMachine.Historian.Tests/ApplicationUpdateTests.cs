@@ -1,4 +1,9 @@
 using System.IO.Compression;
+using System.Threading.RateLimiting;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.AspNetCore.Routing;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using PaperMachine.Historian.Web;
 
@@ -6,6 +11,57 @@ namespace PaperMachine.Historian.Tests;
 
 public sealed class ApplicationUpdateTests
 {
+    [Fact]
+    public async Task AppliesUpdateRateLimitOnlyToMutationEndpoints()
+    {
+        var builder = WebApplication.CreateBuilder();
+        builder.Services.AddAuthorization();
+        builder.Services.AddSingleton<ApplicationUpdateService>(_ => null!);
+        builder.Services.AddSingleton(new UpdateOptions());
+        builder.Services.AddRateLimiter(options =>
+            options.AddFixedWindowLimiter(
+                "updates",
+                limiter =>
+                {
+                    limiter.PermitLimit = 10;
+                    limiter.Window = TimeSpan.FromMinutes(1);
+                    limiter.QueueLimit = 0;
+                }));
+        await using var app = builder.Build();
+        app.MapHistorianUpdates();
+
+        var endpoints = ((IEndpointRouteBuilder)app).DataSources
+            .SelectMany(source => source.Endpoints)
+            .OfType<RouteEndpoint>()
+            .ToArray();
+        foreach (var path in new[]
+                 {
+                     "/api/updates/status",
+                     "/api/updates/logs/latest"
+                 })
+        {
+            var endpoint = Assert.Single(
+                endpoints,
+                candidate => candidate.RoutePattern.RawText == path);
+            Assert.Empty(endpoint.Metadata.OfType<EnableRateLimitingAttribute>());
+        }
+
+        foreach (var path in new[]
+                 {
+                     "/api/updates/check",
+                     "/api/updates/download",
+                     "/api/updates/install"
+                 })
+        {
+            var endpoint = Assert.Single(
+                endpoints,
+                candidate => candidate.RoutePattern.RawText == path);
+            var limiter = Assert.Single(
+                endpoint.Metadata.OfType<EnableRateLimitingAttribute>());
+            Assert.Equal("updates", limiter.PolicyName);
+        }
+    }
+
     [Theory]
     [InlineData("v0.1.3", "0.1.2", true)]
     [InlineData("0.1.2", "0.1.2", false)]
