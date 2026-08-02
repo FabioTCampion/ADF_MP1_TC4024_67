@@ -100,16 +100,23 @@ risco de acesso a dados de produção.
 - após 180 segundos sem sucesso, o painel marca os dados como desatualizados;
 - falhas consecutivas usam espera de 1, 2, 4 e no máximo 5 minutos.
 
-## Modelo genérico e schema 9
+## Modelo genérico e schema 10
 
 O contrato interno usa nomes independentes do fornecedor. O adaptador atual é
 `PaperSystemProductionSourceClient`, atrás de `IProductionSourceClient`.
 
-O schema 9 contém `ExternalProductionRuns`, `ExternalProductionRunItems`,
+O schema 10 contém `ExternalProductionRuns`, `ExternalProductionRunItems`,
 `ExternalProductionReferences`, `ExternalProductionSnapshots`,
 `ProductionQualityPeriods` e `IntegrationSyncState`. O JSON bruto só é gravado
-quando muda. A qualidade é `ProductCode + GrammageGsm`; respostas com mais de
-uma combinação são marcadas `MIXED` em vez de escolher um item arbitrariamente.
+quando muda. O formato atual é a soma dos três primeiros formatos positivos do
+mapa. A receita é `ProductCode + GrammageGsm + ProductionWidthMm`.
+
+Os itens representam o destino dos jumbos depois da rebobinadeira; não
+representam produção simultânea de qualidades diferentes na máquina de papel.
+Uma divergência de produto ou gramatura é mantida como sinal de conferência da
+origem, sem presumir uma qualidade arbitrária. O painel combina formato e
+gramatura do ERP com a velocidade ADS e mostra a taxa teórica instantânea
+somente quando o ERP está atualizado, a máquina está produzindo e há papel.
 
 ## Backup, atualização e rollback
 

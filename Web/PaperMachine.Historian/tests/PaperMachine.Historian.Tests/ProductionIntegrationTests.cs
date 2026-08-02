@@ -27,7 +27,7 @@ public sealed class ProductionIntegrationTests
     }
 
     [Fact]
-    public void PaperSystemMappingPreservesContextAndDetectsMixedQuality()
+    public void PaperSystemMappingPreservesContextAndBuildsProductionRecipe()
     {
         var response = new PaperSystemProductionSourceClient.PaperSystemResponse
         {
@@ -42,6 +42,7 @@ public sealed class ProductionIntegrationTests
                     CustomerName = "P2A EMBALAGENS",
                     Order = 1984,
                     ProductCode = "MIOLO",
+                    Format = 1130,
                     Grammage = 100,
                     PlannedQuantityKg = 7751
                 },
@@ -50,8 +51,21 @@ public sealed class ProductionIntegrationTests
                     CustomerName = "GRUPO MERCO",
                     Order = 1954,
                     ProductCode = "MIOLO",
+                    Format = 600,
                     Grammage = 100,
                     PlannedQuantityKg = 14405
+                },
+                new PaperSystemProductionSourceClient.PaperSystemItem
+                {
+                    ProductCode = "MIOLO",
+                    Format = 70,
+                    Grammage = 100
+                },
+                new PaperSystemProductionSourceClient.PaperSystemItem
+                {
+                    ProductCode = "MIOLO",
+                    Format = 999,
+                    Grammage = 100
                 }
             ],
             Jumbos = [12380, 12381]
@@ -64,9 +78,10 @@ public sealed class ProductionIntegrationTests
 
         Assert.Equal("8609", observation.ExternalRunId);
         Assert.Equal("1193", observation.ProductionOrderCode);
-        Assert.Equal("MIOLO-100", observation.QualityKey);
+        Assert.Equal("MIOLO-100-1800", observation.QualityKey);
+        Assert.Equal(1800m, observation.ProductionWidthMm);
         Assert.False(observation.IsMixedQuality);
-        Assert.Equal(2, observation.Items.Count);
+        Assert.Equal(4, observation.Items.Count);
         Assert.Equal("12381", observation.References[1].ReferenceValue);
 
         response = new PaperSystemProductionSourceClient.PaperSystemResponse
@@ -76,9 +91,9 @@ public sealed class ProductionIntegrationTests
             Items =
             [
                 new PaperSystemProductionSourceClient.PaperSystemItem
-                    { ProductCode = "MIOLO", Grammage = 100 },
+                    { ProductCode = "MIOLO", Format = 1000, Grammage = 100 },
                 new PaperSystemProductionSourceClient.PaperSystemItem
-                    { ProductCode = "CAPA", Grammage = 120 }
+                    { ProductCode = "CAPA", Format = 700, Grammage = 120 }
             ]
         };
         observation = PaperSystemProductionSourceClient.Map(
@@ -104,7 +119,7 @@ public sealed class ProductionIntegrationTests
             await new SqliteHistorianRepository(options).InitializeAsync(CancellationToken.None);
             var repository = new SqliteProductionIntegrationRepository(options);
             var firstAt = new DateTimeOffset(2026, 8, 1, 12, 0, 0, TimeSpan.Zero);
-            var observation = Observation(firstAt, true, "MIOLO-100", "payload-a");
+            var observation = Observation(firstAt, true, "MIOLO-100-1130", "payload-a");
 
             await repository.ApplyObservationAsync(observation, CancellationToken.None);
             await repository.ApplyObservationAsync(
@@ -114,7 +129,8 @@ public sealed class ProductionIntegrationTests
             var state = await repository.GetStateAsync("PaperSystem", CancellationToken.None);
             Assert.Equal("Online", state.Status);
             Assert.True(state.CurrentRun!.IsProducing);
-            Assert.Equal("MIOLO-100", state.CurrentRun.QualityKey);
+            Assert.Equal("MIOLO-100-1130", state.CurrentRun.QualityKey);
+            Assert.Equal(1130m, state.CurrentRun.ProductionWidthMm);
             Assert.Equal(firstAt.AddMinutes(1), state.CurrentRun.LastObservedAtUtc);
             Assert.Equal(1, await ScalarAsync(databasePath,
                 "SELECT COUNT(*) FROM ExternalProductionSnapshots;"));
@@ -132,7 +148,7 @@ public sealed class ProductionIntegrationTests
             Assert.Null(state.CurrentRun.ClosedAtUtc);
 
             await repository.ApplyObservationAsync(
-                Observation(firstAt.AddMinutes(3), false, "MIOLO-100", "payload-stopped"),
+                Observation(firstAt.AddMinutes(3), false, "MIOLO-100-1130", "payload-stopped"),
                 CancellationToken.None);
             state = await repository.GetStateAsync("PaperSystem", CancellationToken.None);
             Assert.False(state.CurrentRun!.IsProducing);
@@ -169,6 +185,7 @@ public sealed class ProductionIntegrationTests
             qualityKey,
             "MIOLO",
             100,
+            1130,
             false);
     }
 

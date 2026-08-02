@@ -31,6 +31,7 @@ public sealed record ProductionSourceObservation(
     string? QualityKey,
     string? QualityProductCode,
     decimal? QualityGrammageGsm,
+    decimal? ProductionWidthMm,
     bool IsMixedQuality);
 
 public sealed record ExternalProductionRunState(
@@ -47,6 +48,7 @@ public sealed record ExternalProductionRunState(
     string? QualityKey,
     string? QualityProductCode,
     decimal? QualityGrammageGsm,
+    decimal? ProductionWidthMm,
     bool IsMixedQuality,
     IReadOnlyList<ExternalProductionItem> Items,
     IReadOnlyList<ExternalProductionReference> References);

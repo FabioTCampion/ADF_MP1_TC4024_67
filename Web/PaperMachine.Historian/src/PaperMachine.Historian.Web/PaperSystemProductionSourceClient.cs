@@ -98,9 +98,19 @@ internal sealed class PaperSystemProductionSourceClient(
             .ToArray();
         var mixed = qualities.Length > 1;
         var quality = qualities.Length == 1 ? qualities[0] : null;
+        var productionWidthMm = items
+            .OrderBy(item => item.Position)
+            .Take(3)
+            .Where(item => item.Format is > 0)
+            .Sum(item => item.Format!.Value);
+        decimal? effectiveProductionWidthMm = productionWidthMm > 0
+            ? productionWidthMm
+            : null;
         var qualityKey = quality is null
             ? mixed ? "MIXED" : null
-            : $"{quality.Product ?? "UNKNOWN"}-{quality.Grammage?.ToString("0.###", CultureInfo.InvariantCulture) ?? "UNKNOWN"}";
+            : $"{quality.Product ?? "UNKNOWN"}-" +
+              $"{quality.Grammage?.ToString("0.###", CultureInfo.InvariantCulture) ?? "UNKNOWN"}-" +
+              $"{effectiveProductionWidthMm?.ToString("0.###", CultureInfo.InvariantCulture) ?? "UNKNOWN"}";
 
         return new ProductionSourceObservation(
             "PaperSystem",
@@ -117,6 +127,7 @@ internal sealed class PaperSystemProductionSourceClient(
             qualityKey,
             quality?.Product,
             quality?.Grammage,
+            effectiveProductionWidthMm,
             mixed);
     }
 

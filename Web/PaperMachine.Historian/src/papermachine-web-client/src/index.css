@@ -1383,7 +1383,7 @@ button { color: inherit; }
 
 .production-context-grid {
   display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 12px;
 }
 
@@ -1398,6 +1398,23 @@ button { color: inherit; }
 .production-context-grid b { display: block; }
 .production-context-grid span { margin-bottom: 5px; color: var(--muted); font-size: .72rem; text-transform: uppercase; }
 .production-context-grid b { overflow-wrap: anywhere; font-size: .92rem; }
+.production-context-grid small {
+  display: block;
+  margin-top: 5px;
+  color: var(--muted);
+  font-size: .7rem;
+  line-height: 1.3;
+}
+
+.production-context-grid__highlight {
+  background: rgba(47, 125, 225, .1) !important;
+  box-shadow: inset 0 0 0 1px rgba(75, 149, 239, .24);
+}
+
+.production-context-grid__highlight b {
+  color: var(--blue-soft);
+  font-size: 1.08rem;
+}
 
 .production-context-alert {
   margin: 14px 0 0;

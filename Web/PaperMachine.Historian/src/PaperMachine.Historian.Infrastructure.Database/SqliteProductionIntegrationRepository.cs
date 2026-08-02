@@ -75,12 +75,12 @@ public sealed class SqliteProductionIntegrationRepository : IProductionIntegrati
                     SourceSystem, ExternalRunId, ProductionOrderCode, MachineCode,
                     IsProducing, ExpectedEndAtUtc, FirstObservedAtUtc, LastObservedAtUtc,
                     ClosedAtUtc, QualityKey, QualityProductCode, QualityGrammageGsm,
-                    IsMixedQuality)
+                    ProductionWidthMm, IsMixedQuality)
                 VALUES (
                     @SourceSystem, @ExternalRunId, @ProductionOrderCode, @MachineCode,
                     @IsProducing, @ExpectedEndAtUtc, @ObservedAtUtc, @ObservedAtUtc,
                     @ClosedAtUtc, @QualityKey, @QualityProductCode, @QualityGrammageGsm,
-                    @IsMixedQuality)
+                    @ProductionWidthMm, @IsMixedQuality)
                 ON CONFLICT (SourceSystem, ExternalRunId) DO UPDATE SET
                     ProductionOrderCode = excluded.ProductionOrderCode,
                     MachineCode = excluded.MachineCode,
@@ -91,6 +91,7 @@ public sealed class SqliteProductionIntegrationRepository : IProductionIntegrati
                     QualityKey = excluded.QualityKey,
                     QualityProductCode = excluded.QualityProductCode,
                     QualityGrammageGsm = excluded.QualityGrammageGsm,
+                    ProductionWidthMm = excluded.ProductionWidthMm,
                     IsMixedQuality = excluded.IsMixedQuality;
                 """,
                 cancellationToken,
@@ -107,6 +108,7 @@ public sealed class SqliteProductionIntegrationRepository : IProductionIntegrati
                 ("@QualityKey", Db(observation.QualityKey)),
                 ("@QualityProductCode", Db(observation.QualityProductCode)),
                 ("@QualityGrammageGsm", Db(observation.QualityGrammageGsm)),
+                ("@ProductionWidthMm", Db(observation.ProductionWidthMm)),
                 ("@IsMixedQuality", observation.IsMixedQuality ? 1 : 0));
 
             var runId = await ScalarInt64Async(
@@ -293,7 +295,7 @@ public sealed class SqliteProductionIntegrationRepository : IProductionIntegrati
                 SELECT Id, SourceSystem, ExternalRunId, ProductionOrderCode, MachineCode,
                        IsProducing, ExpectedEndAtUtc, FirstObservedAtUtc, LastObservedAtUtc,
                        ClosedAtUtc, QualityKey, QualityProductCode, QualityGrammageGsm,
-                       IsMixedQuality
+                       ProductionWidthMm, IsMixedQuality
                 FROM ExternalProductionRuns
                 WHERE SourceSystem = @SourceSystem
                 ORDER BY LastObservedAtUtc DESC
@@ -318,7 +320,8 @@ public sealed class SqliteProductionIntegrationRepository : IProductionIntegrati
                     ReadString(reader, 10),
                     ReadString(reader, 11),
                     ReadDecimal(reader, 12),
-                    reader.GetInt64(13) != 0,
+                    ReadDecimal(reader, 13),
+                    reader.GetInt64(14) != 0,
                     [],
                     []);
             }
@@ -394,10 +397,10 @@ public sealed class SqliteProductionIntegrationRepository : IProductionIntegrati
                 transaction,
                 """
                 INSERT INTO ProductionQualityPeriods (
-                    SourceSystem, RunId, QualityKey, ProductCode, GrammageGsm,
+                    SourceSystem, RunId, QualityKey, ProductCode, GrammageGsm, ProductionWidthMm,
                     IsMixedQuality, StartedAtUtc, EndedAtUtc)
                 VALUES (
-                    @SourceSystem, @RunId, @QualityKey, @ProductCode, @GrammageGsm,
+                    @SourceSystem, @RunId, @QualityKey, @ProductCode, @GrammageGsm, @ProductionWidthMm,
                     @IsMixedQuality, @StartedAtUtc, NULL);
                 """,
                 cancellationToken,
@@ -406,6 +409,7 @@ public sealed class SqliteProductionIntegrationRepository : IProductionIntegrati
                 ("@QualityKey", observation.QualityKey),
                 ("@ProductCode", Db(observation.QualityProductCode)),
                 ("@GrammageGsm", Db(observation.QualityGrammageGsm)),
+                ("@ProductionWidthMm", Db(observation.ProductionWidthMm)),
                 ("@IsMixedQuality", observation.IsMixedQuality ? 1 : 0),
                 ("@StartedAtUtc", observedAt));
         }

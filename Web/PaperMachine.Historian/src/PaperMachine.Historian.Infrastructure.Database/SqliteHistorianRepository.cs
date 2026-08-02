@@ -8,7 +8,7 @@ namespace PaperMachine.Historian.Infrastructure.Database;
 
 public sealed class SqliteHistorianRepository : IHistorianRepository
 {
-    private const int SchemaVersion = 9;
+    private const int SchemaVersion = 10;
     private readonly string _databasePath;
     private readonly string _connectionString;
     private readonly SemaphoreSlim _writeGate = new(1, 1);
@@ -169,6 +169,8 @@ public sealed class SqliteHistorianRepository : IHistorianRepository
             VALUES (8, @AppliedAtUtc);
             INSERT OR IGNORE INTO SchemaMigrations (Version, AppliedAtUtc)
             VALUES (9, @AppliedAtUtc);
+            INSERT OR IGNORE INTO SchemaMigrations (Version, AppliedAtUtc)
+            VALUES (10, @AppliedAtUtc);
             """,
             cancellationToken,
             ("@AppliedAtUtc", ToDatabaseTimestamp(DateTimeOffset.UtcNow)));
@@ -182,10 +184,11 @@ public sealed class SqliteHistorianRepository : IHistorianRepository
                 $"Unsupported historian database schema version {version}; expected {SchemaVersion}.");
     }
 
-    private static Task EnsureProductionIntegrationSchemaAsync(
+    private static async Task EnsureProductionIntegrationSchemaAsync(
         SqliteConnection connection,
-        CancellationToken cancellationToken) =>
-        ExecuteAsync(
+        CancellationToken cancellationToken)
+    {
+        await ExecuteAsync(
             connection,
             null,
             """
@@ -203,6 +206,7 @@ public sealed class SqliteHistorianRepository : IHistorianRepository
                 QualityKey TEXT NULL,
                 QualityProductCode TEXT NULL,
                 QualityGrammageGsm REAL NULL,
+                ProductionWidthMm REAL NULL,
                 IsMixedQuality INTEGER NOT NULL DEFAULT 0,
                 UNIQUE (SourceSystem, ExternalRunId)
             );
@@ -260,6 +264,7 @@ public sealed class SqliteHistorianRepository : IHistorianRepository
                 QualityKey TEXT NOT NULL,
                 ProductCode TEXT NULL,
                 GrammageGsm REAL NULL,
+                ProductionWidthMm REAL NULL,
                 IsMixedQuality INTEGER NOT NULL,
                 StartedAtUtc TEXT NOT NULL,
                 EndedAtUtc TEXT NULL,
@@ -280,6 +285,44 @@ public sealed class SqliteHistorianRepository : IHistorianRepository
             );
             """,
             cancellationToken);
+
+        await EnsureColumnAsync(
+            connection,
+            "ExternalProductionRuns",
+            "ProductionWidthMm",
+            "REAL NULL",
+            cancellationToken);
+        await EnsureColumnAsync(
+            connection,
+            "ProductionQualityPeriods",
+            "ProductionWidthMm",
+            "REAL NULL",
+            cancellationToken);
+    }
+
+    private static async Task EnsureColumnAsync(
+        SqliteConnection connection,
+        string tableName,
+        string columnName,
+        string columnDefinition,
+        CancellationToken cancellationToken)
+    {
+        await using var command = connection.CreateCommand();
+        command.CommandText = $"PRAGMA table_info({QuoteIdentifier(tableName)});";
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            if (string.Equals(reader.GetString(1), columnName, StringComparison.OrdinalIgnoreCase))
+                return;
+        }
+
+        await reader.DisposeAsync();
+        await ExecuteAsync(
+            connection,
+            null,
+            $"ALTER TABLE {QuoteIdentifier(tableName)} ADD COLUMN {QuoteIdentifier(columnName)} {columnDefinition};",
+            cancellationToken);
+    }
 
     private static async Task RefreshPersistedDriveFaultDiagnosticsAsync(
         SqliteConnection connection,

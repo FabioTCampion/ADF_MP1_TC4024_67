@@ -55,7 +55,7 @@ O arquivo, seu WAL e arquivos temporários estão ignorados pelo Git. O banco us
 - `ApplicationUsers`: usuários locais e hashes de senha;
 - `ExternalProductionRuns` e tabelas relacionadas: contexto normalizado de
   produção ERP, itens, jumbos, snapshots somente quando há mudança e períodos de
-  qualidade;
+  receita identificados por produto, gramatura e formato total;
 - `SchemaMigrations`: versão aplicada ao banco.
 
 Datas são armazenadas em UTC. Alarmes encontrados ativos na primeira leitura ficam marcados como `ActiveAtStartup`, pois o horário real de ativação anterior ao início do serviço é desconhecido.
@@ -78,7 +78,7 @@ Alarmes, comandos, quebras e usuários não são removidos pela retenção autom
 
 A integração ERP opcional usa um worker independente do ADS e vem desabilitada
 na instalação. Consulte [ERP-INTEGRATION.md](ERP-INTEGRATION.md) para arquitetura,
-credencial, ativação, diagnóstico e rollback do schema 9.
+credencial, ativação, diagnóstico e rollback do schema 10.
 
 Compatibilidade multiplataforma é um requisito permanente: dependências de
 sistema operacional ficam isoladas em adaptadores e todo novo alvo precisa de

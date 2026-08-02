@@ -99,6 +99,7 @@ type ProductionIntegration = {
     qualityKey: string | null;
     qualityProductCode: string | null;
     qualityGrammageGsm: number | null;
+    productionWidthMm: number | null;
     isMixedQuality: boolean;
     items: ProductionItem[];
     references: ProductionReference[];
@@ -710,7 +711,11 @@ function Dashboard({
         </div>
       </section>
 
-      <ProductionContextCard production={production} />
+      <ProductionContextCard
+        production={production}
+        machineSpeedMpm={machineSpeed}
+        paperPresent={paperPresent}
+      />
 
       <MachineGroupStatus
         current={current}
@@ -781,8 +786,12 @@ function Dashboard({
 
 function ProductionContextCard({
   production,
+  machineSpeedMpm,
+  paperPresent,
 }: {
   production: ProductionIntegration | null;
+  machineSpeedMpm: number | null;
+  paperPresent: boolean | null;
 }) {
   const run = production?.currentRun;
   const customers = Array.from(new Set(
@@ -794,6 +803,20 @@ function ProductionContextCard({
   const jumbos = (run?.references ?? [])
     .filter((reference) => reference.referenceType === "Jumbo")
     .map((reference) => reference.referenceValue);
+  const formatComponents = (run?.items ?? [])
+    .slice()
+    .sort((left, right) => left.position - right.position)
+    .slice(0, 3)
+    .map((item) => item.format)
+    .filter((value): value is number => typeof value === "number" && value > 0);
+  const productionWidthMm = run?.productionWidthMm ?? (
+    formatComponents.length > 0
+      ? formatComponents.reduce((total, value) => total + value, 0)
+      : null
+  );
+  const formatComposition = formatComponents.length > 0
+    ? formatComponents.map((value) => `${value.toLocaleString("pt-BR")} mm`).join(" + ")
+    : "—";
   const hasSingleQuality = Boolean(
     run?.qualityProductCode ||
     run?.qualityGrammageGsm !== null && run?.qualityGrammageGsm !== undefined,
@@ -834,6 +857,27 @@ function ProductionContextCard({
     : `${production?.stale || production?.status === "Faulted" ? "Último estado: " : ""}${
         run.isProducing ? "Produzindo" : "Parado"
       }`;
+  const canCalculateTheoreticalProduction = Boolean(
+    production?.status === "Online" &&
+    !production.stale &&
+    run?.isProducing &&
+    !run.isMixedQuality &&
+    paperPresent === true &&
+    machineSpeedMpm !== null && machineSpeedMpm > 0 &&
+    run.qualityGrammageGsm !== null && run.qualityGrammageGsm > 0 &&
+    productionWidthMm !== null && productionWidthMm > 0,
+  );
+  const theoreticalProductionKgPerHour = canCalculateTheoreticalProduction
+    ? productionWidthMm! * machineSpeedMpm! * run!.qualityGrammageGsm! * 0.00006
+    : null;
+  const theoreticalProductionLabel = theoreticalProductionKgPerHour !== null
+    ? `${(theoreticalProductionKgPerHour / 1000).toLocaleString("pt-BR", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      })} t/h`
+    : run && (!run.isProducing || paperPresent === false || machineSpeedMpm === 0)
+      ? "Sem produção"
+      : "Indisponível";
 
   return (
     <section className={`production-context-card production-context-card--${stateClass}`}>
@@ -851,6 +895,16 @@ function ProductionContextCard({
       <div className="production-context-grid">
         <div><span>OP</span><b>{run?.productionOrderCode ?? "—"}</b></div>
         <div><span>Mapa</span><b>{run?.externalRunId ?? "—"}</b></div>
+        <div>
+          <span>Formato atual</span>
+          <b>{productionWidthMm !== null ? `${productionWidthMm.toLocaleString("pt-BR")} mm` : "—"}</b>
+          <small>{formatComposition}</small>
+        </div>
+        <div className="production-context-grid__highlight">
+          <span>Produção teórica</span>
+          <b>{theoreticalProductionLabel}</b>
+          <small>Gramatura × formato × velocidade</small>
+        </div>
         <div><span>Cliente</span><b>{customers.join(", ") || "—"}</b></div>
         <div><span>Pedidos</span><b>{orders.join(", ") || "—"}</b></div>
         <div><span>Jumbos</span><b>{jumbos.join(", ") || "—"}</b></div>
@@ -858,7 +912,7 @@ function ProductionContextCard({
       </div>
       {run?.isMixedQuality && (
         <p className="production-context-alert">
-          O ERP retornou produtos ou gramaturas diferentes. Nenhuma qualidade única foi presumida.
+          O ERP retornou itens com produto ou gramatura divergentes. O contexto foi marcado para conferência; isso não representa produção simultânea de duas qualidades.
         </p>
       )}
       {production?.lastError && (
