@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 type UpdateStatus = {
   enabled: boolean;
@@ -21,6 +21,15 @@ type UpdateStatus = {
   installedAtUtc: string | null;
   lastInstallError: string | null;
   lastError: string | null;
+};
+
+type UpdateLog = {
+  available: boolean;
+  fileName: string | null;
+  lastModifiedAtUtc: string | null;
+  sizeBytes: number;
+  truncated: boolean;
+  lines: string[];
 };
 
 const dateFormatter = new Intl.DateTimeFormat("pt-BR", {
@@ -92,6 +101,22 @@ async function updateRequest(
   return response.json() as Promise<UpdateStatus>;
 }
 
+async function latestLogRequest(): Promise<UpdateLog> {
+  const response = await fetch("/api/updates/logs/latest?lines=400", {
+    cache: "no-store",
+    headers: { Accept: "application/json" },
+  });
+  if (response.status === 401) {
+    window.location.reload();
+    throw new Error("Sessão expirada.");
+  }
+  if (!response.ok) {
+    const result = (await response.json().catch(() => null)) as { error?: string } | null;
+    throw new Error(result?.error ?? `Não foi possível consultar o log (${response.status}).`);
+  }
+  return response.json() as Promise<UpdateLog>;
+}
+
 export default function UpdatesScreen() {
   const [status, setStatus] = useState<UpdateStatus | null>(null);
   const [loading, setLoading] = useState(true);
@@ -100,6 +125,11 @@ export default function UpdatesScreen() {
   const [message, setMessage] = useState("");
   const [confirming, setConfirming] = useState(false);
   const [confirmedVersion, setConfirmedVersion] = useState("");
+  const [updateLog, setUpdateLog] = useState<UpdateLog | null>(null);
+  const [logLoading, setLogLoading] = useState(true);
+  const [logError, setLogError] = useState("");
+  const [logAutomatic, setLogAutomatic] = useState(true);
+  const logView = useRef<HTMLPreElement | null>(null);
 
   const refresh = useCallback(async (quiet = false) => {
     if (!quiet) setLoading(true);
@@ -120,6 +150,33 @@ export default function UpdatesScreen() {
     const timer = window.setInterval(() => void refresh(true), 3_000);
     return () => window.clearInterval(timer);
   }, [refresh]);
+
+  const refreshLog = useCallback(async (quiet = false) => {
+    if (!quiet) setLogLoading(true);
+    try {
+      setUpdateLog(await latestLogRequest());
+      setLogError("");
+    } catch (exception) {
+      setLogError(
+        exception instanceof Error ? exception.message : "Falha ao consultar o log.",
+      );
+    } finally {
+      if (!quiet) setLogLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void refreshLog();
+    if (!logAutomatic) return;
+    const timer = window.setInterval(() => void refreshLog(true), 5_000);
+    return () => window.clearInterval(timer);
+  }, [logAutomatic, refreshLog]);
+
+  useEffect(() => {
+    if (logAutomatic && logView.current) {
+      logView.current.scrollTop = logView.current.scrollHeight;
+    }
+  }, [logAutomatic, updateLog?.lines]);
 
   const execute = async (
     name: string,
@@ -162,6 +219,28 @@ export default function UpdatesScreen() {
     if (accepted) {
       setConfirming(false);
       setConfirmedVersion("");
+    }
+  };
+
+  const copyLog = async () => {
+    if (!updateLog?.lines.length) return;
+    const text = updateLog.lines.join("\n");
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(text);
+      } else {
+        const textarea = document.createElement("textarea");
+        textarea.value = text;
+        textarea.style.position = "fixed";
+        textarea.style.opacity = "0";
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand("copy");
+        textarea.remove();
+      }
+      setMessage("Log de atualização copiado.");
+    } catch {
+      setLogError("O navegador não permitiu copiar o log.");
     }
   };
 
@@ -292,6 +371,52 @@ export default function UpdatesScreen() {
             <b>Última falha de comunicação</b>
             <span>{status.lastError}</span>
           </div>
+        )}
+      </section>
+
+      <section className="update-log-panel">
+        <div className="update-log-heading">
+          <div>
+            <p className="eyebrow">Diagnóstico</p>
+            <h2>Log da última atualização</h2>
+            <span>
+              {updateLog?.available
+                ? `${updateLog.fileName} · ${formatDate(updateLog.lastModifiedAtUtc)} · ${formatBytes(updateLog.sizeBytes)}`
+                : "O primeiro log aparecerá após uma tentativa de instalação."}
+            </span>
+          </div>
+          <div className="update-log-actions">
+            <label>
+              <input
+                type="checkbox"
+                checked={logAutomatic}
+                onChange={(event) => setLogAutomatic(event.target.checked)}
+              />
+              Atualização automática
+            </label>
+            <button type="button" onClick={() => void refreshLog()} disabled={logLoading}>
+              {logLoading ? "Consultando…" : "Atualizar"}
+            </button>
+            <button
+              type="button"
+              onClick={() => void copyLog()}
+              disabled={!updateLog?.lines.length}
+            >
+              Copiar
+            </button>
+          </div>
+        </div>
+
+        {logError && <div className="update-log-error" role="alert">{logError}</div>}
+        {updateLog?.truncated && (
+          <div className="update-log-notice">
+            Exibindo somente as últimas 400 linhas. O arquivo original permanece no servidor.
+          </div>
+        )}
+        {updateLog?.available && updateLog.lines.length > 0 ? (
+          <pre ref={logView} className="update-log-content">{updateLog.lines.join("\n")}</pre>
+        ) : (
+          <div className="update-log-empty">Nenhum log de instalação encontrado.</div>
         )}
       </section>
 

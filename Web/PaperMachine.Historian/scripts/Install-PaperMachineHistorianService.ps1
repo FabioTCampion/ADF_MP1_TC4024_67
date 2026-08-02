@@ -277,6 +277,18 @@ function Set-ServiceBinaryPath {
     Set-DelayedAutomaticStart -Name $Name
 }
 
+function Write-JsonUtf8WithoutBom {
+    param(
+        [Parameter(Mandatory = $true)]$Value,
+        [Parameter(Mandatory = $true)][string]$Path,
+        [int]$Depth = 10
+    )
+
+    $json = $Value | ConvertTo-Json -Depth $Depth
+    $utf8WithoutBom = New-Object System.Text.UTF8Encoding($false)
+    [IO.File]::WriteAllText($Path, $json, $utf8WithoutBom)
+}
+
 function Start-AndValidateConnector {
     param(
         [Parameter(Mandatory = $true)][string]$Name,
@@ -466,8 +478,16 @@ $connectorConfiguration =
 $connectorConfiguration.apiKeyFilePath = $connectorApiKeyPath
 $connectorConfiguration.clientTokenFilePath = $connectorClientTokenPath
 $connectorConfiguration.listenAddress = "127.0.0.1:$connectorPort"
-$connectorConfiguration | ConvertTo-Json -Depth 10 |
-    Set-Content -LiteralPath $connectorConfigPath -Encoding UTF8
+Write-JsonUtf8WithoutBom `
+    -Value $connectorConfiguration `
+    -Path $connectorConfigPath
+
+& $packageConnectorExecutablePath `
+    --config $connectorConfigPath `
+    --validate-config
+if ($LASTEXITCODE -ne 0) {
+    throw "O conector ERP rejeitou a configuracao (codigo $LASTEXITCODE)."
+}
 
 & icacls.exe $ConnectorDataRoot `
     '/inheritance:r' `

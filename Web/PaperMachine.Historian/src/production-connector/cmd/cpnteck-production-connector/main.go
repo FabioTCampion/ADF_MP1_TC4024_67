@@ -27,6 +27,7 @@ func run() error {
 	forceService := flag.Bool("service", false, "run as a Windows Service")
 	testUpstream := flag.Bool("test-upstream", false, "validate the configured ERP endpoint and exit")
 	apiKeyFile := flag.String("api-key-file", "", "temporary API key file used only with --test-upstream")
+	validateConfig := flag.Bool("validate-config", false, "validate the connector configuration and exit")
 	showVersion := flag.Bool("version", false, "print version and exit")
 	flag.Parse()
 
@@ -34,11 +35,14 @@ func run() error {
 		fmt.Println(version)
 		return nil
 	}
-	config, err := connector.LoadConfig(*configPath)
-	if err != nil {
-		return err
-	}
-	if *testUpstream {
+	if *validateConfig || *testUpstream {
+		config, err := connector.LoadConfig(*configPath)
+		if err != nil {
+			return err
+		}
+		if *validateConfig {
+			return nil
+		}
 		keyPath := config.APIKeyFilePath
 		if *apiKeyFile != "" {
 			keyPath = *apiKeyFile
@@ -57,7 +61,16 @@ func run() error {
 		return nil
 	}
 
-	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
-	gateway := connector.NewGateway(config, logger)
-	return platform.Run(*forceService, gateway.Run)
+	// Enter the Windows Service dispatcher before reading the configuration.
+	// This lets the process report configuration failures through the SCM instead
+	// of timing out before it has connected to the service controller.
+	return platform.Run(*forceService, func(ctx context.Context) error {
+		config, err := connector.LoadConfig(*configPath)
+		if err != nil {
+			return err
+		}
+		logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
+		gateway := connector.NewGateway(config, logger)
+		return gateway.Run(ctx)
+	})
 }

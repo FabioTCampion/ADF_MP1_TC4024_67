@@ -22,6 +22,14 @@ public sealed record ApplicationUpdateStatus(
     string? LastInstallError,
     string? LastError);
 
+public sealed record ApplicationUpdateLog(
+    bool Available,
+    string? FileName,
+    DateTimeOffset? LastModifiedAtUtc,
+    long SizeBytes,
+    bool Truncated,
+    IReadOnlyList<string> Lines);
+
 internal sealed record GitHubReleaseAsset(
     long Id,
     string Name,

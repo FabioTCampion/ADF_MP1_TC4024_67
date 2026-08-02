@@ -1,6 +1,8 @@
 package connector
 
 import (
+	"encoding/json"
+	"os"
 	"path/filepath"
 	"testing"
 )
@@ -45,5 +47,27 @@ func TestConfigRejectsUnexpectedUpstream(t *testing.T) {
 				t.Fatal("expected unsafe upstream to be rejected")
 			}
 		})
+	}
+}
+
+func TestLoadConfigAcceptsUtf8BomFromWindowsPowerShell(t *testing.T) {
+	config := DefaultConfig()
+	data, err := json.Marshal(config)
+	if err != nil {
+		t.Fatalf("marshal config: %v", err)
+	}
+
+	path := filepath.Join(t.TempDir(), "config.json")
+	data = append([]byte{0xEF, 0xBB, 0xBF}, data...)
+	if err := os.WriteFile(path, data, 0o600); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	loaded, err := LoadConfig(path)
+	if err != nil {
+		t.Fatalf("load config with UTF-8 BOM: %v", err)
+	}
+	if loaded.ListenAddress != config.ListenAddress {
+		t.Fatalf("listen address = %q, want %q", loaded.ListenAddress, config.ListenAddress)
 	}
 }

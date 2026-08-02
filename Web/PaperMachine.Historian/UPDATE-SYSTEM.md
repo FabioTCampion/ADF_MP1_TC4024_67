@@ -309,6 +309,20 @@ Estados principais:
 | `succeeded` | Atualização concluída |
 | `failed` | Falha registrada; verificar log e rollback |
 
+A página **Atualizações** consulta `GET /api/updates/logs/latest` e mostra as
+últimas linhas do transcript do instalador. Esse endpoint:
+
+- exige perfil `Administrator`, como as demais ações de atualização;
+- lê somente arquivos `update-*.log` da pasta fixa `updates\logs`;
+- não aceita caminho informado pelo navegador;
+- limita a leitura a 256 KB e a exibição a até 1.000 linhas;
+- oculta padrões de token, chave de API, autorização e senha antes da resposta;
+- usa compartilhamento de leitura para acompanhar um arquivo ainda em gravação.
+
+Durante a troca do serviço a página pode ficar temporariamente indisponível. Ao
+iniciar a nova versão ou concluir o rollback, o mesmo arquivo volta a aparecer
+no painel de diagnóstico.
+
 Comandos:
 
 ```powershell

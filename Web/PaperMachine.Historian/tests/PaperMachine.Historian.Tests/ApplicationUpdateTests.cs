@@ -104,4 +104,60 @@ public sealed class ApplicationUpdateTests
                 Directory.Delete(directory, recursive: true);
         }
     }
+
+    [Fact]
+    public void ReadsLatestUpdateLogWithLimitsAndCredentialRedaction()
+    {
+        var directory = Path.Combine(
+            Path.GetTempPath(),
+            "PaperMachine.Historian.UpdateTests",
+            Guid.NewGuid().ToString("N"));
+        var updatesDirectory = Path.Combine(directory, "updates");
+        var logsDirectory = Path.Combine(updatesDirectory, "logs");
+        Directory.CreateDirectory(logsDirectory);
+        try
+        {
+            File.WriteAllText(
+                Path.Combine(logsDirectory, "update-20260801-100000.log"),
+                "old log");
+            var latestPath = Path.Combine(
+                logsDirectory,
+                "update-20260802-100000.log");
+            File.WriteAllLines(
+                latestPath,
+                Enumerable.Range(1, 60)
+                    .Select(index => index == 60
+                        ? "x-api-key: secret-value github_pat_abc123"
+                        : $"line {index}"));
+            File.SetLastWriteTimeUtc(latestPath, DateTime.UtcNow.AddMinutes(1));
+
+            var options = new UpdateOptions
+            {
+                Enabled = true,
+                WorkingDirectory = updatesDirectory,
+                TokenFilePath = Path.Combine(updatesDirectory, "github-token.txt")
+            };
+            using var client = new GitHubReleaseClient(options);
+            var service = new ApplicationUpdateService(
+                options,
+                client,
+                TimeProvider.System,
+                NullLogger<ApplicationUpdateService>.Instance);
+
+            var log = service.GetLatestLog(50);
+
+            Assert.True(log.Available);
+            Assert.Equal("update-20260802-100000.log", log.FileName);
+            Assert.True(log.Truncated);
+            Assert.Equal(50, log.Lines.Count);
+            Assert.Contains("x-api-key: ***", log.Lines[^1]);
+            Assert.DoesNotContain("secret-value", log.Lines[^1]);
+            Assert.DoesNotContain("github_pat_", log.Lines[^1]);
+        }
+        finally
+        {
+            if (Directory.Exists(directory))
+                Directory.Delete(directory, recursive: true);
+        }
+    }
 }

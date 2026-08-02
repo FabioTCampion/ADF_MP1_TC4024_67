@@ -16,6 +16,11 @@ internal static class UpdateEndpoints
             "/status",
             (ApplicationUpdateService service) => Results.Ok(service.GetStatus()));
 
+        updates.MapGet(
+            "/logs/latest",
+            (int? lines, ApplicationUpdateService service) =>
+                Results.Ok(service.GetLatestLog(lines ?? 400)));
+
         updates.MapPost(
             "/check",
             async (

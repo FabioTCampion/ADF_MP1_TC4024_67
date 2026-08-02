@@ -1,11 +1,22 @@
 using System.Diagnostics;
 using System.Reflection;
+using System.Text;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 
 namespace PaperMachine.Historian.Web;
 
 internal sealed class ApplicationUpdateService
 {
+    private const int MaximumLogBytes = 256 * 1024;
+    private static readonly Regex CredentialAssignmentPattern = new(
+        "(?i)(authorization|x-api-key|api[-_]?key|access[-_]?token|github[-_]?token|password)([\\\"']?\\s*[:=]\\s*[\\\"']?)(?:bearer\\s+)?([^\\s\\\"',;]+)",
+        RegexOptions.Compiled,
+        TimeSpan.FromMilliseconds(100));
+    private static readonly Regex TokenValuePattern = new(
+        "(?i)\\b(?:github_pat_|gh[pousr]_)[a-z0-9_]+",
+        RegexOptions.Compiled,
+        TimeSpan.FromMilliseconds(100));
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
     {
         WriteIndented = true
@@ -72,6 +83,70 @@ internal sealed class ApplicationUpdateService
                 _state.LastInstallError,
                 _state.LastError);
         }
+    }
+
+    public ApplicationUpdateLog GetLatestLog(int requestedLines = 400)
+    {
+        var maximumLines = Math.Clamp(requestedLines, 50, 1_000);
+        var logsDirectory = Path.GetFullPath(
+            Path.Combine(_options.WorkingDirectory, "logs"));
+        if (!Directory.Exists(logsDirectory))
+            return EmptyLog();
+
+        var log = new DirectoryInfo(logsDirectory)
+            .EnumerateFiles("update-*.log", SearchOption.TopDirectoryOnly)
+            .OrderByDescending(file => file.LastWriteTimeUtc)
+            .ThenByDescending(file => file.Name, StringComparer.OrdinalIgnoreCase)
+            .FirstOrDefault();
+        if (log is null)
+            return EmptyLog();
+
+        using var stream = new FileStream(
+            log.FullName,
+            FileMode.Open,
+            FileAccess.Read,
+            FileShare.ReadWrite | FileShare.Delete);
+        var bytesToRead = (int)Math.Min(stream.Length, MaximumLogBytes);
+        var startedInsideFile = stream.Length > bytesToRead;
+        if (startedInsideFile)
+            stream.Seek(-bytesToRead, SeekOrigin.End);
+
+        var buffer = new byte[bytesToRead];
+        stream.ReadExactly(buffer);
+        var content = Encoding.UTF8.GetString(buffer).TrimStart('\uFEFF');
+        if (startedInsideFile)
+        {
+            var firstLineBreak = content.IndexOf('\n');
+            content = firstLineBreak >= 0 ? content[(firstLineBreak + 1)..] : string.Empty;
+        }
+
+        var allLines = content
+            .Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries)
+            .Select(RedactLogLine)
+            .ToArray();
+        var truncated = startedInsideFile || allLines.Length > maximumLines;
+        var lines = allLines.Length > maximumLines
+            ? allLines[^maximumLines..]
+            : allLines;
+
+        return new ApplicationUpdateLog(
+            true,
+            log.Name,
+            new DateTimeOffset(log.LastWriteTimeUtc, TimeSpan.Zero),
+            stream.Length,
+            truncated,
+            lines);
+    }
+
+    private static ApplicationUpdateLog EmptyLog() =>
+        new(false, null, null, 0, false, []);
+
+    private static string RedactLogLine(string line)
+    {
+        var redacted = CredentialAssignmentPattern.Replace(
+            line,
+            match => $"{match.Groups[1].Value}{match.Groups[2].Value}***");
+        return TokenValuePattern.Replace(redacted, "***");
     }
 
     public async Task<ApplicationUpdateStatus> CheckAsync(

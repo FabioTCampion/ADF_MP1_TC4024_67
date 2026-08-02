@@ -1,6 +1,7 @@
 package connector
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -73,6 +74,10 @@ func LoadConfig(path string) (Config, error) {
 	if err != nil {
 		return Config{}, fmt.Errorf("read configuration: %w", err)
 	}
+	// Windows PowerShell 5.1 writes a UTF-8 BOM when Set-Content is used with
+	// -Encoding UTF8. Accept it so configurations created on older Windows LTSC
+	// installations remain portable and valid.
+	data = bytes.TrimPrefix(data, []byte{0xEF, 0xBB, 0xBF})
 	if err := json.Unmarshal(data, &config); err != nil {
 		return Config{}, fmt.Errorf("parse configuration: %w", err)
 	}
