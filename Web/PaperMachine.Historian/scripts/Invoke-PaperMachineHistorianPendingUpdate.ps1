@@ -43,6 +43,12 @@ function Write-UpdateStatus {
     }
     Set-JsonProperty -Object $status -Name 'state' -Value $State
     Set-JsonProperty -Object $status -Name 'lastError' -Value $ErrorMessage
+    if ($State -eq 'failed') {
+        Set-JsonProperty -Object $status -Name 'lastInstallError' -Value $ErrorMessage
+    }
+    elseif ($State -in @('installing', 'succeeded')) {
+        Set-JsonProperty -Object $status -Name 'lastInstallError' -Value $null
+    }
     if (-not [string]::IsNullOrWhiteSpace($Version)) {
         Set-JsonProperty -Object $status -Name 'availableVersion' -Value $Version
     }
@@ -171,6 +177,11 @@ catch {
     if ($packagePath -and (Test-Path -LiteralPath $packagePath -PathType Leaf)) {
         $failedPackage = Join-Path $failedRoot ([IO.Path]::GetFileName($packagePath))
         Copy-Item -LiteralPath $packagePath -Destination $failedPackage -Force
+    }
+    if (Test-Path -LiteralPath $requestPath -PathType Leaf) {
+        $failedRequest = Join-Path $failedRoot (
+            'update-request-{0}.json' -f (Get-Date -Format 'yyyyMMdd-HHmmss'))
+        Move-Item -LiteralPath $requestPath -Destination $failedRequest -Force
     }
 
     $service = Get-Service -Name $ServiceName -ErrorAction SilentlyContinue

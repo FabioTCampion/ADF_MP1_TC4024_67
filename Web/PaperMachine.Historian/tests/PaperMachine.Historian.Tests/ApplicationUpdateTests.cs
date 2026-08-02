@@ -1,4 +1,5 @@
 using System.IO.Compression;
+using Microsoft.Extensions.Logging.Abstractions;
 using PaperMachine.Historian.Web;
 
 namespace PaperMachine.Historian.Tests;
@@ -48,6 +49,54 @@ public sealed class ApplicationUpdateTests
             }
 
             Assert.Equal("0.1.3", UpdatePackageValidator.ReadManifestVersion(zipPath));
+        }
+        finally
+        {
+            if (Directory.Exists(directory))
+                Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void LoadsDedicatedInstallErrorWithoutDependingOnCheckError()
+    {
+        var directory = Path.Combine(
+            Path.GetTempPath(),
+            "PaperMachine.Historian.UpdateTests",
+            Guid.NewGuid().ToString("N"));
+        var updatesDirectory = Path.Combine(directory, "updates");
+        Directory.CreateDirectory(updatesDirectory);
+        try
+        {
+            File.WriteAllText(
+                Path.Combine(updatesDirectory, "update-status.json"),
+                """
+                {
+                  "state": "ready",
+                  "lastInstallError": "Falha ao criar o servico do conector.",
+                  "lastError": null
+                }
+                """);
+            var options = new UpdateOptions
+            {
+                Enabled = true,
+                WorkingDirectory = updatesDirectory,
+                TokenFilePath = Path.Combine(updatesDirectory, "github-token.txt")
+            };
+            using var client = new GitHubReleaseClient(options);
+            var service = new ApplicationUpdateService(
+                options,
+                client,
+                TimeProvider.System,
+                NullLogger<ApplicationUpdateService>.Instance);
+
+            var status = service.GetStatus();
+
+            Assert.Equal("ready", status.State);
+            Assert.Equal(
+                "Falha ao criar o servico do conector.",
+                status.LastInstallError);
+            Assert.Null(status.LastError);
         }
         finally
         {

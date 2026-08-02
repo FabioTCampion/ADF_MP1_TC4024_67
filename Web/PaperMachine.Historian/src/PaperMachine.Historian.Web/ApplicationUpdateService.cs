@@ -69,6 +69,7 @@ internal sealed class ApplicationUpdateService
                 _state.DownloadedAtUtc,
                 _state.InstallRequestedAtUtc,
                 _state.InstalledAtUtc,
+                _state.LastInstallError,
                 _state.LastError);
         }
     }
@@ -167,6 +168,7 @@ internal sealed class ApplicationUpdateService
             {
                 _state.State = "installRequested";
                 _state.InstallRequestedAtUtc = requestedAt;
+                _state.LastInstallError = null;
                 _state.LastError = null;
             }
             await SaveStateAsync(cancellationToken);
@@ -180,6 +182,7 @@ internal sealed class ApplicationUpdateService
                 lock (_stateLock)
                 {
                     _state.State = "ready";
+                    _state.LastInstallError = exception.Message;
                     _state.LastError = exception.Message;
                 }
                 await SaveStateAsync(CancellationToken.None);

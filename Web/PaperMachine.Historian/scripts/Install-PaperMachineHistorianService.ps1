@@ -73,6 +73,33 @@ function Invoke-ServiceControl {
     }
 }
 
+function Set-DelayedAutomaticStart {
+    param([Parameter(Mandatory = $true)][string]$Name)
+
+    $serviceRegistryPath = "HKLM:\SYSTEM\CurrentControlSet\Services\$Name"
+    New-ItemProperty `
+        -Path $serviceRegistryPath `
+        -Name 'DelayedAutoStart' `
+        -Value 1 `
+        -PropertyType DWord `
+        -Force | Out-Null
+}
+
+function New-ManagedService {
+    param(
+        [Parameter(Mandatory = $true)][string]$Name,
+        [Parameter(Mandatory = $true)][string]$BinaryPath,
+        [Parameter(Mandatory = $true)][string]$ServiceDisplayName
+    )
+
+    New-Service `
+        -Name $Name `
+        -BinaryPathName $BinaryPath `
+        -DisplayName $ServiceDisplayName `
+        -StartupType Automatic | Out-Null
+    Set-DelayedAutomaticStart -Name $Name
+}
+
 function Stop-ExistingService {
     param([Parameter(Mandatory = $true)][string]$Name)
 
@@ -230,11 +257,24 @@ function Set-ServiceBinaryPath {
     if (-not [string]::IsNullOrWhiteSpace($Arguments)) {
         $quotedPath += ' ' + $Arguments
     }
-    Invoke-ServiceControl -Arguments @(
-        'config', $Name,
-        'binPath=', $quotedPath,
-        'start=', 'delayed-auto'
-    )
+    $escapedName = $Name.Replace("'", "''")
+    $serviceInstance = Get-CimInstance `
+        -ClassName Win32_Service `
+        -Filter "Name='$escapedName'"
+    if ($null -eq $serviceInstance) {
+        throw "Servico '$Name' nao encontrado para atualizar o caminho executavel."
+    }
+    $changeResult = Invoke-CimMethod `
+        -InputObject $serviceInstance `
+        -MethodName Change `
+        -Arguments @{
+            PathName = $quotedPath
+            StartMode = 'Automatic'
+        }
+    if ([int]$changeResult.ReturnValue -ne 0) {
+        throw "Win32_Service.Change falhou com codigo $($changeResult.ReturnValue) para '$Name'."
+    }
+    Set-DelayedAutomaticStart -Name $Name
 }
 
 function Start-AndValidateConnector {
@@ -550,6 +590,7 @@ if ($LASTEXITCODE -ne 0) {
     throw 'Nao foi possivel proteger a pasta de dados de producao.'
 }
 
+$releaseCopied = $false
 if (Test-Path -LiteralPath $releaseRoot) {
     if (-not $Force) {
         throw "Release $($manifest.Version) ja instalada. Use -Force para reinstalar."
@@ -558,6 +599,7 @@ if (Test-Path -LiteralPath $releaseRoot) {
 }
 New-Item -ItemType Directory -Path $releaseRoot -Force | Out-Null
 Copy-Item -Path (Join-Path $packageAppPath '*') -Destination $releaseRoot -Recurse -Force
+$releaseCopied = $true
 
 $newExecutablePath = Join-Path $releaseRoot 'PaperMachine.Historian.Web.exe'
 $newConnectorExecutablePath = Join-Path `
@@ -625,12 +667,10 @@ try {
     $connectorArguments = '--service --config "' + $connectorConfigPath + '"'
     if ($null -eq $connectorService) {
         $connectorBinaryPath = '"' + $newConnectorExecutablePath + '" ' + $connectorArguments
-        Invoke-ServiceControl -Arguments @(
-            'create', $ConnectorServiceName,
-            'binPath=', $connectorBinaryPath,
-            'start=', 'delayed-auto',
-            'DisplayName=', $ConnectorDisplayName
-        )
+        New-ManagedService `
+            -Name $ConnectorServiceName `
+            -BinaryPath $connectorBinaryPath `
+            -ServiceDisplayName $ConnectorDisplayName
         Invoke-ServiceControl -Arguments @(
             'description', $ConnectorServiceName,
             'CPNTeck local TLS 1.3 connector for read-only production data'
@@ -651,12 +691,10 @@ try {
 
     if ($null -eq $service) {
         $quotedPath = '"' + $newExecutablePath + '"'
-        Invoke-ServiceControl -Arguments @(
-            'create', $ServiceName,
-            'binPath=', $quotedPath,
-            'start=', 'delayed-auto',
-            'DisplayName=', $DisplayName
-        )
+        New-ManagedService `
+            -Name $ServiceName `
+            -BinaryPath $quotedPath `
+            -ServiceDisplayName $DisplayName
         Invoke-ServiceControl -Arguments @(
             'description', $ServiceName,
             'CPNTeck Paper Machine Historian - coleta ADS somente leitura'
@@ -759,6 +797,21 @@ catch {
         }
         if ($serviceWasRunning) {
             Start-Service -Name $ServiceName
+        }
+    }
+    if ($releaseCopied -and
+        -not [string]::Equals(
+            [string]$manifest.Version,
+            [string]$previousVersion,
+            [StringComparison]::OrdinalIgnoreCase) -and
+        (Test-Path -LiteralPath $releaseRoot -PathType Container)) {
+        $resolvedReleaseRoot = [IO.Path]::GetFullPath($releaseRoot)
+        $resolvedReleasesPrefix =
+            [IO.Path]::GetFullPath($releasesRoot).TrimEnd('\') + '\'
+        if ($resolvedReleaseRoot.StartsWith(
+                $resolvedReleasesPrefix,
+                [StringComparison]::OrdinalIgnoreCase)) {
+            Remove-Item -LiteralPath $resolvedReleaseRoot -Recurse -Force
         }
     }
     throw

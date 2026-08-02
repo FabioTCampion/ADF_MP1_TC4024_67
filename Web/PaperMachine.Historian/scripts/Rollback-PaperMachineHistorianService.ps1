@@ -36,6 +36,28 @@ function Invoke-ServiceControl {
     }
 }
 
+function Set-ServiceBinaryPath {
+    param(
+        [Parameter(Mandatory = $true)][string]$Name,
+        [Parameter(Mandatory = $true)][string]$BinaryPath
+    )
+
+    $escapedName = $Name.Replace("'", "''")
+    $serviceInstance = Get-CimInstance `
+        -ClassName Win32_Service `
+        -Filter "Name='$escapedName'"
+    if ($null -eq $serviceInstance) {
+        throw "Servico '$Name' nao encontrado para atualizar o caminho executavel."
+    }
+    $changeResult = Invoke-CimMethod `
+        -InputObject $serviceInstance `
+        -MethodName Change `
+        -Arguments @{ PathName = $BinaryPath }
+    if ([int]$changeResult.ReturnValue -ne 0) {
+        throw "Win32_Service.Change falhou com codigo $($changeResult.ReturnValue) para '$Name'."
+    }
+}
+
 function Stop-ServiceSafely {
     param([Parameter(Mandatory = $true)][string]$Name)
 
@@ -231,8 +253,9 @@ try {
         $connectorConfigPath = Join-Path $ConnectorDataRoot 'config.json'
         $connectorBinaryPath = '"{0}" --service --config "{1}"' -f `
             $previousConnectorExecutable, $connectorConfigPath
-        Invoke-ServiceControl -Arguments @(
-            'config', $ConnectorServiceName, 'binPath=', $connectorBinaryPath)
+        Set-ServiceBinaryPath `
+            -Name $ConnectorServiceName `
+            -BinaryPath $connectorBinaryPath
         Invoke-ServiceControl -Arguments @(
             'config', $ServiceName, 'depend=', $ConnectorServiceName)
         Start-Service -Name $ConnectorServiceName
@@ -245,7 +268,7 @@ try {
             'config', $ServiceName, 'depend=', '/')
     }
     $binaryPath = '"{0}"' -f $previousExecutable
-    Invoke-ServiceControl -Arguments @('config', $ServiceName, 'binPath=', $binaryPath)
+    Set-ServiceBinaryPath -Name $ServiceName -BinaryPath $binaryPath
     Start-Service -Name $ServiceName
     $service.WaitForStatus(
         [ServiceProcess.ServiceControllerStatus]::Running,
@@ -282,12 +305,13 @@ catch {
             $connectorConfigPath = Join-Path $ConnectorDataRoot 'config.json'
             $connectorBinaryPath = '"{0}" --service --config "{1}"' -f `
                 $currentConnectorExecutable, $connectorConfigPath
-            & "$env:SystemRoot\System32\sc.exe" `
-                config $ConnectorServiceName 'binPath=' $connectorBinaryPath | Out-Null
+            Set-ServiceBinaryPath `
+                -Name $ConnectorServiceName `
+                -BinaryPath $connectorBinaryPath
             Start-Service -Name $ConnectorServiceName -ErrorAction SilentlyContinue
         }
         $binaryPath = '"{0}"' -f $currentExecutable
-        & "$env:SystemRoot\System32\sc.exe" config $ServiceName 'binPath=' $binaryPath | Out-Null
+        Set-ServiceBinaryPath -Name $ServiceName -BinaryPath $binaryPath
         Start-Service -Name $ServiceName -ErrorAction SilentlyContinue
     }
     throw

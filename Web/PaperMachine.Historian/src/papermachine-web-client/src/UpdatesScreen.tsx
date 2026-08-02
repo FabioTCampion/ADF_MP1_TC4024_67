@@ -19,6 +19,7 @@ type UpdateStatus = {
   downloadedAtUtc: string | null;
   installRequestedAtUtc: string | null;
   installedAtUtc: string | null;
+  lastInstallError: string | null;
   lastError: string | null;
 };
 
@@ -279,9 +280,16 @@ export default function UpdatesScreen() {
           </div>
         )}
 
-        {status?.lastError && (
+        {status?.lastInstallError && (
           <div className="update-error-detail">
-            <b>Última falha</b>
+            <b>Falha na última instalação</b>
+            <span>{status.lastInstallError}</span>
+          </div>
+        )}
+
+        {status?.lastError && status.lastError !== status.lastInstallError && (
+          <div className="update-error-detail">
+            <b>Última falha de comunicação</b>
             <span>{status.lastError}</span>
           </div>
         )}

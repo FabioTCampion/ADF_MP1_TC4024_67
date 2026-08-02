@@ -338,6 +338,26 @@ Erros frequentes:
 | Tarefa não inicia | Bootstrap incompleto ou tarefa removida |
 | Health falhou | Nova aplicação não iniciou; verificar log e rollback |
 
+### Falha ao criar ou atualizar um serviço Windows
+
+Os caminhos executáveis dos serviços podem conter espaços e argumentos com
+aspas. Eles não devem ser enviados como um argumento complexo para `sc.exe` no
+Windows PowerShell 5.1, pois a linha pode ser dividida incorretamente. O fluxo
+atual cria serviços com `New-Service` e altera caminhos existentes com
+`Win32_Service.Change`. O `sc.exe` permanece restrito a opções simples, como
+dependências, descrição e ações de recuperação.
+
+Se uma instalação falhar:
+
+1. a release incompleta é removida somente depois da restauração da versão
+   anterior;
+2. a solicitação que falhou é movida para `updates\failed`, evitando repetição
+   acidental;
+3. `lastInstallError` permanece no estado e na página de atualizações, mesmo
+   que uma verificação posterior do GitHub seja bem-sucedida;
+4. a correção deve ser publicada com uma nova versão. Não reutilize a tag ou o
+   pacote que falhou e não use `-Force` como procedimento normal.
+
 ## 7. Avaliação de segurança
 
 ### 7.1 Proteções existentes

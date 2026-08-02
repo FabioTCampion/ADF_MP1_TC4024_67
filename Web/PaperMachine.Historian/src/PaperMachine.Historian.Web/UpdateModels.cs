@@ -19,6 +19,7 @@ public sealed record ApplicationUpdateStatus(
     DateTimeOffset? DownloadedAtUtc,
     DateTimeOffset? InstallRequestedAtUtc,
     DateTimeOffset? InstalledAtUtc,
+    string? LastInstallError,
     string? LastError);
 
 internal sealed record GitHubReleaseAsset(
@@ -51,6 +52,7 @@ internal sealed class PersistedUpdateState
     public DateTimeOffset? DownloadedAtUtc { get; set; }
     public DateTimeOffset? InstallRequestedAtUtc { get; set; }
     public DateTimeOffset? InstalledAtUtc { get; set; }
+    public string? LastInstallError { get; set; }
     public string? LastError { get; set; }
 }
 
