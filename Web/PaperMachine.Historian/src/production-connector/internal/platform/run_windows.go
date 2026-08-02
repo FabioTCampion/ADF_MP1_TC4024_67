@@ -12,13 +12,34 @@ import (
 const serviceName = "CPNTeckProductionConnector"
 
 func Run(forceService bool, execute func(context.Context) error) error {
-	isService, err := svc.IsWindowsService()
+	return run(forceService, execute, svc.IsWindowsService, runService, runConsole)
+}
+
+func run(
+	forceService bool,
+	execute func(context.Context) error,
+	detectService func() (bool, error),
+	serviceRunner func(func(context.Context) error) error,
+	consoleRunner func(func(context.Context) error) error,
+) error {
+	// When the installer explicitly passes --service, connect to the Service
+	// Control Manager immediately. Older Windows 10 LTSC builds can take long
+	// enough in IsWindowsService to exceed the SCM startup timeout.
+	if forceService {
+		return serviceRunner(execute)
+	}
+
+	isService, err := detectService()
 	if err != nil {
 		return err
 	}
-	if !forceService && !isService {
-		return runConsole(execute)
+	if !isService {
+		return consoleRunner(execute)
 	}
+	return serviceRunner(execute)
+}
+
+func runService(execute func(context.Context) error) error {
 	handler := &serviceHandler{execute: execute}
 	if err := svc.Run(serviceName, handler); err != nil {
 		return err
