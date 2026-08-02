@@ -1,0 +1,12 @@
+{
+  "listenAddress": "127.0.0.1:5091",
+  "upstreamUrl": "https://api.papersystem.com.br/apontamentos/cpnteck/jupia/mp",
+  "allowedUpstreamHost": "api.papersystem.com.br",
+  "apiKeyHeaderName": "x-api-key",
+  "apiKeyFilePath": "C:\\ProgramData\\CPNTeck\\ProductionConnector\\secrets\\erp-api-key.txt",
+  "clientTokenHeaderName": "x-cpnteck-connector-token",
+  "clientTokenFilePath": "C:\\ProgramData\\CPNTeck\\ProductionConnector\\secrets\\historian-token.txt",
+  "requestTimeoutSeconds": 10,
+  "cacheTtlSeconds": 55,
+  "maximumResponseBytes": 1048576
+}

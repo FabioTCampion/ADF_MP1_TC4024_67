@@ -8,7 +8,7 @@ namespace PaperMachine.Historian.Infrastructure.Database;
 
 public sealed class SqliteHistorianRepository : IHistorianRepository
 {
-    private const int SchemaVersion = 8;
+    private const int SchemaVersion = 9;
     private readonly string _databasePath;
     private readonly string _connectionString;
     private readonly SemaphoreSlim _writeGate = new(1, 1);
@@ -144,6 +144,7 @@ public sealed class SqliteHistorianRepository : IHistorianRepository
         await EnsurePaperBreakDiagnosticSchemaAsync(connection, cancellationToken);
         await EnsureUserBreakAnalysisFilterSchemaAsync(connection, cancellationToken);
         await EnsureUserGraphLayoutSchemaAsync(connection, cancellationToken);
+        await EnsureProductionIntegrationSchemaAsync(connection, cancellationToken);
         var driveCatalogMigrationApplied = await ScalarAsync<long>(
             connection,
             "SELECT COUNT(*) FROM SchemaMigrations WHERE Version = 8;",
@@ -166,6 +167,8 @@ public sealed class SqliteHistorianRepository : IHistorianRepository
             VALUES (7, @AppliedAtUtc);
             INSERT OR IGNORE INTO SchemaMigrations (Version, AppliedAtUtc)
             VALUES (8, @AppliedAtUtc);
+            INSERT OR IGNORE INTO SchemaMigrations (Version, AppliedAtUtc)
+            VALUES (9, @AppliedAtUtc);
             """,
             cancellationToken,
             ("@AppliedAtUtc", ToDatabaseTimestamp(DateTimeOffset.UtcNow)));
@@ -178,6 +181,105 @@ public sealed class SqliteHistorianRepository : IHistorianRepository
             throw new InvalidOperationException(
                 $"Unsupported historian database schema version {version}; expected {SchemaVersion}.");
     }
+
+    private static Task EnsureProductionIntegrationSchemaAsync(
+        SqliteConnection connection,
+        CancellationToken cancellationToken) =>
+        ExecuteAsync(
+            connection,
+            null,
+            """
+            CREATE TABLE IF NOT EXISTS ExternalProductionRuns (
+                Id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+                SourceSystem TEXT NOT NULL,
+                ExternalRunId TEXT NOT NULL,
+                ProductionOrderCode TEXT NULL,
+                MachineCode TEXT NULL,
+                IsProducing INTEGER NOT NULL,
+                ExpectedEndAtUtc TEXT NULL,
+                FirstObservedAtUtc TEXT NOT NULL,
+                LastObservedAtUtc TEXT NOT NULL,
+                ClosedAtUtc TEXT NULL,
+                QualityKey TEXT NULL,
+                QualityProductCode TEXT NULL,
+                QualityGrammageGsm REAL NULL,
+                IsMixedQuality INTEGER NOT NULL DEFAULT 0,
+                UNIQUE (SourceSystem, ExternalRunId)
+            );
+            CREATE INDEX IF NOT EXISTS IX_ExternalProductionRuns_Source_LastObserved
+                ON ExternalProductionRuns (SourceSystem, LastObservedAtUtc DESC);
+            CREATE INDEX IF NOT EXISTS IX_ExternalProductionRuns_Open
+                ON ExternalProductionRuns (SourceSystem, ClosedAtUtc)
+                WHERE ClosedAtUtc IS NULL;
+
+            CREATE TABLE IF NOT EXISTS ExternalProductionRunItems (
+                Id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+                RunId INTEGER NOT NULL,
+                Position INTEGER NOT NULL,
+                CustomerName TEXT NULL,
+                OrderCode TEXT NULL,
+                ProductCode TEXT NULL,
+                Format REAL NULL,
+                Diameter REAL NULL,
+                GrammageGsm REAL NULL,
+                PlannedQuantityKg REAL NULL,
+                ProducedQuantityKg REAL NULL,
+                FOREIGN KEY (RunId) REFERENCES ExternalProductionRuns (Id) ON DELETE CASCADE,
+                UNIQUE (RunId, Position)
+            );
+            CREATE INDEX IF NOT EXISTS IX_ExternalProductionRunItems_RunId
+                ON ExternalProductionRunItems (RunId);
+
+            CREATE TABLE IF NOT EXISTS ExternalProductionReferences (
+                Id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+                RunId INTEGER NOT NULL,
+                Position INTEGER NOT NULL,
+                ReferenceType TEXT NOT NULL,
+                ReferenceValue TEXT NOT NULL,
+                FOREIGN KEY (RunId) REFERENCES ExternalProductionRuns (Id) ON DELETE CASCADE,
+                UNIQUE (RunId, ReferenceType, Position)
+            );
+            CREATE INDEX IF NOT EXISTS IX_ExternalProductionReferences_RunId
+                ON ExternalProductionReferences (RunId);
+
+            CREATE TABLE IF NOT EXISTS ExternalProductionSnapshots (
+                Id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+                RunId INTEGER NOT NULL,
+                CapturedAtUtc TEXT NOT NULL,
+                PayloadHash TEXT NOT NULL,
+                RawPayloadJson TEXT NOT NULL,
+                FOREIGN KEY (RunId) REFERENCES ExternalProductionRuns (Id) ON DELETE CASCADE
+            );
+            CREATE INDEX IF NOT EXISTS IX_ExternalProductionSnapshots_Run_Captured
+                ON ExternalProductionSnapshots (RunId, CapturedAtUtc DESC);
+
+            CREATE TABLE IF NOT EXISTS ProductionQualityPeriods (
+                Id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+                SourceSystem TEXT NOT NULL,
+                RunId INTEGER NOT NULL,
+                QualityKey TEXT NOT NULL,
+                ProductCode TEXT NULL,
+                GrammageGsm REAL NULL,
+                IsMixedQuality INTEGER NOT NULL,
+                StartedAtUtc TEXT NOT NULL,
+                EndedAtUtc TEXT NULL,
+                FOREIGN KEY (RunId) REFERENCES ExternalProductionRuns (Id) ON DELETE CASCADE
+            );
+            CREATE INDEX IF NOT EXISTS IX_ProductionQualityPeriods_Run_Started
+                ON ProductionQualityPeriods (RunId, StartedAtUtc);
+            CREATE UNIQUE INDEX IF NOT EXISTS UX_ProductionQualityPeriods_Open
+                ON ProductionQualityPeriods (SourceSystem) WHERE EndedAtUtc IS NULL;
+
+            CREATE TABLE IF NOT EXISTS IntegrationSyncState (
+                IntegrationKey TEXT NOT NULL PRIMARY KEY,
+                LastAttemptAtUtc TEXT NULL,
+                LastSuccessfulSyncAtUtc TEXT NULL,
+                Status TEXT NOT NULL,
+                LastError TEXT NULL,
+                LastPayloadHash TEXT NULL
+            );
+            """,
+            cancellationToken);
 
     private static async Task RefreshPersistedDriveFaultDiagnosticsAsync(
         SqliteConnection connection,

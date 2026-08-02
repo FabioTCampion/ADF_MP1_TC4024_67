@@ -8,6 +8,12 @@ param(
 
     [string]$DisplayName = 'CPNTeck Paper Machine Historian',
 
+    [string]$ConnectorDataRoot = 'C:\ProgramData\CPNTeck\ProductionConnector',
+
+    [string]$ConnectorServiceName = 'CPNTeckProductionConnector',
+
+    [string]$ConnectorDisplayName = 'CPNTeck Production Connector',
+
     [ValidateRange(1, 65535)]
     [int]$HttpPort = 5088,
 
@@ -88,12 +94,15 @@ function Stop-ExistingService {
 function New-DeploymentBackup {
     param(
         [Parameter(Mandatory = $true)][string]$Root,
-        [string]$PreviousVersion
+        [string]$PreviousVersion,
+        [string]$ConfigurationContent,
+        [string]$ConnectorRoot,
+        [string]$ConnectorConfigurationContent
     )
 
     $databasePath = Join-Path $Root 'data\PaperMachineHistorian.db'
     if (-not (Test-Path -LiteralPath $databasePath -PathType Leaf)) {
-        return
+        return $null
     }
 
     $versionLabel = if ([string]::IsNullOrWhiteSpace($PreviousVersion)) {
@@ -119,13 +128,34 @@ function New-DeploymentBackup {
                 -Force
         }
     }
-    $configPath = Join-Path $Root 'appsettings.Production.json'
-    if (Test-Path -LiteralPath $configPath -PathType Leaf) {
-        Copy-Item -LiteralPath $configPath -Destination $backupRoot -Force
+    if (-not [string]::IsNullOrWhiteSpace($ConfigurationContent)) {
+        $ConfigurationContent |
+            Set-Content `
+                -LiteralPath (Join-Path $backupRoot 'appsettings.Production.json') `
+                -Encoding UTF8
     }
     $keysPath = Join-Path $Root 'keys'
     if (Test-Path -LiteralPath $keysPath -PathType Container) {
         Copy-Item -LiteralPath $keysPath -Destination $backupRoot -Recurse -Force
+    }
+    $secretsPath = Join-Path $Root 'secrets'
+    if (Test-Path -LiteralPath $secretsPath -PathType Container) {
+        Copy-Item -LiteralPath $secretsPath -Destination $backupRoot -Recurse -Force
+    }
+    if (-not [string]::IsNullOrWhiteSpace($ConnectorRoot) -and
+        (Test-Path -LiteralPath $ConnectorRoot -PathType Container)) {
+        $connectorBackup = Join-Path $backupRoot 'production-connector'
+        New-Item -ItemType Directory -Path $connectorBackup -Force | Out-Null
+        foreach ($itemName in @('secrets')) {
+            $source = Join-Path $ConnectorRoot $itemName
+            if (Test-Path -LiteralPath $source) {
+                Copy-Item -LiteralPath $source -Destination $connectorBackup -Recurse -Force
+            }
+        }
+        if (-not [string]::IsNullOrWhiteSpace($ConnectorConfigurationContent)) {
+            $ConnectorConfigurationContent |
+                Set-Content -LiteralPath (Join-Path $connectorBackup 'config.json') -Encoding UTF8
+        }
     }
 
     $oldBackups = @(
@@ -145,20 +175,95 @@ function New-DeploymentBackup {
             Remove-Item -LiteralPath $resolvedBackup -Recurse -Force
         }
     }
+    return $backupRoot
+}
+
+function Restore-DeploymentBackup {
+    param(
+        [Parameter(Mandatory = $true)][string]$Root,
+        [Parameter(Mandatory = $true)][string]$BackupPath,
+        [string]$ConnectorRoot
+    )
+
+    $resolvedBackup = [IO.Path]::GetFullPath($BackupPath)
+    $backupsRoot = [IO.Path]::GetFullPath((Join-Path $Root 'backups')).TrimEnd('\') + '\'
+    if (-not $resolvedBackup.StartsWith($backupsRoot, [StringComparison]::OrdinalIgnoreCase)) {
+        throw "Backup de rollback fora da pasta permitida: $resolvedBackup"
+    }
+
+    $databasePath = Join-Path $Root 'data\PaperMachineHistorian.db'
+    foreach ($databaseFile in @($databasePath, "$databasePath-wal", "$databasePath-shm")) {
+        if (Test-Path -LiteralPath $databaseFile -PathType Leaf) {
+            Remove-Item -LiteralPath $databaseFile -Force
+        }
+    }
+    $backupData = Join-Path $resolvedBackup 'data'
+    if (Test-Path -LiteralPath $backupData -PathType Container) {
+        Copy-Item -Path (Join-Path $backupData '*') -Destination (Split-Path $databasePath) -Force
+    }
+    $backupConfig = Join-Path $resolvedBackup 'appsettings.Production.json'
+    if (Test-Path -LiteralPath $backupConfig -PathType Leaf) {
+        Copy-Item -LiteralPath $backupConfig -Destination (Join-Path $Root 'appsettings.Production.json') -Force
+    }
+    foreach ($directoryName in @('keys', 'secrets')) {
+        $source = Join-Path $resolvedBackup $directoryName
+        if (Test-Path -LiteralPath $source -PathType Container) {
+            Copy-Item -LiteralPath $source -Destination $Root -Recurse -Force
+        }
+    }
+    $connectorBackup = Join-Path $resolvedBackup 'production-connector'
+    if (-not [string]::IsNullOrWhiteSpace($ConnectorRoot) -and
+        (Test-Path -LiteralPath $connectorBackup -PathType Container)) {
+        New-Item -ItemType Directory -Path $ConnectorRoot -Force | Out-Null
+        Copy-Item -Path (Join-Path $connectorBackup '*') -Destination $ConnectorRoot -Recurse -Force
+    }
 }
 
 function Set-ServiceBinaryPath {
     param(
         [Parameter(Mandatory = $true)][string]$Name,
-        [Parameter(Mandatory = $true)][string]$ExecutablePath
+        [Parameter(Mandatory = $true)][string]$ExecutablePath,
+        [string]$Arguments = ''
     )
 
     $quotedPath = '"' + $ExecutablePath + '"'
+    if (-not [string]::IsNullOrWhiteSpace($Arguments)) {
+        $quotedPath += ' ' + $Arguments
+    }
     Invoke-ServiceControl -Arguments @(
         'config', $Name,
         'binPath=', $quotedPath,
         'start=', 'delayed-auto'
     )
+}
+
+function Start-AndValidateConnector {
+    param(
+        [Parameter(Mandatory = $true)][string]$Name,
+        [Parameter(Mandatory = $true)][int]$Port
+    )
+
+    Start-Service -Name $Name
+    (Get-Service -Name $Name).WaitForStatus(
+        [ServiceProcess.ServiceControllerStatus]::Running,
+        [TimeSpan]::FromSeconds(30))
+    $deadline = [DateTime]::UtcNow.AddSeconds(30)
+    $lastReason = 'O endpoint de saude ainda nao respondeu.'
+    do {
+        try {
+            $health = Invoke-RestMethod `
+                -Uri "http://127.0.0.1:$Port/health" `
+                -TimeoutSec 3
+            if ($health.status -eq 'ok') {
+                return
+            }
+        }
+        catch {
+            $lastReason = $_.Exception.Message
+        }
+        Start-Sleep -Milliseconds 500
+    } while ([DateTime]::UtcNow -lt $deadline)
+    throw "O conector ERP local nao ficou pronto: $lastReason"
 }
 
 function Test-PackageIntegrity {
@@ -239,12 +344,22 @@ $packageRoot = [IO.Path]::GetFullPath($PSScriptRoot)
 $manifestPath = Join-Path $packageRoot 'deployment-manifest.json'
 $packageAppPath = Join-Path $packageRoot 'app'
 $packageConfigPath = Join-Path $packageRoot 'config\appsettings.Production.json'
+$packageConnectorConfigPath = Join-Path $packageRoot 'config\production-connector.config.json'
+$packageConnectorExecutablePath = Join-Path `
+    $packageAppPath `
+    'connector\CPNTeck.ProductionConnector-windows-amd64.exe'
 
 if (-not (Test-Path -LiteralPath $manifestPath -PathType Leaf)) {
     throw 'deployment-manifest.json nao foi encontrado ao lado do instalador.'
 }
 if (-not (Test-Path -LiteralPath (Join-Path $packageAppPath 'PaperMachine.Historian.Web.exe') -PathType Leaf)) {
     throw 'O executavel publicado nao foi encontrado na pasta app do pacote.'
+}
+if (-not (Test-Path -LiteralPath $packageConnectorExecutablePath -PathType Leaf)) {
+    throw 'O executavel Windows x64 do conector ERP nao foi encontrado no pacote.'
+}
+if (-not (Test-Path -LiteralPath $packageConnectorConfigPath -PathType Leaf)) {
+    throw 'A configuracao do conector ERP nao foi encontrada no pacote.'
 }
 
 $manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
@@ -258,6 +373,18 @@ $databaseDirectory = Join-Path $DataRoot 'data'
 $databasePath = Join-Path $databaseDirectory 'PaperMachineHistorian.db'
 $updatesRoot = Join-Path $DataRoot 'updates'
 $updateTokenPath = Join-Path $updatesRoot 'github-token.txt'
+$connectorConfigPath = Join-Path $ConnectorDataRoot 'config.json'
+$connectorSecretsRoot = Join-Path $ConnectorDataRoot 'secrets'
+$connectorApiKeyPath = Join-Path $connectorSecretsRoot 'erp-api-key.txt'
+$connectorClientTokenPath = Join-Path $connectorSecretsRoot 'historian-token.txt'
+$connectorPort = 5091
+$connectorConfigurationBeforeUpdateJson = if (
+    Test-Path -LiteralPath $connectorConfigPath -PathType Leaf) {
+    Get-Content -LiteralPath $connectorConfigPath -Raw
+}
+else {
+    $null
+}
 
 if (-not $releaseRoot.StartsWith(
         [IO.Path]::GetFullPath($releasesRoot),
@@ -270,11 +397,52 @@ New-Item -ItemType Directory -Path $DataRoot -Force | Out-Null
 New-Item -ItemType Directory -Path $databaseDirectory -Force | Out-Null
 New-Item -ItemType Directory -Path (Join-Path $DataRoot 'backups') -Force | Out-Null
 New-Item -ItemType Directory -Path $updatesRoot -Force | Out-Null
+New-Item -ItemType Directory -Path $ConnectorDataRoot -Force | Out-Null
+New-Item -ItemType Directory -Path $connectorSecretsRoot -Force | Out-Null
+
+if (-not (Test-Path -LiteralPath $connectorClientTokenPath -PathType Leaf)) {
+    $tokenBytes = New-Object byte[] 32
+    $random = [Security.Cryptography.RandomNumberGenerator]::Create()
+    try {
+        $random.GetBytes($tokenBytes)
+    }
+    finally {
+        $random.Dispose()
+    }
+    [Convert]::ToBase64String($tokenBytes) |
+        Set-Content -LiteralPath $connectorClientTokenPath -Encoding ASCII -NoNewline
+    [Array]::Clear($tokenBytes, 0, $tokenBytes.Length)
+}
+
+# Migra a credencial do layout anterior apenas quando o novo cofre ainda esta vazio.
+$legacyErpKeyPath = Join-Path $DataRoot 'secrets\erp-api-key.txt'
+if (-not (Test-Path -LiteralPath $connectorApiKeyPath -PathType Leaf) -and
+    (Test-Path -LiteralPath $legacyErpKeyPath -PathType Leaf)) {
+    Copy-Item -LiteralPath $legacyErpKeyPath -Destination $connectorApiKeyPath
+}
+
+$connectorConfiguration =
+    Get-Content -LiteralPath $packageConnectorConfigPath -Raw | ConvertFrom-Json
+$connectorConfiguration.apiKeyFilePath = $connectorApiKeyPath
+$connectorConfiguration.clientTokenFilePath = $connectorClientTokenPath
+$connectorConfiguration.listenAddress = "127.0.0.1:$connectorPort"
+$connectorConfiguration | ConvertTo-Json -Depth 10 |
+    Set-Content -LiteralPath $connectorConfigPath -Encoding UTF8
+
+& icacls.exe $ConnectorDataRoot `
+    '/inheritance:r' `
+    '/grant:r' `
+    '*S-1-5-18:(OI)(CI)F' `
+    '*S-1-5-32-544:(OI)(CI)F' *> $null
+if ($LASTEXITCODE -ne 0) {
+    throw 'Nao foi possivel proteger a pasta do conector ERP.'
+}
 
 if (-not (Test-Path -LiteralPath $applicationConfigPath -PathType Leaf)) {
     Copy-Item -LiteralPath $packageConfigPath -Destination $applicationConfigPath
 }
 
+$configurationBeforeUpdateJson = Get-Content -LiteralPath $applicationConfigPath -Raw
 $configuration = Get-Content -LiteralPath $applicationConfigPath -Raw | ConvertFrom-Json
 $packageConfiguration = Get-Content -LiteralPath $packageConfigPath -Raw | ConvertFrom-Json
 
@@ -336,6 +504,32 @@ $updatesProperty.Value.WorkingDirectory = $updatesRoot
 $updatesProperty.Value.TokenFilePath = $updateTokenPath
 $updatesProperty.Value.UpdaterTaskName = 'CPNTeckPaperMachineHistorianUpdater'
 
+$productionProperty = $configuration.PSObject.Properties['ProductionIntegration']
+$packageProductionProperty = $packageConfiguration.PSObject.Properties['ProductionIntegration']
+if ($null -eq $packageProductionProperty -or $null -eq $packageProductionProperty.Value) {
+    throw "A configuracao do pacote nao possui a secao obrigatoria 'ProductionIntegration'."
+}
+if ($null -eq $productionProperty -or $null -eq $productionProperty.Value) {
+    $configuration |
+        Add-Member `
+            -NotePropertyName ProductionIntegration `
+            -NotePropertyValue $packageProductionProperty.Value `
+            -Force
+    $productionProperty = $configuration.PSObject.Properties['ProductionIntegration']
+}
+else {
+    foreach ($property in $packageProductionProperty.Value.PSObject.Properties) {
+        if ($null -eq $productionProperty.Value.PSObject.Properties[$property.Name]) {
+            $productionProperty.Value |
+                Add-Member -NotePropertyName $property.Name -NotePropertyValue $property.Value
+        }
+    }
+}
+$productionProperty.Value.BaseUrl = "http://127.0.0.1:$connectorPort"
+$productionProperty.Value.EndpointPath = '/v1/production/current'
+$productionProperty.Value.ApiKeyHeaderName = 'x-cpnteck-connector-token'
+$productionProperty.Value.ApiKeyFilePath = $connectorClientTokenPath
+
 if ([string]::IsNullOrWhiteSpace([string]$configuration.Ads.AmsNetId)) {
     throw 'AMS Net ID vazio. Informe -AmsNetId ou PAPERHISTORIAN_AMS_NET_ID.'
 }
@@ -366,6 +560,9 @@ New-Item -ItemType Directory -Path $releaseRoot -Force | Out-Null
 Copy-Item -Path (Join-Path $packageAppPath '*') -Destination $releaseRoot -Recurse -Force
 
 $newExecutablePath = Join-Path $releaseRoot 'PaperMachine.Historian.Web.exe'
+$newConnectorExecutablePath = Join-Path `
+    $releaseRoot `
+    'connector\CPNTeck.ProductionConnector-windows-amd64.exe'
 $existingState = if (Test-Path -LiteralPath $statePath -PathType Leaf) {
     Get-Content -LiteralPath $statePath -Raw | ConvertFrom-Json
 } else {
@@ -374,6 +571,13 @@ $existingState = if (Test-Path -LiteralPath $statePath -PathType Leaf) {
 $previousVersion = if ($existingState) { [string]$existingState.CurrentVersion } else { $null }
 $previousExecutablePath = if ($previousVersion) {
     Join-Path (Join-Path $releasesRoot $previousVersion) 'PaperMachine.Historian.Web.exe'
+} else {
+    $null
+}
+$previousConnectorExecutablePath = if ($previousVersion) {
+    Join-Path `
+        (Join-Path (Join-Path $releasesRoot $previousVersion) 'connector') `
+        'CPNTeck.ProductionConnector-windows-amd64.exe'
 } else {
     $null
 }
@@ -406,9 +610,44 @@ else {
 
 $service = Get-Service -Name $ServiceName -ErrorAction SilentlyContinue
 $serviceWasRunning = Stop-ExistingService -Name $ServiceName
+$connectorService = Get-Service -Name $ConnectorServiceName -ErrorAction SilentlyContinue
+$connectorServiceWasRunning = Stop-ExistingService -Name $ConnectorServiceName
 
+$rollbackBackupPath = $null
 try {
-    New-DeploymentBackup -Root $DataRoot -PreviousVersion $previousVersion
+    $rollbackBackupPath = New-DeploymentBackup `
+        -Root $DataRoot `
+        -PreviousVersion $previousVersion `
+        -ConfigurationContent $configurationBeforeUpdateJson `
+        -ConnectorRoot $ConnectorDataRoot `
+        -ConnectorConfigurationContent $connectorConfigurationBeforeUpdateJson
+
+    $connectorArguments = '--service --config "' + $connectorConfigPath + '"'
+    if ($null -eq $connectorService) {
+        $connectorBinaryPath = '"' + $newConnectorExecutablePath + '" ' + $connectorArguments
+        Invoke-ServiceControl -Arguments @(
+            'create', $ConnectorServiceName,
+            'binPath=', $connectorBinaryPath,
+            'start=', 'delayed-auto',
+            'DisplayName=', $ConnectorDisplayName
+        )
+        Invoke-ServiceControl -Arguments @(
+            'description', $ConnectorServiceName,
+            'CPNTeck local TLS 1.3 connector for read-only production data'
+        )
+    }
+    else {
+        Set-ServiceBinaryPath `
+            -Name $ConnectorServiceName `
+            -ExecutablePath $newConnectorExecutablePath `
+            -Arguments $connectorArguments
+    }
+    Invoke-ServiceControl -Arguments @(
+        'failure', $ConnectorServiceName,
+        'reset=', '86400',
+        'actions=', 'restart/5000/restart/10000/restart/30000'
+    )
+    Invoke-ServiceControl -Arguments @('failureflag', $ConnectorServiceName, '1')
 
     if ($null -eq $service) {
         $quotedPath = '"' + $newExecutablePath + '"'
@@ -433,6 +672,10 @@ try {
         'actions=', 'restart/5000/restart/10000/restart/30000'
     )
     Invoke-ServiceControl -Arguments @('failureflag', $ServiceName, '1')
+    Invoke-ServiceControl -Arguments @(
+        'config', $ServiceName,
+        'depend=', $ConnectorServiceName
+    )
 
     $serviceRegistryPath = "HKLM:\SYSTEM\CurrentControlSet\Services\$ServiceName"
     $serviceEnvironment = @(
@@ -461,6 +704,8 @@ try {
         -TaskName ([string]$updatesProperty.Value.UpdaterTaskName) `
         -HttpPort $HttpPort
 
+    Start-AndValidateConnector -Name $ConnectorServiceName -Port $connectorPort
+
     Start-AndValidateService `
         -Name $ServiceName `
         -Port $HttpPort `
@@ -474,14 +719,44 @@ try {
         HttpPort = $HttpPort
         AmsNetId = [string]$configuration.Ads.AmsNetId
         RemoteIp = [string]$configuration.Ads.RemoteIp
+        RollbackBackupPath = $rollbackBackupPath
+        ConnectorServiceName = $ConnectorServiceName
+        ConnectorDataRoot = $ConnectorDataRoot
     }
     $state | ConvertTo-Json |
         Set-Content -LiteralPath $statePath -Encoding UTF8
 }
 catch {
     Stop-ExistingService -Name $ServiceName | Out-Null
+    Stop-ExistingService -Name $ConnectorServiceName | Out-Null
     if ($previousExecutablePath -and (Test-Path -LiteralPath $previousExecutablePath -PathType Leaf)) {
+        if (-not [string]::IsNullOrWhiteSpace([string]$rollbackBackupPath)) {
+            Restore-DeploymentBackup `
+                -Root $DataRoot `
+                -BackupPath $rollbackBackupPath `
+                -ConnectorRoot $ConnectorDataRoot
+        }
         Set-ServiceBinaryPath -Name $ServiceName -ExecutablePath $previousExecutablePath
+        if ($previousConnectorExecutablePath -and
+            (Test-Path -LiteralPath $previousConnectorExecutablePath -PathType Leaf)) {
+            Set-ServiceBinaryPath `
+                -Name $ConnectorServiceName `
+                -ExecutablePath $previousConnectorExecutablePath `
+                -Arguments ('--service --config "' + $connectorConfigPath + '"')
+            if ($connectorServiceWasRunning) {
+                Start-Service -Name $ConnectorServiceName
+            }
+        }
+        else {
+            Invoke-ServiceControl -Arguments @(
+                'config', $ServiceName,
+                'depend=', '/'
+            )
+            if ($null -eq $connectorService -and
+                $null -ne (Get-Service -Name $ConnectorServiceName -ErrorAction SilentlyContinue)) {
+                Invoke-ServiceControl -Arguments @('delete', $ConnectorServiceName)
+            }
+        }
         if ($serviceWasRunning) {
             Start-Service -Name $ServiceName
         }
@@ -492,5 +767,6 @@ catch {
 Write-Host ''
 Write-Host "[OK] $DisplayName $($manifest.Version) esta em execucao." -ForegroundColor Green
 Write-Host "Servico: $ServiceName (inicio automatico atrasado)"
+Write-Host "Conector ERP: $ConnectorServiceName (somente 127.0.0.1:$connectorPort)"
 Write-Host "URL local: http://127.0.0.1:$HttpPort"
 Write-Host "Rede local: http://<IP-OU-NOME-DESTE-PC>:$HttpPort"

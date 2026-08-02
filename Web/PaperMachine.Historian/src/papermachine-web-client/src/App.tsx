@@ -62,6 +62,49 @@ type StorageStatus = {
   lastMaintenanceAtUtc: string | null;
 };
 
+type ProductionItem = {
+  position: number;
+  customerName: string | null;
+  orderCode: string | null;
+  productCode: string | null;
+  format: number | null;
+  diameter: number | null;
+  grammageGsm: number | null;
+  plannedQuantityKg: number | null;
+  producedQuantityKg: number | null;
+};
+
+type ProductionReference = {
+  position: number;
+  referenceType: string;
+  referenceValue: string;
+};
+
+type ProductionIntegration = {
+  enabled: boolean;
+  configured: boolean;
+  sourceSystem: string;
+  status: "Disabled" | "NeverSynced" | "Online" | "Stale" | "Faulted";
+  stale: boolean;
+  lastAttemptAtUtc: string | null;
+  lastSuccessfulSyncAtUtc: string | null;
+  lastError: string | null;
+  currentRun: {
+    externalRunId: string;
+    productionOrderCode: string | null;
+    machineCode: string | null;
+    isProducing: boolean;
+    expectedEndAtUtc: string | null;
+    lastObservedAtUtc: string;
+    qualityKey: string | null;
+    qualityProductCode: string | null;
+    qualityGrammageGsm: number | null;
+    isMixedQuality: boolean;
+    items: ProductionItem[];
+    references: ProductionReference[];
+  } | null;
+};
+
 type AlarmEvent = {
   id: number;
   alarmName: string;
@@ -355,6 +398,7 @@ export default function App() {
   const [runtime, setRuntime] = useState<RuntimeStatus | null>(null);
   const [current, setCurrent] = useState<CurrentSnapshot | null>(null);
   const [storage, setStorage] = useState<StorageStatus | null>(null);
+  const [production, setProduction] = useState<ProductionIntegration | null>(null);
   const [clock, setClock] = useState(new Date());
   const serverOffsetMilliseconds = runtime?.serverTimeUtc
     ? new Date(runtime.serverTimeUtc).getTime() - Date.now()
@@ -388,12 +432,14 @@ export default function App() {
   }, [page, visibleNavigation]);
 
   const refreshLiveData = useCallback(async () => {
-    const [runtimeResult, currentResult] = await Promise.allSettled([
+    const [runtimeResult, currentResult, productionResult] = await Promise.allSettled([
       fetchJson<RuntimeStatus>("/api/runtime"),
       fetchJson<CurrentSnapshot>("/api/current"),
+      fetchJson<ProductionIntegration>("/api/production/current"),
     ]);
     if (runtimeResult.status === "fulfilled") setRuntime(runtimeResult.value);
     if (currentResult.status === "fulfilled") setCurrent(currentResult.value);
+    if (productionResult.status === "fulfilled") setProduction(productionResult.value);
   }, []);
 
   useEffect(() => {
@@ -515,7 +561,12 @@ export default function App() {
             </div>
           )}
           {page === "dashboard" && (
-            <Dashboard runtime={runtime} current={current} storage={storage} />
+            <Dashboard
+              runtime={runtime}
+              current={current}
+              storage={storage}
+              production={production}
+            />
           )}
           {page === "metrics" && (
             <Suspense fallback={<EmptyState text="Preparando métricas…" />}>
@@ -580,10 +631,12 @@ function Dashboard({
   runtime,
   current,
   storage,
+  production,
 }: {
   runtime: RuntimeStatus | null;
   current: CurrentSnapshot | null;
   storage: StorageStatus | null;
+  production: ProductionIntegration | null;
 }) {
   const [alarms, setAlarms] = useState<AlarmEvent[]>([]);
   const [commands, setCommands] = useState<CommandEvent[]>([]);
@@ -657,6 +710,8 @@ function Dashboard({
         </div>
       </section>
 
+      <ProductionContextCard production={production} />
+
       <MachineGroupStatus
         current={current}
         connected={runtime?.adsConnected ?? false}
@@ -721,6 +776,95 @@ function Dashboard({
         </article>
       </section>
     </>
+  );
+}
+
+function ProductionContextCard({
+  production,
+}: {
+  production: ProductionIntegration | null;
+}) {
+  const run = production?.currentRun;
+  const customers = Array.from(new Set(
+    (run?.items ?? []).map((item) => item.customerName).filter(Boolean),
+  )) as string[];
+  const orders = Array.from(new Set(
+    (run?.items ?? []).map((item) => item.orderCode).filter(Boolean),
+  )) as string[];
+  const jumbos = (run?.references ?? [])
+    .filter((reference) => reference.referenceType === "Jumbo")
+    .map((reference) => reference.referenceValue);
+  const hasSingleQuality = Boolean(
+    run?.qualityProductCode ||
+    run?.qualityGrammageGsm !== null && run?.qualityGrammageGsm !== undefined,
+  );
+  const quality = run?.isMixedQuality
+    ? "Qualidade mista"
+    : hasSingleQuality
+      ? [
+          run?.qualityProductCode,
+          run?.qualityGrammageGsm !== null && run?.qualityGrammageGsm !== undefined
+            ? `${run.qualityGrammageGsm.toLocaleString("pt-BR")} g/m²`
+            : null,
+        ].filter(Boolean).join(" · ")
+      : "Qualidade não informada";
+  const statusLabel = !production
+    ? "Consultando"
+    : !production.enabled
+      ? "Integração desabilitada"
+      : production.status === "Online"
+        ? "ERP sincronizado"
+        : production.status === "Stale"
+          ? "Dados desatualizados"
+          : production.status === "Faulted"
+            ? "ERP indisponível"
+            : "Aguardando primeira leitura";
+  const stateClass = production?.status === "Online"
+    ? "online"
+    : production?.status === "Faulted" || production?.status === "Stale"
+      ? "warning"
+      : "neutral";
+  const productionState = !run
+    ? "unknown"
+    : run.isProducing
+      ? "running"
+      : "stopped";
+  const productionStateLabel = !run
+    ? "Sem contexto"
+    : `${production?.stale || production?.status === "Faulted" ? "Último estado: " : ""}${
+        run.isProducing ? "Produzindo" : "Parado"
+      }`;
+
+  return (
+    <section className={`production-context-card production-context-card--${stateClass}`}>
+      <div className="production-context-heading">
+        <div>
+          <p className="eyebrow">Contexto de produção ERP</p>
+          <h2>{quality}</h2>
+          <span>{statusLabel}</span>
+        </div>
+        <div className={`production-state production-state--${productionState}`}>
+          <i />
+          {productionStateLabel}
+        </div>
+      </div>
+      <div className="production-context-grid">
+        <div><span>OP</span><b>{run?.productionOrderCode ?? "—"}</b></div>
+        <div><span>Mapa</span><b>{run?.externalRunId ?? "—"}</b></div>
+        <div><span>Cliente</span><b>{customers.join(", ") || "—"}</b></div>
+        <div><span>Pedidos</span><b>{orders.join(", ") || "—"}</b></div>
+        <div><span>Jumbos</span><b>{jumbos.join(", ") || "—"}</b></div>
+        <div><span>Última sincronização</span><b>{formatDate(production?.lastSuccessfulSyncAtUtc)}</b></div>
+      </div>
+      {run?.isMixedQuality && (
+        <p className="production-context-alert">
+          O ERP retornou produtos ou gramaturas diferentes. Nenhuma qualidade única foi presumida.
+        </p>
+      )}
+      {production?.lastError && (
+        <p className="production-context-alert">{production.lastError}</p>
+      )}
+    </section>
   );
 }
 

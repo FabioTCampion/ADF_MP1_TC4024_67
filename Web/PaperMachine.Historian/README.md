@@ -53,6 +53,9 @@ O arquivo, seu WAL e arquivos temporários estão ignorados pelo Git. O banco us
 - `AdsCommunicationEvents`: conexão e falhas de aquisição;
 - `HistorianMaintenanceState`: progresso da migração e última manutenção;
 - `ApplicationUsers`: usuários locais e hashes de senha;
+- `ExternalProductionRuns` e tabelas relacionadas: contexto normalizado de
+  produção ERP, itens, jumbos, snapshots somente quando há mudança e períodos de
+  qualidade;
 - `SchemaMigrations`: versão aplicada ao banco.
 
 Datas são armazenadas em UTC. Alarmes encontrados ativos na primeira leitura ficam marcados como `ActiveAtStartup`, pois o horário real de ativação anterior ao início do serviço é desconhecido.
@@ -72,6 +75,16 @@ O histórico legado em JSON é convertido progressivamente em agregados por minu
 antes de ser removido pela retenção. A limpeza ocorre em pequenos lotes e só é
 habilitada depois de existir pelo menos 24 horas de telemetria no formato novo.
 Alarmes, comandos, quebras e usuários não são removidos pela retenção automática.
+
+A integração ERP opcional usa um worker independente do ADS e vem desabilitada
+na instalação. Consulte [ERP-INTEGRATION.md](ERP-INTEGRATION.md) para arquitetura,
+credencial, ativação, diagnóstico e rollback do schema 9.
+
+Compatibilidade multiplataforma é um requisito permanente: dependências de
+sistema operacional ficam isoladas em adaptadores e todo novo alvo precisa de
+build/teste reproduzível. O conector ERP desta entrega gera binários sem CGO
+para Windows x64, Linux x64 e Linux ARM64. A distinção entre build validado e
+ambiente homologado está em [MULTIPLATFORM.md](MULTIPLATFORM.md).
 
 ## Diagnóstico dos drives C2000 Plus
 
@@ -96,6 +109,7 @@ Pré-requisitos:
 
 - .NET SDK 10;
 - Node.js 24 ou superior para alterar/recompilar o frontend;
+- Go 1.26.5 para compilar o conector ERP TLS 1.3;
 - TwinCAT ADS Router com a rota do PLC já configurada;
 - acesso TCP/ADS ao equipamento remoto.
 

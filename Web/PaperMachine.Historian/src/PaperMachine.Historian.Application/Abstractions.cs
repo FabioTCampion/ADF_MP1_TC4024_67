@@ -11,6 +11,27 @@ public interface IPaperMachineReader : IAsyncDisposable
     Task DisconnectAsync(CancellationToken cancellationToken);
 }
 
+public interface IProductionSourceClient
+{
+    string SourceSystem { get; }
+    Task<ProductionSourceObservation> ReadAsync(CancellationToken cancellationToken);
+}
+
+public interface IProductionIntegrationRepository
+{
+    Task ApplyObservationAsync(
+        ProductionSourceObservation observation,
+        CancellationToken cancellationToken);
+    Task RecordFailureAsync(
+        string sourceSystem,
+        DateTimeOffset attemptedAtUtc,
+        string sanitizedError,
+        CancellationToken cancellationToken);
+    Task<ProductionIntegrationState> GetStateAsync(
+        string sourceSystem,
+        CancellationToken cancellationToken);
+}
+
 public interface IHistorianRepository
 {
     Task InitializeAsync(CancellationToken cancellationToken);

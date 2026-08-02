@@ -57,13 +57,23 @@ var reportingOptions = builder.Configuration
     .Get<ReportingOptions>() ?? new ReportingOptions();
 reportingOptions.Validate();
 
+var productionIntegrationOptions = builder.Configuration
+    .GetSection(ProductionIntegrationOptions.SectionName)
+    .Get<ProductionIntegrationOptions>() ?? new ProductionIntegrationOptions();
+productionIntegrationOptions.ResolvePaths(Path.GetDirectoryName(databaseOptions.FilePath)!);
+productionIntegrationOptions.Validate();
+
 builder.Services.AddSingleton(adsOptions);
 builder.Services.AddSingleton(historianOptions);
 builder.Services.AddSingleton(databaseOptions);
 builder.Services.AddSingleton(updateOptions);
 builder.Services.AddSingleton(reportingOptions);
+builder.Services.AddSingleton(productionIntegrationOptions);
 builder.Services.AddSingleton<IPaperMachineReader, AdsPaperMachineReader>();
 builder.Services.AddSingleton<IHistorianRepository, SqliteHistorianRepository>();
+builder.Services.AddSingleton<
+    IProductionIntegrationRepository,
+    SqliteProductionIntegrationRepository>();
 builder.Services.AddSingleton<IUserRepository, SqliteUserRepository>();
 builder.Services.AddSingleton<
     IUserBreakAnalysisFilterRepository,
@@ -78,7 +88,17 @@ builder.Services.AddSingleton<HistorianProcessor>();
 builder.Services.AddSingleton<HistorianRuntimeState>();
 builder.Services.AddSingleton<GitHubReleaseClient>();
 builder.Services.AddSingleton<ApplicationUpdateService>();
+builder.Services.AddHttpClient<IProductionSourceClient, PaperSystemProductionSourceClient>(client =>
+{
+    client.Timeout = TimeSpan.FromSeconds(productionIntegrationOptions.RequestTimeoutSeconds);
+})
+.ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
+{
+    AllowAutoRedirect = false,
+    UseProxy = false
+});
 builder.Services.AddHostedService<HistorianWorker>();
+builder.Services.AddHostedService<ProductionIntegrationWorker>();
 builder.Services.AddHostedService<UpdateCheckWorker>();
 builder.Services.AddHealthChecks();
 var keyPath = Path.Combine(
@@ -190,6 +210,7 @@ app.MapGraphLayouts();
 app.MapProcessTrends();
 app.MapHistorianUpdates();
 app.MapReportEndpoints();
+app.MapProductionIntegration();
 
 var api = app.MapGroup("/api").RequireAuthorization();
 

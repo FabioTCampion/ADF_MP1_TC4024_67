@@ -82,6 +82,7 @@ $projectRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 $solutionPath = Join-Path $projectRoot 'PaperMachine.Historian.slnx'
 $webProjectPath =
     Join-Path $projectRoot 'src\PaperMachine.Historian.Web\PaperMachine.Historian.Web.csproj'
+$connectorBuildScript = Join-Path $PSScriptRoot 'Build-ProductionConnector.ps1'
 $clientRoot = Join-Path $projectRoot 'src\papermachine-web-client'
 $packageLockPath = Join-Path $clientRoot 'package-lock.json'
 $clientCacheStampPath =
@@ -96,6 +97,12 @@ $testOutputRoot =
     [IO.Path]::GetFullPath((Join-Path $testArtifactsRoot "$Version-$RuntimeIdentifier"))
 $zipPath = Join-Path $artifactsRoot "$packageName.zip"
 $zipHashPath = "$zipPath.sha256"
+$connectorTarget = switch ($RuntimeIdentifier) {
+    'win-x64' { 'windows/amd64' }
+    'linux-x64' { 'linux/amd64' }
+    'linux-arm64' { 'linux/arm64' }
+    default { throw "Runtime sem conector homologado: $RuntimeIdentifier" }
+}
 
 if (-not $packageRoot.StartsWith(
     $artifactsRoot.TrimEnd('\') + '\',
@@ -234,9 +241,23 @@ Invoke-TimedStep -Name 'Publish self-contained application' -Action {
     )
 }
 
+Invoke-TimedStep -Name "Build production connector ($connectorTarget)" -Action {
+    $connectorOutput = Join-Path $publishRoot 'connector'
+    & $connectorBuildScript `
+        -Version $Version `
+        -OutputDirectory $connectorOutput `
+        -Targets $connectorTarget `
+        -SkipTests:$SkipTests
+    if ($LASTEXITCODE -ne 0) {
+        throw "Build do conector falhou com codigo $LASTEXITCODE."
+    }
+}
+
 New-Item -ItemType Directory -Path (Join-Path $packageRoot 'config') -Force | Out-Null
 Copy-Item -LiteralPath (Join-Path $projectRoot 'deploy\appsettings.Production.json') `
     -Destination (Join-Path $packageRoot 'config\appsettings.Production.json')
+Copy-Item -LiteralPath (Join-Path $projectRoot 'deploy\production-connector.config.json') `
+    -Destination (Join-Path $packageRoot 'config\production-connector.config.json')
 
 $deploymentScripts = @(
     'Install-PaperMachineHistorianService.ps1',
@@ -245,12 +266,16 @@ $deploymentScripts = @(
     'Test-PaperMachineHistorianInstallation.ps1',
     'Install-PaperMachineHistorianUpdater.ps1',
     'Invoke-PaperMachineHistorianPendingUpdate.ps1',
-    'Set-PaperMachineHistorianUpdateToken.ps1'
+    'Set-PaperMachineHistorianUpdateToken.ps1',
+    'Set-PaperMachineHistorianErpApiKey.ps1',
+    'Test-PaperMachineHistorianErpConnection.ps1'
 )
 foreach ($scriptName in $deploymentScripts) {
     Copy-Item -LiteralPath (Join-Path $PSScriptRoot $scriptName) -Destination $packageRoot
 }
 Copy-Item -LiteralPath (Join-Path $projectRoot 'DEPLOYMENT.md') -Destination $packageRoot
+Copy-Item -LiteralPath (Join-Path $projectRoot 'ERP-INTEGRATION.md') -Destination $packageRoot
+Copy-Item -LiteralPath (Join-Path $projectRoot 'MULTIPLATFORM.md') -Destination $packageRoot
 
 $commit = 'unavailable'
 $gitDirty = $null

@@ -2,6 +2,8 @@
 param(
     [string]$ServiceName = 'CPNTeckPaperMachineHistorian',
 
+    [string]$ConnectorServiceName = 'CPNTeckProductionConnector',
+
     [ValidateRange(1, 65535)]
     [int]$HttpPort = 5088,
 
@@ -12,6 +14,7 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
 $service = Get-Service -Name $ServiceName -ErrorAction Stop
+$connectorService = Get-Service -Name $ConnectorServiceName -ErrorAction Stop
 $updaterTask = Get-ScheduledTask `
     -TaskName 'CPNTeckPaperMachineHistorianUpdater' `
     -ErrorAction Stop
@@ -26,12 +29,27 @@ $frontend = Invoke-WebRequest `
     -Uri "http://127.0.0.1:$HttpPort/" `
     -UseBasicParsing `
     -TimeoutSec 5
+$connectorHealth = Invoke-RestMethod `
+    -Uri 'http://127.0.0.1:5091/health' `
+    -TimeoutSec 5
 
 if ($service.Status -ne [ServiceProcess.ServiceControllerStatus]::Running) {
     throw "Servico parado: $($service.Status)"
 }
 if ($service.StartType -ne [ServiceProcess.ServiceStartMode]::Automatic) {
     throw "Inicio do servico nao esta automatico: $($service.StartType)"
+}
+if ($connectorService.Status -ne [ServiceProcess.ServiceControllerStatus]::Running) {
+    throw "Conector ERP parado: $($connectorService.Status)"
+}
+if ($connectorService.StartType -ne [ServiceProcess.ServiceStartMode]::Automatic) {
+    throw "Inicio do conector ERP nao esta automatico: $($connectorService.StartType)"
+}
+if ($connectorHealth.status -ne 'ok') {
+    throw 'O endpoint de saude do conector ERP nao respondeu corretamente.'
+}
+if ($connectorService.DependentServices.Name -notcontains $ServiceName) {
+    throw 'O Historian nao esta configurado como dependente do conector ERP.'
 }
 if ($updaterTask.State -eq 'Disabled') {
     throw 'A tarefa de atualizacao esta desabilitada.'
@@ -55,6 +73,7 @@ Write-Host ''
 Write-Host '[OK] Instalacao validada.' -ForegroundColor Green
 [pscustomobject]@{
     Service = $service.Name
+    ConnectorService = $connectorService.Name
     Status = $service.Status
     StartType = $service.StartType
     Version = $version.version

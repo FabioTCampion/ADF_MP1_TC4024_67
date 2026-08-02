@@ -1,8 +1,8 @@
 # Implantacao do CPNTeck Paper Machine Historian
 
-O pacote de producao contem o backend ASP.NET, o frontend React compilado e o
-runtime .NET para Windows x64. O computador de producao nao precisa de Node.js,
-Visual Studio, IIS ou SDK .NET.
+O pacote de producao contem o backend ASP.NET, o frontend React compilado, o
+runtime .NET e o conector ERP TLS 1.3 para Windows x64. O computador de producao
+nao precisa de Go, Node.js, Visual Studio, IIS ou SDK .NET.
 
 O fluxo completo do atualizador, sua avaliação de segurança e o checklist para
 replicação estão em [UPDATE-SYSTEM.md](UPDATE-SYSTEM.md).
@@ -24,8 +24,10 @@ artifacts\CPNTeck-PaperMachineHistorian-0.1.3-win-x64.zip.sha256
 ```
 
 O build executa os testes, compila o frontend, publica uma aplicacao
-autocontida, gera o manifesto interno e cria o arquivo SHA-256 externo usado
-pela atualizacao automatica.
+autocontida, compila/testa o conector sem CGO, gera o manifesto interno e cria o
+arquivo SHA-256 externo usado pela atualizacao automatica. O computador de
+desenvolvimento precisa de Go 1.26.5 ou da variavel `CPNTECK_GO_EXE` apontando
+para esse executavel.
 
 ## 2. Preparar o computador servidor
 
@@ -65,6 +67,8 @@ O instalador:
 - cria a configuracao e o banco em
   `C:\ProgramData\CPNTeck\PaperMachineHistorian`;
 - instala o servico `CPNTeckPaperMachineHistorian`;
+- instala `CPNTeckProductionConnector`, restrito a `127.0.0.1:5091`, e torna o
+  Historian dependente dele;
 - configura o inicio como **automatico atrasado**;
 - configura tres tentativas de reinicio automatico em caso de falha;
 - instala a tarefa `CPNTeckPaperMachineHistorianUpdater` como `SYSTEM`;
@@ -91,6 +95,8 @@ Verificacoes manuais:
 
 ```powershell
 Get-Service CPNTeckPaperMachineHistorian
+Get-Service CPNTeckProductionConnector
+Invoke-RestMethod http://127.0.0.1:5091/health
 Invoke-RestMethod http://127.0.0.1:5088/api/version
 Invoke-RestMethod http://127.0.0.1:5088/health/ready
 Invoke-WebRequest http://127.0.0.1:5088/ -UseBasicParsing |
@@ -225,13 +231,40 @@ powershell.exe -ExecutionPolicy Bypass -File `
   .\Rollback-PaperMachineHistorianService.ps1
 ```
 
-O rollback troca o executavel para a release anterior e preserva os dados.
+O rollback preserva o estado atual em `before-rollback-*` e restaura os dois
+executaveis, banco, configuracoes e credenciais correspondentes a release
+anterior. Essa restauracao conjunta evita incompatibilidade entre versoes do
+schema. Dados coletados depois da atualizacao permanecem no backup de seguranca,
+mas nao sao mesclados automaticamente ao banco anterior.
 
-## 8. Diagnostico
+## 8. Habilitar integracao ERP opcional
+
+A atualizacao pode ser instalada sem a chave ERP. Para testar a chave atual sem
+trocar nenhum arquivo, execute como Administrador:
+
+```powershell
+powershell.exe -ExecutionPolicy Bypass -File `
+  .\Test-PaperMachineHistorianErpConnection.ps1
+```
+
+Depois da validacao, instale/habilite a chave com:
+
+```powershell
+powershell.exe -ExecutionPolicy Bypass -File `
+  .\Set-PaperMachineHistorianErpApiKey.ps1
+```
+
+O script valida antes da troca, cria o segredo protegido, habilita a integracao
+local e reinicia conector e Historian. Detalhes: `ERP-INTEGRATION.md`.
+
+## 9. Diagnostico
 
 ```powershell
 Get-Service CPNTeckPaperMachineHistorian
+Get-Service CPNTeckProductionConnector
 Get-NetTCPConnection -LocalPort 5088 -State Listen
+Get-NetTCPConnection -LocalPort 5091 -State Listen
+Invoke-RestMethod http://127.0.0.1:5091/health
 Invoke-WebRequest http://127.0.0.1:5088/health -UseBasicParsing
 Invoke-RestMethod http://127.0.0.1:5088/health/ready
 ```
@@ -257,7 +290,7 @@ C:\ProgramData\CPNTeck\PaperMachineHistorian\appsettings.Production.json
 Edite-a somente como Administrador e reinicie o servico depois de qualquer
 alteracao.
 
-## 9. Banco existente
+## 10. Banco existente
 
 O procedimento padrao cria um banco novo no servidor. Para migrar o historico
 de outro computador, pare a aplicacao de origem e o servico de destino antes de
