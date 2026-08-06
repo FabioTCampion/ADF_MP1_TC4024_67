@@ -100,6 +100,7 @@ VAR
 	instFB_FB_SimpleMotorStart_V3_FormingWireShower: FB_SimpleMotorStart_V3;
 	
 	instFB_AlarmControl	: FB_AlarmControl;
+	instFB_JumboWeightCapture : FB_JumboWeightCapture;
 	
 	
 	
@@ -256,6 +257,19 @@ _600_WinderGroup();
 
 _888_Alarms();
 _900_DriveFaultDiagnostics();
+
+// Jumbo scale capture. The Historian only reads the latched status values;
+// it does not acknowledge or write anything back to the PLC.
+paperMachineHmiStatus.jumboCurrentWeightKg := paperMachineHmiCommands.jumboCurrentWeightKg;
+instFB_JumboWeightCapture(
+    currentWeightKg := paperMachineHmiCommands.jumboCurrentWeightKg,
+    captureRequest := paperMachineHmiCommands.jumboWeightCaptureRequest,
+    minimumCaptureInterval := T#10S,
+    capturedWeightKg => paperMachineHmiStatus.jumboCapturedWeightKg,
+    capturedAtFileTime => paperMachineHmiStatus.jumboCapturedAtFileTime,
+    captureEventCounter => paperMachineHmiStatus.jumboWeightCaptureEventCounter,
+    captureReady => paperMachineHmiStatus.jumboWeightCaptureReady
+);
 
 
 // Headbox / Stock Prep / Wet End Auxiliary Systems

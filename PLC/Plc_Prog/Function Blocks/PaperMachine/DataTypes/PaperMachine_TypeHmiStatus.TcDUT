@@ -289,6 +289,14 @@ STRUCT
     winderFaultTorque        : REAL;
     winderFaultEventCounter  : UDINT;
 
+    // ─────────────── JUMBO WEIGHT CAPTURE ───────────────
+    // capturedAtFileTime is UTC Windows FILETIME: 100 ns ticks since 1601-01-01.
+    jumboCurrentWeightKg            : REAL;   // Live weight echoed from HMI [kg]
+    jumboCapturedWeightKg           : REAL;   // Weight latched on the last accepted request [kg]
+    jumboCapturedAtFileTime         : ULINT;  // UTC timestamp of the last accepted capture
+    jumboWeightCaptureEventCounter  : UDINT;  // Increments once per accepted capture
+    jumboWeightCaptureReady         : BOOL;   // FALSE during the minimum interval between captures
+
 	
 	
 END_STRUCT

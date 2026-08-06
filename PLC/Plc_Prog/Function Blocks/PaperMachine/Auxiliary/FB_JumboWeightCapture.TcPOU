@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.15">
+  <POU Name="FB_JumboWeightCapture" Id="{a4c22e4d-2c1c-4b6d-9fd0-7cdcf4be8f21}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_JumboWeightCapture
+VAR_INPUT
+    currentWeightKg        : REAL;              // Live weight continuously supplied by the HMI
+    captureRequest         : BOOL;              // Capture on rising edge only
+    minimumCaptureInterval : TIME := T#10S;     // Protection against accidental repeated captures
+END_VAR
+
+VAR_OUTPUT
+    capturedWeightKg       : REAL;              // Last accepted weight [kg]
+    capturedAtFileTime     : ULINT;             // UTC Windows FILETIME, 100 ns ticks since 1601-01-01
+    captureEventCounter    : UDINT;             // Monotonic event discriminator during PLC runtime
+    captureReady           : BOOL;              // TRUE when a new rising edge can be accepted
+END_VAR
+
+VAR
+    initialized            : BOOL;
+    captureRequestOld      : BOOL;
+    captureRequestRising   : BOOL;
+    captureInhibitActive   : BOOL;
+    captureInhibitTimer    : TON;
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[// Initialize the edge memory from the actual input. This avoids an unintended
+// capture when the PLC starts while the HMI request is already TRUE.
+IF NOT initialized THEN
+    captureRequestOld := captureRequest;
+    initialized := TRUE;
+END_IF
+
+captureRequestRising := captureRequest AND NOT captureRequestOld;
+
+// The timer blocks accidental double captures. Reset it explicitly after Q so
+// that a capture accepted on the expiry cycle starts a complete new interval.
+captureInhibitTimer(
+    IN := captureInhibitActive,
+    PT := minimumCaptureInterval
+);
+
+IF captureInhibitTimer.Q THEN
+    captureInhibitActive := FALSE;
+    captureInhibitTimer(
+        IN := FALSE,
+        PT := minimumCaptureInterval
+    );
+END_IF
+
+IF captureRequestRising AND NOT captureInhibitActive THEN
+    capturedWeightKg := currentWeightKg;
+    capturedAtFileTime := F_GetSystemTime();
+    captureEventCounter := captureEventCounter + 1;
+    captureInhibitActive := minimumCaptureInterval > T#0S;
+END_IF
+
+captureReady := NOT captureInhibitActive;
+captureRequestOld := captureRequest;]]></ST>
+    </Implementation>
+    <LineIds Name="FB_JumboWeightCapture">
+      <LineId Id="1" Count="31" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

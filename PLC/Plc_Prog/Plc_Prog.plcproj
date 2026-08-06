@@ -213,6 +213,9 @@
     <Compile Include="Function Blocks\PaperMachine\Auxiliary\FB_HeadboxLipsPWMControl.TcPOU">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="Function Blocks\PaperMachine\Auxiliary\FB_JumboWeightCapture.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="Function Blocks\PaperMachine\Auxiliary\FB_LevelControl.TcPOU">
       <SubType>Code</SubType>
     </Compile>

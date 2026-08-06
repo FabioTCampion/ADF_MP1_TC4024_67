@@ -263,6 +263,11 @@ STRUCT
     wireSectionStretchExtendCmd      : BOOL;  // Command to stretch wire (Comando para esticar a tela)
     wireSectionStretchReleaseCmd     : BOOL;  // Command to release wire (Comando para aliviar a tela)
 
+    // ─────────────── JUMBO SCALE ───────────────
+    // The HMI continuously updates the live weight and pulses the request.
+    jumboCurrentWeightKg       : REAL;  // Live scale weight [kg] (Peso atual da balança)
+    jumboWeightCaptureRequest  : BOOL;  // Rising edge requests one capture (Borda de subida solicita uma captura)
+
 END_STRUCT
 END_TYPE
 ]]></Declaration>
