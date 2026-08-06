@@ -1,0 +1,100 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.15">
+  <POU Name="FB_EL4004" Id="{c4597a9d-1a41-4029-a2b1-b41876294830}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_EL4004
+VAR_INPUT PERSISTENT
+
+	deviceConfig    : EL4004_DEV_CONFIG; // Configuration settings for the CT121F device
+	
+END_VAR
+VAR_INPUT
+		
+	Channel1  : REAL;
+	Channel2  : REAL;
+	Channel3  : REAL;
+	Channel4  : REAL;
+	
+END_VAR
+VAR
+	    PDOS : EL4004_PDOS; // Process Data Objects for RWPT01D communication
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[_AnalogOutputs();]]></ST>
+    </Implementation>
+    <Method Name="_AnalogOutputs" Id="{9b9602ab-b787-4b9d-bbc1-a2c4d8fcf3c3}">
+      <Declaration><![CDATA[METHOD PRIVATE _AnalogOutputs
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// Calculate the actual motor speed
+PDOS.HwToPLC.Channel1 := REAL_TO_INT(_Scale(
+    X	 := Channel1, 
+    I_LO := deviceConfig.channel1InputLow, 
+    I_HI := deviceConfig.channel1InputHigh, 
+    O_LO := deviceConfig.channel1OutputLow, 
+    O_HI := deviceConfig.channel1OutputHigh
+));
+// Calculate the actual motor speed
+PDOS.HwToPLC.Channel2 := REAL_TO_INT(_Scale(
+    X	 := Channel2, 
+    I_LO := deviceConfig.channel2InputLow, 
+    I_HI := deviceConfig.channel2InputHigh, 
+    O_LO := deviceConfig.channel2OutputLow, 
+    O_HI := deviceConfig.channel2OutputHigh
+));
+// Calculate the actual motor speed
+PDOS.HwToPLC.Channel3 := REAL_TO_INT(_Scale(
+    X	 := Channel3, 
+    I_LO := deviceConfig.channel3InputLow, 
+    I_HI := deviceConfig.channel3InputHigh, 
+    O_LO := deviceConfig.channel3OutputLow, 
+    O_HI := deviceConfig.channel3OutputHigh
+));
+// Calculate the actual motor speed
+PDOS.HwToPLC.Channel4 := REAL_TO_INT(_Scale(
+    X	 := Channel4, 
+    I_LO := deviceConfig.channel4InputLow, 
+    I_HI := deviceConfig.channel4InputHigh, 
+    O_LO := deviceConfig.channel4OutputLow, 
+    O_HI := deviceConfig.channel4OutputHigh
+));
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_Scale" Id="{86517487-ff78-435c-b90d-e5eb5565e5bc}">
+      <Declaration><![CDATA[METHOD PRIVATE _Scale : REAL
+VAR_INPUT
+	
+	X : REAL;
+	I_LO : REAL;
+	I_HI : REAL;
+	O_LO : REAL;
+	O_HI : REAL;
+	
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF I_LO = I_HI THEN
+	_Scale := O_LO;
+ELSE
+	_Scale := (O_HI - O_LO) / (I_HI - I_LO) * (LIMIT(I_LO, X, I_HI) - I_LO) + O_LO;
+END_IF;
+]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_EL4004">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_EL4004._AnalogOutputs">
+      <LineId Id="19" Count="6" />
+      <LineId Id="15" Count="0" />
+      <LineId Id="38" Count="23" />
+      <LineId Id="26" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_EL4004._Scale">
+      <LineId Id="1" Count="5" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

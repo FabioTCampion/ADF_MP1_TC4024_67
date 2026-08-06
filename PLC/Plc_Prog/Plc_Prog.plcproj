@@ -153,6 +153,18 @@
     <Compile Include="Function Blocks\IOs\Beckhoff\EL3204 - Ai 4 x PT100 %28RTD%29\FB_EL3204.TcPOU">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="Function Blocks\IOs\Beckhoff\EL4004 - AQ 4 x 0-10V\DataTypes\EL4004_DEV_CONFIG.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Function Blocks\IOs\Beckhoff\EL4004 - AQ 4 x 0-10V\DataTypes\EL4004_HWTOPLC_PDOS.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Function Blocks\IOs\Beckhoff\EL4004 - AQ 4 x 0-10V\DataTypes\EL4004_PDOS.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Function Blocks\IOs\Beckhoff\EL4004 - AQ 4 x 0-10V\FB_EL4004.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="Function Blocks\IOs\Beckhoff\EL4024 - AQ 4 x 4-20MA\DataTypes\EL4024_DEV_CONFIG.TcDUT">
       <SubType>Code</SubType>
     </Compile>
@@ -405,6 +417,8 @@
     <Folder Include="Function Blocks\IOs\Beckhoff\EL3154 - Ai 4 x 4-20MA - 16bit\DataTypes" />
     <Folder Include="Function Blocks\IOs\Beckhoff\EL3204 - Ai 4 x PT100 %28RTD%29" />
     <Folder Include="Function Blocks\IOs\Beckhoff\EL3204 - Ai 4 x PT100 %28RTD%29\DataTypes" />
+    <Folder Include="Function Blocks\IOs\Beckhoff\EL4004 - AQ 4 x 0-10V" />
+    <Folder Include="Function Blocks\IOs\Beckhoff\EL4004 - AQ 4 x 0-10V\DataTypes" />
     <Folder Include="Function Blocks\IOs\Beckhoff\EL4024 - AQ 4 x 4-20MA" />
     <Folder Include="Function Blocks\IOs\Beckhoff\EL4024 - AQ 4 x 4-20MA\DataTypes" />
     <Folder Include="Function Blocks\IOs\Beckhoff\EL6910 - TwinSAFE PLC" />

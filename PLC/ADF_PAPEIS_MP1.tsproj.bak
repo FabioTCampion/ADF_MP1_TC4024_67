@@ -600,7 +600,7 @@
 		</System>
 		<Plc>
 			<Project GUID="{1B0ECF96-BA46-432C-8D32-86F6F536DF4A}" Name="Plc_Prog" PrjFilePath="Plc_Prog\Plc_Prog.plcproj" TmcFilePath="Plc_Prog\Plc_Prog.tmc" ReloadTmc="true" AmsPort="851" FileArchiveSettings="#x000e" CopyTmcToTarget="true" ClearInvalidPersist="true" SymbolicMapping="true">
-				<Instance Id="#x08502000" TcSmClass="TComPlcObjDef" KeepUnrestoredLinks="2" TmcPath="Plc_Prog\Plc_Prog.tmc" TmcHash="{01FABF2A-E8EC-DA5F-2B28-8E8B6E29199A}">
+				<Instance Id="#x08502000" TcSmClass="TComPlcObjDef" KeepUnrestoredLinks="2" TmcPath="Plc_Prog\Plc_Prog.tmc" TmcHash="{928B6893-342E-F496-9A06-C0727A2420C9}">
 					<Name>Plc_Prog Instance</Name>
 					<CLSID ClassFactory="TcPlc30">{08500001-0000-0000-F000-000000000064}</CLSID>
 					<Vars VarGrpType="1">
@@ -1659,6 +1659,14 @@
 						</Var>
 						<Var>
 							<Name>.P9_050_AI1.PDOS.HwToPLC.Channel2</Name>
+							<Type GUID="{3D4F83F4-B300-6FBD-0854-EC9D4D833796}">EL3052_CHANNEL</Type>
+						</Var>
+						<Var>
+							<Name>.P9_050_AI2.PDOS.HwToPLC.Channel1</Name>
+							<Type GUID="{3D4F83F4-B300-6FBD-0854-EC9D4D833796}">EL3052_CHANNEL</Type>
+						</Var>
+						<Var>
+							<Name>.P9_050_AI2.PDOS.HwToPLC.Channel2</Name>
 							<Type GUID="{3D4F83F4-B300-6FBD-0854-EC9D4D833796}">EL3052_CHANNEL</Type>
 						</Var>
 						<Var>
@@ -3199,6 +3207,22 @@
 						<Var>
 							<Name>.P9_050_DO3.PDOS.PlcToHw.digitalOutput_16</Name>
 							<Type>BOOL</Type>
+						</Var>
+						<Var>
+							<Name>.P9_050_AQ1.PDOS.HwToPLC.Channel1</Name>
+							<Type>INT</Type>
+						</Var>
+						<Var>
+							<Name>.P9_050_AQ1.PDOS.HwToPLC.Channel2</Name>
+							<Type>INT</Type>
+						</Var>
+						<Var>
+							<Name>.P9_050_AQ1.PDOS.HwToPLC.Channel3</Name>
+							<Type>INT</Type>
+						</Var>
+						<Var>
+							<Name>.P9_050_AQ1.PDOS.HwToPLC.Channel4</Name>
+							<Type>INT</Type>
 						</Var>
 						<Var>
 							<Name>.P10_050_DO1.PDOS.PlcToHw.digitalOutput_01</Name>
@@ -6491,6 +6515,161 @@ Bit1: Value bigger/equal Limit2]]></Comment>
 							<CoeProfile ProfileNo="19665801"/>
 							<CoeProfile ProfileNo="19665801"/>
 						</EtherCAT>
+					</Box>
+					<Box Id="101" BoxType="9099" BoxFlags="#x00000020">
+						<Name>Term 101 (EL3052)</Name>
+						<ImageId>1004</ImageId>
+						<EtherCAT SlaveType="2" PdiType="#x0405" MboxDataLinkLayer="true" StateMBoxPolling="true" CycleMBoxPollingTime="0" CoeType="7" FoeType="1" VendorId="#x00000002" ProductCode="#x0bec3052" RevisionNo="#x00150000" InfoDataAddr="true" TimeoutMailbox2="2000" CheckRevisionNoType="3" PortPhys="51" SdoUploadWithMaxLength="true" MaxSlotCount="256" MaxSlotGroupCount="1" SlotPdoIncrement="1" SlotIndexIncrement="16" Type="EL3052 2Ch. Ana. Input 4-20mA" Desc="EL3052" PortABoxInfo="#x0100003a">
+							<SyncMan>001080002600010001000000800080008000001026010000</SyncMan>
+							<SyncMan>801080002200010002000000800080008000801022010000</SyncMan>
+							<SyncMan>001100000400000003000000000000000000001104000000</SyncMan>
+							<SyncMan>801108002000010004000000000000000800801120010000</SyncMan>
+							<Fmmu>0000000000000000801100010100000002000000000000000000000000000000</Fmmu>
+							<Fmmu>00000000000000000d0800010100000003000000000000000000000000000000</Fmmu>
+							<BootStrapData>0010f400f410f400</BootStrapData>
+							<Pdo Name="AI Standard Channel 1" Index="#x1a00" Flags="#x0010" SyncMan="3">
+								<ExcludePdo>#x1a01</ExcludePdo>
+								<Entry Name="Status__Underrange" Index="#x6000" Sub="#x01">
+									<Type>BIT</Type>
+									<Comment><![CDATA[Underrange event active]]></Comment>
+								</Entry>
+								<Entry Name="Status__Overrange" Index="#x6000" Sub="#x02">
+									<Type>BIT</Type>
+									<Comment><![CDATA[Overrange event active]]></Comment>
+								</Entry>
+								<Entry Name="Status__Limit 1" Index="#x6000" Sub="#x03">
+									<Type>BIT2</Type>
+									<Comment><![CDATA[Bit0: Value smaller/equal Limit1
+Bit1: Value bigger/equal Limit1]]></Comment>
+								</Entry>
+								<Entry Name="Status__Limit 2" Index="#x6000" Sub="#x05">
+									<Type>BIT2</Type>
+									<Comment><![CDATA[Bit0: Value smaller/equal Limit2
+Bit1: Value bigger/equal Limit2]]></Comment>
+								</Entry>
+								<Entry Name="Status__Error" Index="#x6000" Sub="#x07">
+									<Type>BIT</Type>
+									<Comment><![CDATA[Bit set when Over- or Underrange]]></Comment>
+								</Entry>
+								<Entry Name="Status__">
+									<Type GUID="{18071995-0000-0000-0000-002000000001}">ARRAY [0..0] OF BIT</Type>
+								</Entry>
+								<Entry Name="Status__">
+									<Type GUID="{18071995-0000-0000-0000-002000000006}">ARRAY [0..5] OF BIT</Type>
+								</Entry>
+								<Entry Name="Status__TxPDO State" Index="#x6000" Sub="#x0f">
+									<Type>BIT</Type>
+									<Comment><![CDATA[TRUE when this TxPDO is not valid]]></Comment>
+								</Entry>
+								<Entry Name="Status__TxPDO Toggle" Index="#x6000" Sub="#x10">
+									<Type>BIT</Type>
+									<Comment><![CDATA[Bit toggles everytime when new value available]]></Comment>
+								</Entry>
+								<Entry Name="Value" Index="#x6000" Sub="#x11" Flags="#x00040000">
+									<Type>INT</Type>
+								</Entry>
+							</Pdo>
+							<Pdo Name="AI Compact Channel 1" Index="#x1a01" Flags="#x0010">
+								<ExcludePdo>#x1a00</ExcludePdo>
+								<Entry Name="Value" Index="#x6000" Sub="#x11" Flags="#x00040000">
+									<Type>INT</Type>
+								</Entry>
+							</Pdo>
+							<Pdo Name="AI Standard Channel 2" Index="#x1a02" Flags="#x0010" SyncMan="3">
+								<ExcludePdo>#x1a03</ExcludePdo>
+								<Entry Name="Status__Underrange" Index="#x6010" Sub="#x01">
+									<Type>BIT</Type>
+									<Comment><![CDATA[Underrange event active]]></Comment>
+								</Entry>
+								<Entry Name="Status__Overrange" Index="#x6010" Sub="#x02">
+									<Type>BIT</Type>
+									<Comment><![CDATA[Overrange event active]]></Comment>
+								</Entry>
+								<Entry Name="Status__Limit 1" Index="#x6010" Sub="#x03">
+									<Type>BIT2</Type>
+									<Comment><![CDATA[Bit0: Value smaller/equal Limit1
+Bit1: Value bigger/equal Limit1]]></Comment>
+								</Entry>
+								<Entry Name="Status__Limit 2" Index="#x6010" Sub="#x05">
+									<Type>BIT2</Type>
+									<Comment><![CDATA[Bit0: Value smaller/equal Limit2
+Bit1: Value bigger/equal Limit2]]></Comment>
+								</Entry>
+								<Entry Name="Status__Error" Index="#x6010" Sub="#x07">
+									<Type>BIT</Type>
+									<Comment><![CDATA[Bit set when Over- or Underrange]]></Comment>
+								</Entry>
+								<Entry Name="Status__">
+									<Type GUID="{18071995-0000-0000-0000-002000000001}">ARRAY [0..0] OF BIT</Type>
+								</Entry>
+								<Entry Name="Status__">
+									<Type GUID="{18071995-0000-0000-0000-002000000006}">ARRAY [0..5] OF BIT</Type>
+								</Entry>
+								<Entry Name="Status__TxPDO State" Index="#x6010" Sub="#x0f">
+									<Type>BIT</Type>
+									<Comment><![CDATA[TRUE when this TxPDO is not valid]]></Comment>
+								</Entry>
+								<Entry Name="Status__TxPDO Toggle" Index="#x6010" Sub="#x10">
+									<Type>BIT</Type>
+									<Comment><![CDATA[Bit toggles everytime when new value available]]></Comment>
+								</Entry>
+								<Entry Name="Value" Index="#x6010" Sub="#x11" Flags="#x00040000">
+									<Type>INT</Type>
+								</Entry>
+							</Pdo>
+							<Pdo Name="AI Compact Channel 2" Index="#x1a03" Flags="#x0010">
+								<ExcludePdo>#x1a02</ExcludePdo>
+								<Entry Name="Value" Index="#x6010" Sub="#x11" Flags="#x00040000">
+									<Type>INT</Type>
+								</Entry>
+							</Pdo>
+							<CoeProfile ProfileNo="19665801"/>
+							<CoeProfile ProfileNo="19665801"/>
+						</EtherCAT>
+					</Box>
+					<Box Id="102" BoxType="9099" BoxFlags="#x00000020">
+						<Name>Term 102 (EL4004)</Name>
+						<ImageId>1006</ImageId>
+						<EtherCAT SlaveType="2" PdiType="#x0405" MboxDataLinkLayer="true" StateMBoxPolling="true" CycleMBoxPollingTime="0" CoeType="3" FoeType="1" VendorId="#x00000002" ProductCode="#x0fa43052" RevisionNo="#x00140000" InfoDataAddr="true" TimeoutMailbox2="2000" CheckRevisionNoType="3" PortPhys="51" MaxSlotCount="256" MaxSlotGroupCount="1" SlotPdoIncrement="1" SlotIndexIncrement="16" Type="EL4004 4Ch. Ana. Output 0-10V, 12bit" Desc="EL4004" PortABoxInfo="#x01000065">
+							<SyncMan>001080002600010001000000800080008000001026010000</SyncMan>
+							<SyncMan>801080002200010002000000800080008000801022010000</SyncMan>
+							<SyncMan>001108002400010003000000000000000800001124010000</SyncMan>
+							<SyncMan>801100000000000004000000000000000000801100000000</SyncMan>
+							<Fmmu>0000000000000000001100020100000001000000000000000000000000000000</Fmmu>
+							<Fmmu>00000000000000000d0800010100000003000000000000000000000000000000</Fmmu>
+							<BootStrapData>0010f400f410f400</BootStrapData>
+							<DcMode>53796e6368726f6e0000000000000000534d2d53796e6368726f6e000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000</DcMode>
+							<DcMode>4443000000000000000000000000000044432d53796e6368726f6e0000000000000000000000000000000000000000000000000000000000a0860100000000070100000000000000000000000000000000000000000000000000000000000000</DcMode>
+							<Pdo Name="AO Outputs Channel 1" Index="#x1600" InOut="1" Flags="#x0011" SyncMan="2">
+								<Entry Name="Analog output" Index="#x7000" Sub="#x11" Flags="#x00020000">
+									<Type>INT</Type>
+								</Entry>
+							</Pdo>
+							<Pdo Name="AO Outputs Channel 2" Index="#x1601" InOut="1" Flags="#x0011" SyncMan="2">
+								<Entry Name="Analog output" Index="#x7010" Sub="#x11" Flags="#x00020000">
+									<Type>INT</Type>
+								</Entry>
+							</Pdo>
+							<Pdo Name="AO Outputs Channel 3" Index="#x1602" InOut="1" Flags="#x0011" SyncMan="2">
+								<Entry Name="Analog output" Index="#x7020" Sub="#x11" Flags="#x00020000">
+									<Type>INT</Type>
+								</Entry>
+							</Pdo>
+							<Pdo Name="AO Outputs Channel 4" Index="#x1603" InOut="1" Flags="#x0011" SyncMan="2">
+								<Entry Name="Analog output" Index="#x7030" Sub="#x11" Flags="#x00020000">
+									<Type>INT</Type>
+								</Entry>
+							</Pdo>
+							<CoeProfile ProfileNo="26219401"/>
+							<CoeProfile ProfileNo="26219401"/>
+							<CoeProfile ProfileNo="26219401"/>
+							<CoeProfile ProfileNo="26219401"/>
+						</EtherCAT>
+					</Box>
+					<Box Id="151" BoxType="9099">
+						<Name>Term 151 (EL9011)</Name>
+						<ImageId>1003</ImageId>
+						<EtherCAT CycleMBoxPollingTime="0" VendorId="#x00000002" ProductCode="#x23333050" InfoDataState="false" MaxSlotCount="256" MaxSlotGroupCount="1" SlotPdoIncrement="1" SlotIndexIncrement="16" Type="EL9011 End Terminal" Desc="EL9011" PortABoxInfo="#x01000066"/>
 					</Box>
 					<Box Id="61" BoxType="9099">
 						<Name>+P9=050-BE1</Name>
@@ -10197,16 +10376,18 @@ Bit1: Value bigger/equal Limit2]]></Comment>
 				<Link VarA="+P5=050-BC1 - PLC Cabinet^+P5=050-SP1 (EL6910)^ConnectionInputs^TwinSafeGroup1.+CP2=050-SI1 (EL1918) - Module 1 (FSOE)_9 TxPDO" VarB="Module 1 (FSOE)^FSoE Outputs^FSOE"/>
 				<Link VarA="+P5=050-BC1 - PLC Cabinet^+P5=050-SP1 (EL6910)^ConnectionOutputs^TwinSafeGroup1.+CP2=050-SI1 (EL1918) - Module 1 (FSOE)_9 RxPDO" VarB="Module 1 (FSOE)^FSoE Inputs^FSOE"/>
 			</OwnerB>
+			<OwnerB Name="TIID^ETH^+P10=050-BC1 - Press / Dryer PLC Cabinet^+P10=050-SI1 (EL1918)">
+				<Link VarA="+P5=050-BC1 - PLC Cabinet^+P5=050-SP1 (EL6910)^ConnectionInputs^TwinSafeGroup1.+P10=050-SI1 (EL1918) - Module 1 (FSOE)_7 TxPDO" VarB="Module 1 (FSOE)^FSoE Outputs^FSOE"/>
+			</OwnerB>
 			<OwnerB Name="TIID^ETH^+P10=050-BC1 - Press / Dryer PLC Cabinet^+P10=050-SO1 (EL2904)">
 				<Link VarA="+P5=050-BC1 - PLC Cabinet^+P5=050-SP1 (EL6910)^ConnectionInputs^TwinSafeGroup1.+P10=050-SO1 (EL2904) - Module 1 (FSOES)_8 TxPDO" VarB="Module 1 (FSOES)^RxPDO^FSOE"/>
+				<Link VarA="+P5=050-BC1 - PLC Cabinet^+P5=050-SP1 (EL6910)^ConnectionOutputs^TwinSafeGroup1.+P10=050-SO1 (EL2904) - Module 1 (FSOES)_8 RxPDO" VarB="Module 1 (FSOES)^TxPDO^FSOE"/>
 			</OwnerB>
 			<OwnerB Name="TIID^ETH^+P5=050-BC1 - PLC Cabinet^+P5=050-SI1 (EL1918)">
 				<Link VarA="+P5=050-BC1 - PLC Cabinet^+P5=050-SP1 (EL6910)^ConnectionInputs^TwinSafeGroup1.Term 9 (EL1918) - Module 1 (FSOE)_3 TxPDO" VarB="Module 1 (FSOE)^FSoE Outputs^FSOE"/>
 			</OwnerB>
 			<OwnerB Name="TIID^ETH^+P5=050-BC1 - PLC Cabinet^+P5=050-SP1 (EL6910)">
 				<Link VarA="+P10=050-BC1 - Press / Dryer PLC Cabinet^+P10=050-SI1 (EL1918)^Module 1 (FSOE)^FSoE Inputs^FSOE" VarB="ConnectionOutputs^TwinSafeGroup1.+P10=050-SI1 (EL1918) - Module 1 (FSOE)_7 RxPDO"/>
-				<Link VarA="+P10=050-BC1 - Press / Dryer PLC Cabinet^+P10=050-SI1 (EL1918)^Module 1 (FSOE)^FSoE Outputs^FSOE" VarB="ConnectionInputs^TwinSafeGroup1.+P10=050-SI1 (EL1918) - Module 1 (FSOE)_7 TxPDO"/>
-				<Link VarA="+P10=050-BC1 - Press / Dryer PLC Cabinet^+P10=050-SO1 (EL2904)^Module 1 (FSOES)^TxPDO^FSOE" VarB="ConnectionOutputs^TwinSafeGroup1.+P10=050-SO1 (EL2904) - Module 1 (FSOES)_8 RxPDO"/>
 				<Link VarA="+P5=050-BC1 - PLC Cabinet^+P5=050-SI1 (EL1918)^Module 1 (FSOE)^FSoE Inputs^FSOE" VarB="ConnectionOutputs^TwinSafeGroup1.Term 9 (EL1918) - Module 1 (FSOE)_3 RxPDO"/>
 				<Link VarA="+P5=050-BC1 - PLC Cabinet^+P5=050-SO1 (EL2904)^Module 1 (FSOES)^RxPDO^FSOE" VarB="ConnectionInputs^TwinSafeGroup1.Term 10 (EL2904) - Module 1 (FSOES)_4 TxPDO"/>
 				<Link VarA="+P5=050-BC1 - PLC Cabinet^+P5=050-SO1 (EL2904)^Module 1 (FSOES)^TxPDO^FSOE" VarB="ConnectionOutputs^TwinSafeGroup1.Term 10 (EL2904) - Module 1 (FSOES)_4 RxPDO"/>
@@ -11063,6 +11244,19 @@ Bit1: Value bigger/equal Limit2]]></Comment>
 				<Link VarA="PlcTask Outputs^.P9_050_DO3.PDOS.PlcToHw.digitalOutput_14" VarB="Channel 14^Output"/>
 				<Link VarA="PlcTask Outputs^.P9_050_DO3.PDOS.PlcToHw.digitalOutput_15" VarB="Channel 15^Output"/>
 				<Link VarA="PlcTask Outputs^.P9_050_DO3.PDOS.PlcToHw.digitalOutput_16" VarB="Channel 16^Output"/>
+			</OwnerB>
+			<OwnerB Name="TIID^ETH^+P9=050-BC1 - Vaccum PLC Cabinet^Term 101 (EL3052)">
+				<Link VarA="PlcTask Inputs^.P9_050_AI2.PDOS.HwToPLC.Channel1^Status^Overrange" VarB="AI Standard Channel 1^Status^Overrange"/>
+				<Link VarA="PlcTask Inputs^.P9_050_AI2.PDOS.HwToPLC.Channel1^Status^Underrange" VarB="AI Standard Channel 1^Status^Underrange"/>
+				<Link VarA="PlcTask Inputs^.P9_050_AI2.PDOS.HwToPLC.Channel1^Value" VarB="AI Standard Channel 1^Value"/>
+				<Link VarA="PlcTask Inputs^.P9_050_AI2.PDOS.HwToPLC.Channel2^Status^Overrange" VarB="AI Standard Channel 2^Status^Underrange"/>
+				<Link VarA="PlcTask Inputs^.P9_050_AI2.PDOS.HwToPLC.Channel2^Value" VarB="AI Standard Channel 2^Value"/>
+			</OwnerB>
+			<OwnerB Name="TIID^ETH^+P9=050-BC1 - Vaccum PLC Cabinet^Term 102 (EL4004)">
+				<Link VarA="PlcTask Outputs^.P9_050_AQ1.PDOS.HwToPLC.Channel1" VarB="AO Outputs Channel 1^Analog output"/>
+				<Link VarA="PlcTask Outputs^.P9_050_AQ1.PDOS.HwToPLC.Channel2" VarB="AO Outputs Channel 2^Analog output"/>
+				<Link VarA="PlcTask Outputs^.P9_050_AQ1.PDOS.HwToPLC.Channel3" VarB="AO Outputs Channel 3^Analog output"/>
+				<Link VarA="PlcTask Outputs^.P9_050_AQ1.PDOS.HwToPLC.Channel4" VarB="AO Outputs Channel 4^Analog output"/>
 			</OwnerB>
 		</OwnerA>
 	</Mappings>

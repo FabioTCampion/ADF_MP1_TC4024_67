@@ -198,6 +198,8 @@ STRUCT
     // ─────────────── VACUUM PUMPS ───────────────
     vacuumSealPumpState             : INT;   // Vacuum seal pump state (Estado da bomba de vedação a vácuo)
     vacuumWaterSepPumpState         : INT;   // Water separator vacuum pump state (Estado da bomba de vácuo separadora de água)
+    vacuumWaterSepPumpLevel             : REAL;  // Couch pit pump torque (Torque da bomba do poço da mesa couch)
+	
     suctionRollVacuumPumpState      : INT;   // Suction roll vacuum pump state (Estado da bomba de vácuo do rolo de sucção)
     wireVacuumPumpState             : INT;   // Wire section vacuum pump state (Estado da bomba de vácuo da mesa plana)
 

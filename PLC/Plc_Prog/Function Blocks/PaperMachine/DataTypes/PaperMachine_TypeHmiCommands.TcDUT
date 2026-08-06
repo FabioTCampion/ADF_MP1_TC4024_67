@@ -236,6 +236,12 @@ STRUCT
     vacuumSealPumpStop       : BOOL;  // Stop vacuum seal pump (Parar bomba de vedação a vácuo)
     vacuumWaterSepPumpStart  : BOOL;  // Start water separator vacuum pump (Ligar bomba de vácuo separadora de água)
     vacuumWaterSepPumpStop   : BOOL;  // Stop water separator vacuum pump (Parar bomba de vácuo separadora de água)
+ 	vacuumWaterSepAutoMan      : BOOL;  // Auto/manual mode select (Seleção automático/manual)
+    vacuumWaterSepSetpointMan  : REAL;  // Manual setpoint (Setpoint manual)
+    vacuumWaterSepSetpointAuto : REAL;  // Auto setpoint (Setpoint automático)	
+	
+	
+	
     suctionRollVacuumPumpStart: BOOL; // Start suction roll vacuum pump (Ligar bomba de vácuo do rolo de sucção)
     suctionRollVacuumPumpStop : BOOL; // Stop suction roll vacuum pump (Parar bomba de vácuo do rolo de sucção)
     wireVacuumPumpStart      : BOOL;  // Start wire section vacuum pump (Ligar bomba de vácuo da mesa plana)
