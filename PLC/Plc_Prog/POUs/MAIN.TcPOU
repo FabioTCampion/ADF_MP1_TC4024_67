@@ -254,23 +254,10 @@ _501_DryingSectionGroup2DriveControl();
 _502_DryingSectionGroup3DriveControl();
 _550_DryingSectionLubrification();
 _600_WinderGroup();
+_700_JumboWeightCapture();
 
 _888_Alarms();
 _900_DriveFaultDiagnostics();
-
-// Jumbo scale capture. The Historian only reads the latched status values;
-// it does not acknowledge or write anything back to the PLC.
-paperMachineHmiStatus.jumboCurrentWeightKg := paperMachineHmiCommands.jumboCurrentWeightKg;
-instFB_JumboWeightCapture(
-    currentWeightKg := paperMachineHmiCommands.jumboCurrentWeightKg,
-    captureRequest := paperMachineHmiCommands.jumboWeightCaptureRequest,
-    minimumCaptureInterval := T#10S,
-    capturedWeightKg => paperMachineHmiStatus.jumboCapturedWeightKg,
-    capturedAtFileTime => paperMachineHmiStatus.jumboCapturedAtFileTime,
-    captureEventCounter => paperMachineHmiStatus.jumboWeightCaptureEventCounter,
-    captureReady => paperMachineHmiStatus.jumboWeightCaptureReady,
-    captureStatus => paperMachineHmiStatus.jumboWeightCaptureStatus
-);
 
 
 // Headbox / Stock Prep / Wet End Auxiliary Systems
@@ -18764,6 +18751,27 @@ END_VAR]]></Declaration>
             </TypeList>
           </XmlArchive>
         </NWL>
+      </Implementation>
+    </Method>
+    <Method Name="_700_JumboWeightCapture" Id="{91b550a2-c25c-4ad4-8451-18f91a23a77c}">
+      <Declaration><![CDATA[METHOD _700_JumboWeightCapture
+VAR_INPUT
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// The HMI continuously writes the live scale weight into hmiCommands.
+// The Historian only reads the latched values exposed through hmiStatus.
+paperMachineHmiStatus.jumboCurrentWeightKg := paperMachineHmiCommands.jumboCurrentWeightKg;
+
+instFB_JumboWeightCapture(
+    currentWeightKg := paperMachineHmiCommands.jumboCurrentWeightKg,
+    captureRequest := paperMachineHmiCommands.jumboWeightCaptureRequest,
+    minimumCaptureInterval := T#10S,
+    capturedWeightKg => paperMachineHmiStatus.jumboCapturedWeightKg,
+    capturedAtFileTime => paperMachineHmiStatus.jumboCapturedAtFileTime,
+    captureEventCounter => paperMachineHmiStatus.jumboWeightCaptureEventCounter,
+    captureReady => paperMachineHmiStatus.jumboWeightCaptureReady,
+    captureStatus => paperMachineHmiStatus.jumboWeightCaptureStatus
+);]]></ST>
       </Implementation>
     </Method>
     <Method Name="_888_Alarms" Id="{d9864b94-8b87-40be-9edc-0758f89dc5b9}">
@@ -41680,6 +41688,9 @@ P15_600_UG01_Rewinder.commandWord.faultResetCmd := paperMachineHmiCommands.machi
       <LineId Id="16" Count="0" />
       <LineId Id="11" Count="0" />
       <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="MAIN._700_JumboWeightCapture">
+      <LineId Id="1" Count="15" />
     </LineIds>
     <LineIds Name="MAIN._900_DriveFaultDiagnostics">
       <LineId Id="3" Count="84" />
