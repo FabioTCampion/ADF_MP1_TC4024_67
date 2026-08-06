@@ -268,7 +268,8 @@ instFB_JumboWeightCapture(
     capturedWeightKg => paperMachineHmiStatus.jumboCapturedWeightKg,
     capturedAtFileTime => paperMachineHmiStatus.jumboCapturedAtFileTime,
     captureEventCounter => paperMachineHmiStatus.jumboWeightCaptureEventCounter,
-    captureReady => paperMachineHmiStatus.jumboWeightCaptureReady
+    captureReady => paperMachineHmiStatus.jumboWeightCaptureReady,
+    captureStatus => paperMachineHmiStatus.jumboWeightCaptureStatus
 );
 
 

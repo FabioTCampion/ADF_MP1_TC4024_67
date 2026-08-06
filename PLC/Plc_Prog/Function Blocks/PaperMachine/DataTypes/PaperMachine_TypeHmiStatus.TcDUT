@@ -296,6 +296,9 @@ STRUCT
     jumboCapturedAtFileTime         : ULINT;  // UTC timestamp of the last accepted capture
     jumboWeightCaptureEventCounter  : UDINT;  // Increments once per accepted capture
     jumboWeightCaptureReady         : BOOL;   // FALSE during the minimum interval between captures
+    // Status texts: 0=Initializing, 10=Ready, 20=Captured, 30=Waiting interval,
+    // 40=Request blocked, 50=Release request before trying again.
+    jumboWeightCaptureStatus        : INT;    // Operator status code; mapped to Portuguese text in the HMI
 
 	
 	
