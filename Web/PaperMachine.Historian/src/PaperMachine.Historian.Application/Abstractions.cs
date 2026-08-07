@@ -35,6 +35,14 @@ public interface IProductionIntegrationRepository
 public interface IHistorianRepository
 {
     Task InitializeAsync(CancellationToken cancellationToken);
+    Task<bool> AddJumboWeightCaptureAsync(
+        JumboWeightCapture capture,
+        CancellationToken cancellationToken);
+    Task<IReadOnlyList<JumboWeightCaptureRow>> GetJumboWeightCapturesAsync(
+        DateTimeOffset? fromUtc,
+        DateTimeOffset? toUtc,
+        int limit,
+        CancellationToken cancellationToken);
     Task PersistCycleAsync(HistorianCycle cycle, CancellationToken cancellationToken);
     Task AddCommandEventAsync(
         FieldChange change,
@@ -209,6 +217,25 @@ public sealed record MachineProductivitySampleRow(
     double? SpeedMpm,
     bool? PaperPresent,
     string Quality);
+
+public sealed record JumboWeightCaptureRow(
+    long Id,
+    long PlcEventCounter,
+    long CapturedAtFileTime,
+    DateTimeOffset CapturedAtUtc,
+    DateTimeOffset ObservedAtUtc,
+    double WeightKg,
+    int CaptureStatus,
+    string MappingVersion,
+    long? ProductionRunId,
+    string? ProductionSourceSystem,
+    string? ProductionExternalRunId,
+    string? ProductionOrderCode,
+    string? QualityKey,
+    string? ProductCode,
+    double? GrammageGsm,
+    double? ProductionWidthMm,
+    DateTimeOffset? ProductionLastSynchronizedAtUtc);
 
 public sealed record TelemetrySampleRow(
     DateTimeOffset CapturedAtUtc,

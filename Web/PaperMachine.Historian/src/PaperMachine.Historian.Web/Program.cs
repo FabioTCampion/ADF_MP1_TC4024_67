@@ -98,6 +98,7 @@ builder.Services.AddHttpClient<IProductionSourceClient, PaperSystemProductionSou
     UseProxy = false
 });
 builder.Services.AddHostedService<HistorianWorker>();
+builder.Services.AddHostedService<JumboWeightCaptureWorker>();
 builder.Services.AddHostedService<ProductionIntegrationWorker>();
 builder.Services.AddHostedService<UpdateCheckWorker>();
 builder.Services.AddHealthChecks();
@@ -211,6 +212,7 @@ app.MapProcessTrends();
 app.MapHistorianUpdates();
 app.MapReportEndpoints();
 app.MapProductionIntegration();
+app.MapJumboWeightCaptures();
 
 var api = app.MapGroup("/api").RequireAuthorization();
 

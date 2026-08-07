@@ -17,7 +17,7 @@ public sealed class HistorianOptions
     public double PaperBreakMinimumSpeedMpm { get; set; } = 5;
     public int PaperBreakDiagnosticWindowSeconds { get; set; } = 180;
     public bool RetentionEnabled { get; set; } = true;
-    public string MappingVersion { get; set; } = "paper-machine-hmi-v1";
+    public string MappingVersion { get; set; } = "paper-machine-hmi-v3";
 
     public void Validate()
     {

@@ -8,7 +8,7 @@ namespace PaperMachine.Historian.Infrastructure.Database;
 
 public sealed class SqliteHistorianRepository : IHistorianRepository
 {
-    private const int SchemaVersion = 10;
+    private const int SchemaVersion = 11;
     private readonly string _databasePath;
     private readonly string _connectionString;
     private readonly SemaphoreSlim _writeGate = new(1, 1);
@@ -145,6 +145,7 @@ public sealed class SqliteHistorianRepository : IHistorianRepository
         await EnsureUserBreakAnalysisFilterSchemaAsync(connection, cancellationToken);
         await EnsureUserGraphLayoutSchemaAsync(connection, cancellationToken);
         await EnsureProductionIntegrationSchemaAsync(connection, cancellationToken);
+        await EnsureJumboWeightCaptureSchemaAsync(connection, cancellationToken);
         var driveCatalogMigrationApplied = await ScalarAsync<long>(
             connection,
             "SELECT COUNT(*) FROM SchemaMigrations WHERE Version = 8;",
@@ -171,6 +172,8 @@ public sealed class SqliteHistorianRepository : IHistorianRepository
             VALUES (9, @AppliedAtUtc);
             INSERT OR IGNORE INTO SchemaMigrations (Version, AppliedAtUtc)
             VALUES (10, @AppliedAtUtc);
+            INSERT OR IGNORE INTO SchemaMigrations (Version, AppliedAtUtc)
+            VALUES (11, @AppliedAtUtc);
             """,
             cancellationToken,
             ("@AppliedAtUtc", ToDatabaseTimestamp(DateTimeOffset.UtcNow)));
@@ -298,6 +301,171 @@ public sealed class SqliteHistorianRepository : IHistorianRepository
             "ProductionWidthMm",
             "REAL NULL",
             cancellationToken);
+    }
+
+    private static Task EnsureJumboWeightCaptureSchemaAsync(
+        SqliteConnection connection,
+        CancellationToken cancellationToken) =>
+        ExecuteAsync(
+            connection,
+            null,
+            """
+            CREATE TABLE IF NOT EXISTS JumboWeightCaptures (
+                Id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+                PlcEventCounter INTEGER NOT NULL,
+                CapturedAtFileTime INTEGER NOT NULL,
+                CapturedAtUtc TEXT NOT NULL,
+                ObservedAtUtc TEXT NOT NULL,
+                WeightKg REAL NOT NULL,
+                CaptureStatus INTEGER NOT NULL,
+                MappingVersion TEXT NOT NULL,
+                ProductionRunId INTEGER NULL,
+                ProductionSourceSystem TEXT NULL,
+                ProductionExternalRunId TEXT NULL,
+                ProductionOrderCode TEXT NULL,
+                QualityKey TEXT NULL,
+                ProductCode TEXT NULL,
+                GrammageGsm REAL NULL,
+                ProductionWidthMm REAL NULL,
+                ProductionLastSynchronizedAtUtc TEXT NULL,
+                FOREIGN KEY (ProductionRunId) REFERENCES ExternalProductionRuns (Id)
+                    ON DELETE SET NULL,
+                UNIQUE (CapturedAtFileTime, PlcEventCounter)
+            );
+            CREATE INDEX IF NOT EXISTS IX_JumboWeightCaptures_CapturedAtUtc
+                ON JumboWeightCaptures (CapturedAtUtc DESC);
+            CREATE INDEX IF NOT EXISTS IX_JumboWeightCaptures_Quality
+                ON JumboWeightCaptures (ProductCode, GrammageGsm, CapturedAtUtc DESC);
+            """,
+            cancellationToken);
+
+    public async Task<bool> AddJumboWeightCaptureAsync(
+        JumboWeightCapture capture,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(capture);
+        if (!double.IsFinite(capture.WeightKg))
+            throw new ArgumentOutOfRangeException(nameof(capture), "Captured weight must be finite.");
+        if (capture.PlcEventCounter <= 0 || capture.CapturedAtFileTime <= 0)
+            throw new ArgumentOutOfRangeException(nameof(capture), "PLC capture identity must be positive.");
+
+        await _writeGate.WaitAsync(cancellationToken);
+        try
+        {
+            await using var connection = await OpenAsync(cancellationToken);
+            await using var command = connection.CreateCommand();
+            command.CommandText = """
+                INSERT OR IGNORE INTO JumboWeightCaptures (
+                    PlcEventCounter, CapturedAtFileTime, CapturedAtUtc, ObservedAtUtc,
+                    WeightKg, CaptureStatus, MappingVersion, ProductionRunId,
+                    ProductionSourceSystem, ProductionExternalRunId, ProductionOrderCode,
+                    QualityKey, ProductCode, GrammageGsm, ProductionWidthMm,
+                    ProductionLastSynchronizedAtUtc)
+                VALUES (
+                    @PlcEventCounter, @CapturedAtFileTime, @CapturedAtUtc, @ObservedAtUtc,
+                    @WeightKg, @CaptureStatus, @MappingVersion, @ProductionRunId,
+                    @ProductionSourceSystem, @ProductionExternalRunId, @ProductionOrderCode,
+                    @QualityKey, @ProductCode, @GrammageGsm, @ProductionWidthMm,
+                    @ProductionLastSynchronizedAtUtc);
+                """;
+            var production = capture.Production;
+            command.Parameters.AddWithValue("@PlcEventCounter", capture.PlcEventCounter);
+            command.Parameters.AddWithValue("@CapturedAtFileTime", capture.CapturedAtFileTime);
+            command.Parameters.AddWithValue("@CapturedAtUtc", ToDatabaseTimestamp(capture.CapturedAtUtc));
+            command.Parameters.AddWithValue("@ObservedAtUtc", ToDatabaseTimestamp(capture.ObservedAtUtc));
+            command.Parameters.AddWithValue("@WeightKg", capture.WeightKg);
+            command.Parameters.AddWithValue("@CaptureStatus", capture.CaptureStatus);
+            command.Parameters.AddWithValue("@MappingVersion", capture.MappingVersion);
+            command.Parameters.AddWithValue(
+                "@ProductionRunId",
+                production is null ? DBNull.Value : production.RunId);
+            command.Parameters.AddWithValue(
+                "@ProductionSourceSystem",
+                production is null ? DBNull.Value : production.SourceSystem);
+            command.Parameters.AddWithValue(
+                "@ProductionExternalRunId",
+                production is null ? DBNull.Value : production.ExternalRunId);
+            command.Parameters.AddWithValue(
+                "@ProductionOrderCode",
+                production?.ProductionOrderCode is { } productionOrder
+                    ? productionOrder
+                    : DBNull.Value);
+            command.Parameters.AddWithValue(
+                "@QualityKey",
+                production?.QualityKey is { } qualityKey ? qualityKey : DBNull.Value);
+            command.Parameters.AddWithValue(
+                "@ProductCode",
+                production?.ProductCode is { } productCode ? productCode : DBNull.Value);
+            command.Parameters.AddWithValue(
+                "@GrammageGsm",
+                production?.GrammageGsm is { } grammage ? (double)grammage : DBNull.Value);
+            command.Parameters.AddWithValue(
+                "@ProductionWidthMm",
+                production?.ProductionWidthMm is { } width ? (double)width : DBNull.Value);
+            command.Parameters.AddWithValue(
+                "@ProductionLastSynchronizedAtUtc",
+                production is null
+                    ? DBNull.Value
+                    : ToDatabaseTimestamp(production.LastSynchronizedAtUtc));
+            return await command.ExecuteNonQueryAsync(cancellationToken) == 1;
+        }
+        finally
+        {
+            _writeGate.Release();
+        }
+    }
+
+    public async Task<IReadOnlyList<JumboWeightCaptureRow>> GetJumboWeightCapturesAsync(
+        DateTimeOffset? fromUtc,
+        DateTimeOffset? toUtc,
+        int limit,
+        CancellationToken cancellationToken)
+    {
+        ValidateLimit(limit);
+        await using var connection = await OpenAsync(cancellationToken);
+        await using var command = CreateRangeCommand(
+            connection,
+            """
+            SELECT Id, PlcEventCounter, CapturedAtFileTime, CapturedAtUtc, ObservedAtUtc,
+                   WeightKg, CaptureStatus, MappingVersion, ProductionRunId,
+                   ProductionSourceSystem, ProductionExternalRunId, ProductionOrderCode,
+                   QualityKey, ProductCode, GrammageGsm, ProductionWidthMm,
+                   ProductionLastSynchronizedAtUtc
+            FROM JumboWeightCaptures
+            WHERE (@FromUtc IS NULL OR CapturedAtUtc >= @FromUtc)
+              AND (@ToUtc IS NULL OR CapturedAtUtc <= @ToUtc)
+            ORDER BY CapturedAtUtc DESC, Id DESC
+            LIMIT @Limit;
+            """,
+            fromUtc,
+            toUtc,
+            limit);
+        var rows = new List<JumboWeightCaptureRow>();
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            rows.Add(new JumboWeightCaptureRow(
+                reader.GetInt64(0),
+                reader.GetInt64(1),
+                reader.GetInt64(2),
+                ParseDatabaseTimestamp(reader.GetString(3)),
+                ParseDatabaseTimestamp(reader.GetString(4)),
+                reader.GetDouble(5),
+                reader.GetInt32(6),
+                reader.GetString(7),
+                reader.IsDBNull(8) ? null : reader.GetInt64(8),
+                reader.IsDBNull(9) ? null : reader.GetString(9),
+                reader.IsDBNull(10) ? null : reader.GetString(10),
+                reader.IsDBNull(11) ? null : reader.GetString(11),
+                reader.IsDBNull(12) ? null : reader.GetString(12),
+                reader.IsDBNull(13) ? null : reader.GetString(13),
+                ReadNullableDouble(reader, 14),
+                ReadNullableDouble(reader, 15),
+                reader.IsDBNull(16)
+                    ? null
+                    : ParseDatabaseTimestamp(reader.GetString(16))));
+        }
+        return rows;
     }
 
     private static async Task EnsureColumnAsync(

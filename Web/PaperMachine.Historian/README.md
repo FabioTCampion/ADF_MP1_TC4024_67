@@ -56,6 +56,9 @@ O arquivo, seu WAL e arquivos temporários estão ignorados pelo Git. O banco us
 - `ExternalProductionRuns` e tabelas relacionadas: contexto normalizado de
   produção ERP, itens, jumbos, snapshots somente quando há mudança e períodos de
   receita identificados por produto, gramatura e formato total;
+- `JumboWeightCaptures`: cada pesagem aceita pelo CLP, identificada pelo contador
+  e pelo FILETIME retidos, com peso, status, versão do mapeamento e uma cópia do
+  contexto ERP vigente (OP, produto, gramatura e largura) quando ele está válido;
 - `SchemaMigrations`: versão aplicada ao banco.
 
 Datas são armazenadas em UTC. Alarmes encontrados ativos na primeira leitura ficam marcados como `ActiveAtStartup`, pois o horário real de ativação anterior ao início do serviço é desconhecido.
@@ -78,7 +81,15 @@ Alarmes, comandos, quebras e usuários não são removidos pela retenção autom
 
 A integração ERP opcional usa um worker independente do ADS e vem desabilitada
 na instalação. Consulte [ERP-INTEGRATION.md](ERP-INTEGRATION.md) para arquitetura,
-credencial, ativação, diagnóstico e rollback do schema 10.
+credencial, ativação, diagnóstico e rollback da integração introduzida no schema 10.
+
+A captura de peso também roda como um `BackgroundService` independente dentro do
+mesmo backend, mas não abre outra conexão ADS e nunca escreve no CLP. Ela observa
+o snapshot validado pelo coletor, reconhece a dupla contador/FILETIME retida no
+CLP e grava cada evento uma única vez. O schema 11 associa a pesagem ao contexto
+ERP somente quando a integração está produzindo e sua última sincronização ainda
+não está obsoleta. Se o ERP estiver indisponível, o peso continua sendo salvo sem
+associação e pode ser analisado separadamente.
 
 Compatibilidade multiplataforma é um requisito permanente: dependências de
 sistema operacional ficam isoladas em adaptadores e todo novo alvo precisa de
@@ -236,6 +247,8 @@ fluxo completo de publicação da Release e instalação inicial do atualizador.
 - `GET /api/history/alarms`;
 - `GET /api/history/breaks`;
 - `GET /api/reports/production-breaks`;
+- `GET /api/production/weights`;
+- `GET /api/production/weights/latest`;
 - `GET /api/storage`;
 - `GET /api/updates/status`;
 - `POST /api/updates/check`;
