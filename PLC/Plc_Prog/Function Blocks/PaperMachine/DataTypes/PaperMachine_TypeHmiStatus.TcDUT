@@ -292,13 +292,15 @@ STRUCT
     // ─────────────── JUMBO WEIGHT CAPTURE ───────────────
     // capturedAtFileTime is UTC Windows FILETIME: 100 ns ticks since 1601-01-01.
     jumboCurrentWeightKg            : REAL;   // Live weight echoed from HMI [kg]
-    jumboCapturedWeightKg           : REAL;   // Weight latched on the last accepted request [kg]
+    jumboCapturedWeightKg           : REAL;   // Net weight latched after subtracting shaft tare [kg]
     jumboCapturedAtFileTime         : ULINT;  // UTC timestamp of the last accepted capture
     jumboWeightCaptureEventCounter  : UDINT;  // Increments once per accepted capture
     jumboWeightCaptureReady         : BOOL;   // FALSE during the minimum interval between captures
     // Status texts: 0=Initializing, 10=Ready, 20=Captured, 30=Waiting interval,
-    // 40=Request blocked, 50=Release request before trying again.
+    // 40=Request blocked, 50=Release request, 60=Invalid shaft selector,
+    // 70=Shaft tare not configured, 80=Gross weight not greater than shaft tare.
     jumboWeightCaptureStatus        : INT;    // Operator status code; mapped to Portuguese text in the HMI
+    jumboCapturedShaftSelector      : INT;    // Shaft selector latched with the accepted capture
 
 	
 	

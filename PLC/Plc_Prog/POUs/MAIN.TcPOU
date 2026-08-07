@@ -18764,9 +18764,12 @@ paperMachineHmiStatus.jumboCurrentWeightKg := paperMachineHmiCommands.jumboCurre
 
 instFB_JumboWeightCapture(
     currentWeightKg := paperMachineHmiCommands.jumboCurrentWeightKg,
+    shaftSelector := paperMachineHmiCommands.jumboShaftSelector,
+    shaftWeightKg := paperMachineHmiConfig.jumboShaftWeight,
     captureRequest := paperMachineHmiCommands.jumboWeightCaptureRequest,
     minimumCaptureInterval := T#10S,
     capturedWeightKg => paperMachineHmiStatus.jumboCapturedWeightKg,
+    capturedShaftSelector => paperMachineHmiStatus.jumboCapturedShaftSelector,
     capturedAtFileTime => paperMachineHmiStatus.jumboCapturedAtFileTime,
     captureEventCounter => paperMachineHmiStatus.jumboWeightCaptureEventCounter,
     captureReady => paperMachineHmiStatus.jumboWeightCaptureReady,
@@ -41662,6 +41665,7 @@ P15_600_UG01_Rewinder.commandWord.faultResetCmd := paperMachineHmiCommands.machi
       <LineId Id="3939" Count="590" />
       <LineId Id="57" Count="0" />
       <LineId Id="2" Count="0" />
+      <LineId Id="4671" Count="0" />
     </LineIds>
     <LineIds Name="MAIN._000_Init_Variables">
       <LineId Id="200" Count="0" />
@@ -41691,6 +41695,7 @@ P15_600_UG01_Rewinder.commandWord.faultResetCmd := paperMachineHmiCommands.machi
     </LineIds>
     <LineIds Name="MAIN._700_JumboWeightCapture">
       <LineId Id="1" Count="15" />
+      <LineId Id="19" Count="0" />
     </LineIds>
     <LineIds Name="MAIN._900_DriveFaultDiagnostics">
       <LineId Id="3" Count="84" />

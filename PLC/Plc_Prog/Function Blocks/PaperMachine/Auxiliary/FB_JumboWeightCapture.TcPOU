@@ -4,12 +4,15 @@
     <Declaration><![CDATA[FUNCTION_BLOCK FB_JumboWeightCapture
 VAR_INPUT
     currentWeightKg        : REAL;              // Live weight continuously supplied by the HMI
+    shaftSelector          : INT;               // Selected shaft index, from 1 through 20
+    shaftWeightKg          : ARRAY[1..20] OF REAL; // Persistent shaft tare weights [kg]
     captureRequest         : BOOL;              // Capture on rising edge only
     minimumCaptureInterval : TIME := T#10S;     // Protection against accidental repeated captures
 END_VAR
 
 VAR_OUTPUT
-    capturedWeightKg       : REAL;              // Last accepted weight [kg]
+    capturedWeightKg       : REAL;              // Last accepted net weight [kg]
+    capturedShaftSelector  : INT;               // Shaft selector latched with the accepted capture
     capturedAtFileTime     : ULINT;             // UTC Windows FILETIME, 100 ns ticks since 1601-01-01
     captureEventCounter    : UDINT;             // Monotonic event discriminator during PLC runtime
     captureReady           : BOOL;              // TRUE when a new rising edge can be accepted
@@ -26,6 +29,10 @@ VAR
     captureBlockedPulse    : BOOL;
     captureSuccessTimer    : TP;
     captureBlockedTimer    : TP;
+    shaftSelectorValid     : BOOL;
+    shaftWeightValid       : BOOL;
+    netWeightValid         : BOOL;
+    selectedShaftWeightKg  : REAL;
 END_VAR
 
 VAR CONSTANT
@@ -35,6 +42,9 @@ VAR CONSTANT
     STATUS_WAITING_INTERVAL      : INT := 30;
     STATUS_REQUEST_BLOCKED       : INT := 40;
     STATUS_RELEASE_REQUEST       : INT := 50;
+    STATUS_INVALID_SHAFT         : INT := 60;
+    STATUS_SHAFT_NOT_CONFIGURED  : INT := 70;
+    STATUS_INVALID_NET_WEIGHT    : INT := 80;
 END_VAR]]></Declaration>
     <Implementation>
       <ST><![CDATA[// Initialize the edge memory from the actual input. This avoids an unintended
@@ -51,6 +61,18 @@ captureRequestRising := captureRequest AND NOT captureRequestOld;
 captureAcceptedPulse := FALSE;
 captureBlockedPulse := FALSE;
 
+// Resolve the selected tare only after validating the array index. A zero or
+// negative tare is treated as an unconfigured shaft.
+shaftSelectorValid := shaftSelector >= 1 AND shaftSelector <= 20;
+IF shaftSelectorValid THEN
+    selectedShaftWeightKg := shaftWeightKg[shaftSelector];
+ELSE
+    selectedShaftWeightKg := 0.0;
+END_IF
+
+shaftWeightValid := shaftSelectorValid AND selectedShaftWeightKg > 0.0;
+netWeightValid := shaftWeightValid AND currentWeightKg > selectedShaftWeightKg;
+
 // The timer blocks accidental double captures. Reset it explicitly after Q so
 // that a capture accepted on the expiry cycle starts a complete new interval.
 captureInhibitTimer(
@@ -66,13 +88,14 @@ IF captureInhibitTimer.Q THEN
     );
 END_IF
 
-IF captureRequestRising AND NOT captureInhibitActive THEN
-    capturedWeightKg := currentWeightKg;
+IF captureRequestRising AND NOT captureInhibitActive AND netWeightValid THEN
+    capturedWeightKg := currentWeightKg - selectedShaftWeightKg;
+    capturedShaftSelector := shaftSelector;
     capturedAtFileTime := F_GetSystemTime();
     captureEventCounter := captureEventCounter + 1;
     captureInhibitActive := minimumCaptureInterval > T#0S;
     captureAcceptedPulse := TRUE;
-ELSIF captureRequestRising THEN
+ELSIF captureRequestRising AND captureInhibitActive THEN
     captureBlockedPulse := TRUE;
 END_IF
 
@@ -89,12 +112,18 @@ captureBlockedTimer(
 
 // A new capture requires both the protection interval to have elapsed and the
 // HMI request to be released, so the next command always creates a new edge.
-captureReady := NOT captureInhibitActive AND NOT captureRequest;
+captureReady := NOT captureInhibitActive AND NOT captureRequest AND netWeightValid;
 
 IF captureBlockedTimer.Q THEN
     captureStatus := STATUS_REQUEST_BLOCKED;
 ELSIF captureSuccessTimer.Q THEN
     captureStatus := STATUS_CAPTURED;
+ELSIF NOT shaftSelectorValid THEN
+    captureStatus := STATUS_INVALID_SHAFT;
+ELSIF NOT shaftWeightValid THEN
+    captureStatus := STATUS_SHAFT_NOT_CONFIGURED;
+ELSIF NOT netWeightValid THEN
+    captureStatus := STATUS_INVALID_NET_WEIGHT;
 ELSIF captureRequest THEN
     captureStatus := STATUS_RELEASE_REQUEST;
 ELSIF captureInhibitActive THEN

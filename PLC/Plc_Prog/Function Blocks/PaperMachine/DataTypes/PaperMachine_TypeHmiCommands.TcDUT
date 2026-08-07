@@ -267,6 +267,7 @@ STRUCT
     // The HMI continuously updates the live weight and pulses the request.
     jumboCurrentWeightKg       : REAL;  // Live scale weight [kg] (Peso atual da balança)
     jumboWeightCaptureRequest  : BOOL;  // Rising edge requests one capture (Borda de subida solicita uma captura)
+    jumboShaftSelector         : INT := 1;   // Selected shaft: 1..20 (Estanga selecionada)
 
 END_STRUCT
 END_TYPE
