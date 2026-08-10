@@ -43,6 +43,13 @@ public interface IHistorianRepository
         DateTimeOffset? toUtc,
         int limit,
         CancellationToken cancellationToken);
+    Task<bool> CorrectJumboWeightCaptureAsync(
+        long id,
+        double correctedWeightKg,
+        string reason,
+        string correctedBy,
+        DateTimeOffset correctedAtUtc,
+        CancellationToken cancellationToken);
     Task PersistCycleAsync(HistorianCycle cycle, CancellationToken cancellationToken);
     Task AddCommandEventAsync(
         FieldChange change,
@@ -235,7 +242,11 @@ public sealed record JumboWeightCaptureRow(
     string? ProductCode,
     double? GrammageGsm,
     double? ProductionWidthMm,
-    DateTimeOffset? ProductionLastSynchronizedAtUtc);
+    DateTimeOffset? ProductionLastSynchronizedAtUtc,
+    double? CorrectedWeightKg,
+    string? CorrectionReason,
+    string? CorrectedBy,
+    DateTimeOffset? CorrectedAtUtc);
 
 public sealed record TelemetrySampleRow(
     DateTimeOffset CapturedAtUtc,

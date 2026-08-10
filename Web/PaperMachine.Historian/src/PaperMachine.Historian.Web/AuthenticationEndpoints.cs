@@ -281,8 +281,11 @@ public static partial class AuthenticationEndpoints
             "alarms.view",
             "commands.view",
             "history.view",
+            "weights.view",
             "reports.generate"
         };
+        if (role is HistorianRoles.Supervisor or HistorianRoles.Administrator)
+            permissions.Add("weights.edit");
         if (role == HistorianRoles.Administrator)
         {
             permissions.AddRange(
@@ -307,7 +310,7 @@ public static partial class AuthenticationEndpoints
             : null;
 
     private static bool IsKnownRole(string? role) =>
-        role is HistorianRoles.Viewer or HistorianRoles.Administrator;
+        role is HistorianRoles.Viewer or HistorianRoles.Supervisor or HistorianRoles.Administrator;
 
     private static string? Validate(string userName, string displayName, string password)
     {

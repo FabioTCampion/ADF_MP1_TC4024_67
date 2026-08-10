@@ -3,6 +3,7 @@ namespace PaperMachine.Historian.Domain;
 public static class HistorianRoles
 {
     public const string Viewer = "Viewer";
+    public const string Supervisor = "Supervisor";
     public const string Administrator = "Administrator";
 }
 

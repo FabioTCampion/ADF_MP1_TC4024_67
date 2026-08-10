@@ -11,7 +11,7 @@ export type AuthUser = {
   id: number;
   userName: string;
   displayName: string;
-  role: "Viewer" | "Administrator";
+  role: "Viewer" | "Supervisor" | "Administrator";
   permissions: string[];
 };
 

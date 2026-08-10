@@ -1027,7 +1027,7 @@ button { color: inherit; }
 .users-section-heading { display: flex; align-items: flex-end; justify-content: space-between; margin: 18px 0 10px; }
 .users-section-heading h2 { margin: 0 0 4px; font-size: 17px; }
 .users-section-heading span { color: #7f91aa; font-size: 10px; }
-.access-profile-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 11px; }
+.access-profile-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 11px; }
 .access-profile-card {
   position: relative;
   display: flex;
@@ -1043,6 +1043,7 @@ button { color: inherit; }
 }
 .access-profile-card::before { position: absolute; inset: 0 auto 0 0; width: 4px; background: #607e9d; content: ""; }
 .access-profile-card--admin::before { background: #4a91e6; }
+.access-profile-card--supervisor::before { background: #43d49a; }
 .access-profile-card > div > span { color: #66b4ee; font-size: 8px; font-weight: 800; letter-spacing: .11em; text-transform: uppercase; }
 .access-profile-card h3 { margin: 7px 0 6px; font-size: 18px; }
 .access-profile-card p { max-width: 580px; margin: 0; color: #8294aa; font-size: 11px; line-height: 1.55; }
@@ -1073,6 +1074,7 @@ button { color: inherit; }
 }
 .role-badge { width: fit-content; padding: 5px 8px; border: 1px solid #3a4d64; border-radius: 999px; background: #172538; font-size: 9px; }
 .role-badge--administrator { color: #8fc2ff; border-color: #355e8e; background: #142b45; }
+.role-badge--supervisor { color: #8de4bd; border-color: #28684f; background: #0f2b24; }
 .user-active, .user-inactive { display: flex; align-items: center; gap: 7px; }
 .user-active { color: #72dbad; }
 .user-inactive { color: #e89083; }

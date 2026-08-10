@@ -91,6 +91,34 @@ public sealed class JumboWeightCaptureTests
             Assert.Equal("MIOLO", row.ProductCode);
             Assert.Equal(100, row.GrammageGsm);
             Assert.Equal(1730, row.ProductionWidthMm);
+
+            var correctedAt = capturedAt.AddMinutes(5);
+            Assert.True(await repository.CorrectJumboWeightCaptureAsync(
+                row.Id,
+                5098.75,
+                "Conferido no ticket da balança",
+                "Supervisor Teste",
+                correctedAt,
+                CancellationToken.None));
+            Assert.False(await repository.CorrectJumboWeightCaptureAsync(
+                row.Id + 999,
+                5000,
+                "Registro inexistente",
+                "Supervisor Teste",
+                correctedAt,
+                CancellationToken.None));
+
+            var corrected = Assert.Single(await repository.GetJumboWeightCapturesAsync(
+                capturedAt.AddMinutes(-1),
+                capturedAt.AddMinutes(10),
+                10,
+                CancellationToken.None));
+            Assert.Equal(5120.25, corrected.WeightKg);
+            Assert.Equal(5098.75, corrected.CorrectedWeightKg);
+            Assert.Equal("Conferido no ticket da balança", corrected.CorrectionReason);
+            Assert.Equal("Supervisor Teste", corrected.CorrectedBy);
+            Assert.Equal(correctedAt, corrected.CorrectedAtUtc);
+            Assert.Equal(1, await CountWeightCorrectionsAsync(databasePath, row.Id));
         }
         finally
         {
@@ -118,6 +146,20 @@ public sealed class JumboWeightCaptureTests
                 'MIOLO|100', 'MIOLO', 100, 1730, 0);
             SELECT last_insert_rowid();
             """;
+        return Convert.ToInt64(await command.ExecuteScalarAsync());
+    }
+
+    private static async Task<long> CountWeightCorrectionsAsync(string databasePath, long captureId)
+    {
+        await using var connection = new SqliteConnection($"Data Source={databasePath}");
+        await connection.OpenAsync();
+        await using var command = connection.CreateCommand();
+        command.CommandText = """
+            SELECT COUNT(*)
+            FROM JumboWeightCorrections
+            WHERE JumboWeightCaptureId = @CaptureId;
+            """;
+        command.Parameters.AddWithValue("@CaptureId", captureId);
         return Convert.ToInt64(await command.ExecuteScalarAsync());
     }
 }

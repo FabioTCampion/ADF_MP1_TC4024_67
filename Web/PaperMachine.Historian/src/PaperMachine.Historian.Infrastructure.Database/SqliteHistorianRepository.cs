@@ -8,7 +8,7 @@ namespace PaperMachine.Historian.Infrastructure.Database;
 
 public sealed class SqliteHistorianRepository : IHistorianRepository
 {
-    private const int SchemaVersion = 11;
+    private const int SchemaVersion = 12;
     private readonly string _databasePath;
     private readonly string _connectionString;
     private readonly SemaphoreSlim _writeGate = new(1, 1);
@@ -174,6 +174,8 @@ public sealed class SqliteHistorianRepository : IHistorianRepository
             VALUES (10, @AppliedAtUtc);
             INSERT OR IGNORE INTO SchemaMigrations (Version, AppliedAtUtc)
             VALUES (11, @AppliedAtUtc);
+            INSERT OR IGNORE INTO SchemaMigrations (Version, AppliedAtUtc)
+            VALUES (12, @AppliedAtUtc);
             """,
             cancellationToken,
             ("@AppliedAtUtc", ToDatabaseTimestamp(DateTimeOffset.UtcNow)));
@@ -303,10 +305,11 @@ public sealed class SqliteHistorianRepository : IHistorianRepository
             cancellationToken);
     }
 
-    private static Task EnsureJumboWeightCaptureSchemaAsync(
+    private static async Task EnsureJumboWeightCaptureSchemaAsync(
         SqliteConnection connection,
-        CancellationToken cancellationToken) =>
-        ExecuteAsync(
+        CancellationToken cancellationToken)
+    {
+        await ExecuteAsync(
             connection,
             null,
             """
@@ -338,6 +341,52 @@ public sealed class SqliteHistorianRepository : IHistorianRepository
                 ON JumboWeightCaptures (ProductCode, GrammageGsm, CapturedAtUtc DESC);
             """,
             cancellationToken);
+
+        await EnsureColumnAsync(
+            connection,
+            "JumboWeightCaptures",
+            "CorrectedWeightKg",
+            "REAL NULL",
+            cancellationToken);
+        await EnsureColumnAsync(
+            connection,
+            "JumboWeightCaptures",
+            "CorrectionReason",
+            "TEXT NULL",
+            cancellationToken);
+        await EnsureColumnAsync(
+            connection,
+            "JumboWeightCaptures",
+            "CorrectedBy",
+            "TEXT NULL",
+            cancellationToken);
+        await EnsureColumnAsync(
+            connection,
+            "JumboWeightCaptures",
+            "CorrectedAtUtc",
+            "TEXT NULL",
+            cancellationToken);
+
+        await ExecuteAsync(
+            connection,
+            null,
+            """
+            CREATE TABLE IF NOT EXISTS JumboWeightCorrections (
+                Id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+                JumboWeightCaptureId INTEGER NOT NULL,
+                PreviousWeightKg REAL NOT NULL,
+                CorrectedWeightKg REAL NOT NULL,
+                Reason TEXT NOT NULL,
+                CorrectedBy TEXT NOT NULL,
+                CorrectedAtUtc TEXT NOT NULL,
+                FOREIGN KEY (JumboWeightCaptureId) REFERENCES JumboWeightCaptures (Id)
+                    ON DELETE CASCADE
+            );
+            CREATE INDEX IF NOT EXISTS IX_JumboWeightCorrections_Capture_Corrected
+                ON JumboWeightCorrections (JumboWeightCaptureId, CorrectedAtUtc DESC);
+            """,
+            cancellationToken);
+    }
 
     public async Task<bool> AddJumboWeightCaptureAsync(
         JumboWeightCapture capture,
@@ -430,7 +479,8 @@ public sealed class SqliteHistorianRepository : IHistorianRepository
                    WeightKg, CaptureStatus, MappingVersion, ProductionRunId,
                    ProductionSourceSystem, ProductionExternalRunId, ProductionOrderCode,
                    QualityKey, ProductCode, GrammageGsm, ProductionWidthMm,
-                   ProductionLastSynchronizedAtUtc
+                   ProductionLastSynchronizedAtUtc, CorrectedWeightKg,
+                   CorrectionReason, CorrectedBy, CorrectedAtUtc
             FROM JumboWeightCaptures
             WHERE (@FromUtc IS NULL OR CapturedAtUtc >= @FromUtc)
               AND (@ToUtc IS NULL OR CapturedAtUtc <= @ToUtc)
@@ -463,9 +513,95 @@ public sealed class SqliteHistorianRepository : IHistorianRepository
                 ReadNullableDouble(reader, 15),
                 reader.IsDBNull(16)
                     ? null
-                    : ParseDatabaseTimestamp(reader.GetString(16))));
+                    : ParseDatabaseTimestamp(reader.GetString(16)),
+                ReadNullableDouble(reader, 17),
+                reader.IsDBNull(18) ? null : reader.GetString(18),
+                reader.IsDBNull(19) ? null : reader.GetString(19),
+                reader.IsDBNull(20)
+                    ? null
+                    : ParseDatabaseTimestamp(reader.GetString(20))));
         }
         return rows;
+    }
+
+    public async Task<bool> CorrectJumboWeightCaptureAsync(
+        long id,
+        double correctedWeightKg,
+        string reason,
+        string correctedBy,
+        DateTimeOffset correctedAtUtc,
+        CancellationToken cancellationToken)
+    {
+        if (id <= 0)
+            throw new ArgumentOutOfRangeException(nameof(id));
+        if (!double.IsFinite(correctedWeightKg) || correctedWeightKg <= 0)
+            throw new ArgumentOutOfRangeException(nameof(correctedWeightKg));
+        ArgumentException.ThrowIfNullOrWhiteSpace(reason);
+        ArgumentException.ThrowIfNullOrWhiteSpace(correctedBy);
+
+        await _writeGate.WaitAsync(cancellationToken);
+        try
+        {
+            await using var connection = await OpenAsync(cancellationToken);
+            await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
+
+            await using var currentCommand = connection.CreateCommand();
+            currentCommand.Transaction = (SqliteTransaction)transaction;
+            currentCommand.CommandText = """
+                SELECT COALESCE(CorrectedWeightKg, WeightKg)
+                FROM JumboWeightCaptures
+                WHERE Id = @Id;
+                """;
+            currentCommand.Parameters.AddWithValue("@Id", id);
+            var currentValue = await currentCommand.ExecuteScalarAsync(cancellationToken);
+            if (currentValue is null or DBNull)
+            {
+                await transaction.RollbackAsync(cancellationToken);
+                return false;
+            }
+
+            await using var auditCommand = connection.CreateCommand();
+            auditCommand.Transaction = (SqliteTransaction)transaction;
+            auditCommand.CommandText = """
+                INSERT INTO JumboWeightCorrections (
+                    JumboWeightCaptureId, PreviousWeightKg, CorrectedWeightKg,
+                    Reason, CorrectedBy, CorrectedAtUtc)
+                VALUES (
+                    @Id, @PreviousWeightKg, @CorrectedWeightKg,
+                    @Reason, @CorrectedBy, @CorrectedAtUtc);
+                """;
+            auditCommand.Parameters.AddWithValue("@Id", id);
+            auditCommand.Parameters.AddWithValue("@PreviousWeightKg", Convert.ToDouble(currentValue));
+            auditCommand.Parameters.AddWithValue("@CorrectedWeightKg", correctedWeightKg);
+            auditCommand.Parameters.AddWithValue("@Reason", reason.Trim());
+            auditCommand.Parameters.AddWithValue("@CorrectedBy", correctedBy.Trim());
+            auditCommand.Parameters.AddWithValue("@CorrectedAtUtc", ToDatabaseTimestamp(correctedAtUtc));
+            await auditCommand.ExecuteNonQueryAsync(cancellationToken);
+
+            await using var updateCommand = connection.CreateCommand();
+            updateCommand.Transaction = (SqliteTransaction)transaction;
+            updateCommand.CommandText = """
+                UPDATE JumboWeightCaptures
+                SET CorrectedWeightKg = @CorrectedWeightKg,
+                    CorrectionReason = @Reason,
+                    CorrectedBy = @CorrectedBy,
+                    CorrectedAtUtc = @CorrectedAtUtc
+                WHERE Id = @Id;
+                """;
+            updateCommand.Parameters.AddWithValue("@Id", id);
+            updateCommand.Parameters.AddWithValue("@CorrectedWeightKg", correctedWeightKg);
+            updateCommand.Parameters.AddWithValue("@Reason", reason.Trim());
+            updateCommand.Parameters.AddWithValue("@CorrectedBy", correctedBy.Trim());
+            updateCommand.Parameters.AddWithValue("@CorrectedAtUtc", ToDatabaseTimestamp(correctedAtUtc));
+            await updateCommand.ExecuteNonQueryAsync(cancellationToken);
+
+            await transaction.CommitAsync(cancellationToken);
+            return true;
+        }
+        finally
+        {
+            _writeGate.Release();
+        }
     }
 
     private static async Task EnsureColumnAsync(

@@ -1,4 +1,6 @@
 using PaperMachine.Historian.Application;
+using PaperMachine.Historian.Domain;
+using System.Security.Claims;
 
 namespace PaperMachine.Historian.Web;
 
@@ -54,6 +56,45 @@ internal static class JumboWeightCaptureEndpoints
                     : Results.Ok(captures[0]);
             });
 
+        group.MapPut(
+            "/{id:long}",
+            async (
+                long id,
+                CorrectJumboWeightRequest request,
+                ClaimsPrincipal principal,
+                IHistorianRepository repository,
+                TimeProvider clock,
+                CancellationToken cancellationToken) =>
+            {
+                if (id <= 0)
+                    return Results.BadRequest(new { error = "Registro de pesagem inválido." });
+                if (!double.IsFinite(request.WeightKg) || request.WeightKg is <= 0 or > 100_000)
+                    return Results.BadRequest(new { error = "Informe um peso entre 0,01 e 100.000 kg." });
+
+                var reason = request.Reason?.Trim() ?? string.Empty;
+                if (reason.Length is < 5 or > 500)
+                    return Results.BadRequest(new { error = "Informe um motivo com 5 a 500 caracteres." });
+
+                var correctedBy = principal.FindFirstValue("display_name")
+                    ?? principal.Identity?.Name
+                    ?? "Supervisor";
+                var updated = await repository.CorrectJumboWeightCaptureAsync(
+                    id,
+                    request.WeightKg,
+                    reason,
+                    correctedBy,
+                    clock.GetUtcNow(),
+                    cancellationToken);
+                return updated
+                    ? Results.NoContent()
+                    : Results.NotFound(new { error = "Pesagem não encontrada." });
+            })
+            .RequireAuthorization(policy => policy.RequireRole(
+                HistorianRoles.Supervisor,
+                HistorianRoles.Administrator));
+
         return endpoints;
     }
+
+    private sealed record CorrectJumboWeightRequest(double WeightKg, string? Reason);
 }

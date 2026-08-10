@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "./Auth";
 
-type UserRole = "Viewer" | "Administrator";
+type UserRole = "Viewer" | "Supervisor" | "Administrator";
 
 type ManagedUser = {
   id: number;
@@ -37,6 +37,7 @@ const dateFormatter = new Intl.DateTimeFormat("pt-BR", {
 
 const roleLabel: Record<UserRole, string> = {
   Administrator: "Administrador",
+  Supervisor: "Supervisor",
   Viewer: "Consulta",
 };
 
@@ -197,6 +198,14 @@ export default function UsersScreen() {
             </div>
             <small>Inclui gestão de acessos</small>
           </article>
+          <article className="access-profile-card access-profile-card--supervisor">
+            <div>
+              <span>Operação e conferência</span>
+              <h3>Supervisor</h3>
+              <p>Consulta os históricos e pode corrigir pesos capturados, sempre com motivo registrado.</p>
+            </div>
+            <small>Inclui edição auditada de pesos</small>
+          </article>
           <article className="access-profile-card">
             <div>
               <span>Somente leitura</span>
@@ -329,6 +338,7 @@ export default function UsersScreen() {
                 onChange={(event) => setEditing({ ...editing, role: event.target.value as UserRole })}
               >
                 <option value="Viewer">Consulta</option>
+                <option value="Supervisor">Supervisor</option>
                 <option value="Administrator">Administrador</option>
               </select>
             </label>

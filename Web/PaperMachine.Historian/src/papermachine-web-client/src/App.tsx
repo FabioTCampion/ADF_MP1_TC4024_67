@@ -18,6 +18,7 @@ import { ServerClockProvider } from "./ServerClock";
 
 const InteractiveChart = lazy(() => import("./InteractiveChart"));
 const MetricsScreen = lazy(() => import("./MetricsScreen"));
+const WeightsScreen = lazy(() => import("./WeightsScreen"));
 const BreakAnalysisScreen = lazy(() => import("./BreakAnalysisScreen"));
 const GraphWorkspace = lazy(() => import("./GraphWorkspace"));
 const UsersScreen = lazy(() => import("./UsersScreen"));
@@ -176,6 +177,7 @@ type MotorTrend = {
 const navigation: readonly NavigationItem[] = [
   { id: "dashboard", label: "Visão geral", icon: "dashboard" },
   { id: "metrics", label: "Métricas", icon: "metrics" },
+  { id: "weights", label: "Pesos", icon: "weights" },
   { id: "breaks", label: "Análise de quebras", icon: "breaks" },
   { id: "status", label: "Status atual", icon: "status" },
   { id: "graphs", label: "Gráficos", icon: "graphs" },
@@ -547,7 +549,7 @@ export default function App() {
             <div className="user-avatar">{user.displayName.slice(0, 2).toUpperCase()}</div>
             <div>
               <b>{user.displayName}</b>
-              <span>{user.role === "Administrator" ? "Administrador" : "Consulta"}</span>
+              <span>{user.role === "Administrator" ? "Administrador" : user.role === "Supervisor" ? "Supervisor" : "Consulta"}</span>
             </div>
             <button type="button" onClick={() => void logout()}>Sair</button>
           </div>
@@ -572,6 +574,11 @@ export default function App() {
           {page === "metrics" && (
             <Suspense fallback={<EmptyState text="Preparando métricas…" />}>
               <MetricsScreen />
+            </Suspense>
+          )}
+          {page === "weights" && (
+            <Suspense fallback={<EmptyState text="Preparando histórico de pesos…" />}>
+              <WeightsScreen />
             </Suspense>
           )}
           {page === "breaks" && (

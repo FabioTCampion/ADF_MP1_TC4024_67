@@ -7,7 +7,8 @@ export type HistoryPeriodPreset =
   | "8h"
   | "24h"
   | "yesterday"
-  | "7d";
+  | "7d"
+  | "30d";
 
 export type HistoryPeriod = {
   from: string;
@@ -33,6 +34,7 @@ const presetLabels: Record<HistoryPeriodPreset, string> = {
   "24h": "Últimas 24h",
   yesterday: "Ontem",
   "7d": "Últimos 7 dias",
+  "30d": "Últimos 30 dias",
 };
 
 export function localDateTimeInput(date: Date) {
@@ -56,6 +58,7 @@ export function historyPeriodForPreset(
   if (preset === "8h") from = new Date(now.getTime() - 8 * 60 * 60_000);
   if (preset === "24h") from = new Date(now.getTime() - 24 * 60 * 60_000);
   if (preset === "7d") from = new Date(now.getTime() - 7 * 24 * 60 * 60_000);
+  if (preset === "30d") from = new Date(now.getTime() - 30 * 24 * 60 * 60_000);
   if (preset === "yesterday") {
     to = startOfToday;
     from = new Date(startOfToday.getTime() - 24 * 60 * 60_000);
