@@ -1,9 +1,41 @@
 using PaperMachine.Historian.Application;
+using System.Text.Json;
 
 namespace PaperMachine.Historian.Tests;
 
 public sealed class ProcessTrendBuilderTests
 {
+    [Fact]
+    public void ExtractsAndCatalogsNewStockPumpProcessVariables()
+    {
+        using var document = JsonDocument.Parse(
+            """
+            {
+              "stockTankLevel": 73.4,
+              "stockPumpFlowM3h": 42.8,
+              "stockPumpDryMassFeedbackKgH": 3180.5,
+              "stockPumpConsistencyFilteredPct": 3.72,
+              "stockPumpPidOutputPct": 56.2,
+              "stockPumpAutomaticActive": true,
+              "stockPumpFlowDeviationAlarm": false
+            }
+            """);
+
+        var values = TelemetryCatalog.Extract(document.RootElement);
+
+        Assert.Equal(73.4, values.Numeric["stockTankLevel"]);
+        Assert.Equal(42.8, values.Numeric["stockPumpFlowM3h"]);
+        Assert.Equal(3180.5, values.Numeric["stockPumpDryMassFeedbackKgH"]);
+        Assert.Equal(3.72, values.Numeric["stockPumpConsistencyFilteredPct"]);
+        Assert.Equal(56.2, values.Numeric["stockPumpPidOutputPct"]);
+        Assert.True(values.Boolean["stockPumpAutomaticActive"]);
+        Assert.False(values.Boolean["stockPumpFlowDeviationAlarm"]);
+        Assert.Equal(15, TelemetryCatalog.StockPumpNumericFields.Count);
+        Assert.Equal(26, TelemetryCatalog.StockPumpBooleanFields.Count);
+        Assert.True(ProcessVariableCatalog.IsSupportedFieldName(
+            "stockPumpDryMassFeedbackKgH"));
+    }
+
     [Fact]
     public void CombinesOptimizedTelemetryAndDetailedSnapshotsInRequestedOrder()
     {
@@ -49,6 +81,12 @@ public sealed class ProcessTrendBuilderTests
     [InlineData("firstPressSectionTorque", "Torque", "%")]
     [InlineData("dryerTemperature", "Temperatura", "°C")]
     [InlineData("driveFrequency", "Elétrica", "Hz")]
+    [InlineData("stockPumpDryMassSetpointKgH", "Bomba de massa", "kg/h")]
+    [InlineData("stockPumpFlowSetpointM3h", "Bomba de massa", "m³/h")]
+    [InlineData("stockPumpConsistencyUsedPct", "Bomba de massa", "%")]
+    [InlineData("stockPumpSuggestedCalibrationFactor", "Bomba de massa", "fator")]
+    [InlineData("stockPumpCurrent", "Bomba de massa", "A")]
+    [InlineData("stockPumpAutomaticActive", "Bomba de massa", "0/1")]
     public void DescribesProcessUnits(
         string fieldName,
         string expectedCategory,

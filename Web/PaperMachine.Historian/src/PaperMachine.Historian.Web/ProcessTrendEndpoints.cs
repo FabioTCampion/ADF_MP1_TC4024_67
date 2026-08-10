@@ -26,11 +26,7 @@ public static partial class ProcessTrendEndpoints
             .EnumerateObject()
             .Where(property =>
                 ProcessVariableCatalog.IsSupportedField(property.Name, property.Value))
-            .Select(property =>
-                property.Value.ValueKind is System.Text.Json.JsonValueKind.True or
-                    System.Text.Json.JsonValueKind.False
-                    ? new ProcessVariableDefinition(property.Name, "Estado", "0/1")
-                    : ProcessVariableCatalog.Describe(property.Name))
+            .Select(property => ProcessVariableCatalog.Describe(property.Name))
             .OrderBy(item => item.Category, StringComparer.OrdinalIgnoreCase)
             .ThenBy(item => item.FieldName, StringComparer.OrdinalIgnoreCase)
             .ToArray();

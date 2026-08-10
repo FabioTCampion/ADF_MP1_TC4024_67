@@ -4,6 +4,26 @@ namespace PaperMachine.Historian.Application;
 
 public static class ProcessVariableCatalog
 {
+    private static IReadOnlyDictionary<string, string> StockPumpUnits { get; } =
+        new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["stockTankLevel"] = "%",
+            ["stockPumpFlowM3h"] = "m³/h",
+            ["stockPumpSpeedReferencePct"] = "%",
+            ["stockPumpDryMassSetpointKgH"] = "kg/h",
+            ["stockPumpDryMassFeedbackKgH"] = "kg/h",
+            ["stockPumpFlowTheoreticalM3h"] = "m³/h",
+            ["stockPumpFlowCorrectedM3h"] = "m³/h",
+            ["stockPumpFlowLimitedM3h"] = "m³/h",
+            ["stockPumpFlowSetpointM3h"] = "m³/h",
+            ["stockPumpConsistencyFilteredPct"] = "%",
+            ["stockPumpConsistencyUsedPct"] = "%",
+            ["stockPumpPidErrorM3h"] = "m³/h",
+            ["stockPumpPidOutputPct"] = "%",
+            ["stockPumpSuggestedCalibrationFactor"] = "fator",
+            ["stockPumpCurrent"] = "A"
+        };
+
     public static bool IsSupportedField(string fieldName, JsonElement value)
     {
         if (value.ValueKind is JsonValueKind.True or JsonValueKind.False)
@@ -15,6 +35,7 @@ public static class ProcessVariableCatalog
     }
 
     public static bool IsSupportedFieldName(string fieldName) =>
+        StockPumpUnits.ContainsKey(fieldName) ||
         fieldName.Contains("Speed", StringComparison.OrdinalIgnoreCase) ||
         fieldName.Contains("Torque", StringComparison.OrdinalIgnoreCase) ||
         fieldName.Contains("Pressure", StringComparison.OrdinalIgnoreCase) ||
@@ -38,6 +59,10 @@ public static class ProcessVariableCatalog
 
     public static ProcessVariableDefinition Describe(string fieldName)
     {
+        if (StockPumpUnits.TryGetValue(fieldName, out var stockPumpUnit))
+            return new(fieldName, "Bomba de massa", stockPumpUnit);
+        if (TelemetryCatalog.StockPumpBooleanFields.Contains(fieldName, StringComparer.Ordinal))
+            return new(fieldName, "Bomba de massa", "0/1");
         if (fieldName.EndsWith("State", StringComparison.OrdinalIgnoreCase) ||
             fieldName.Contains("FaultCode", StringComparison.OrdinalIgnoreCase) ||
             fieldName.Contains("EventCounter", StringComparison.OrdinalIgnoreCase))

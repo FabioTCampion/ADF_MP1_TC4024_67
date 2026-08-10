@@ -8,6 +8,57 @@ namespace PaperMachine.Historian.Tests;
 public sealed class SqliteHistorianRepositoryTests
 {
     [Fact]
+    public async Task AddsStockPumpTelemetryColumnsWhenUpgradingSchema12()
+    {
+        var testDirectory = Path.Combine(
+            Path.GetTempPath(),
+            "PaperMachine.Historian.Tests",
+            Guid.NewGuid().ToString("N"));
+        var databasePath = Path.Combine(testDirectory, "historian.db");
+
+        try
+        {
+            var repository = new SqliteHistorianRepository(
+                new DatabaseOptions { FilePath = databasePath });
+            await repository.InitializeAsync(CancellationToken.None);
+
+            await using (var connection = new SqliteConnection($"Data Source={databasePath}"))
+            {
+                await connection.OpenAsync();
+                await using var command = connection.CreateCommand();
+                command.CommandText = """
+                    ALTER TABLE TelemetrySamples DROP COLUMN stockPumpFlowM3h;
+                    ALTER TABLE TelemetrySamples DROP COLUMN stockPumpAutomaticActive;
+                    ALTER TABLE TelemetryMinuteAggregates DROP COLUMN stockPumpFlowM3h;
+                    ALTER TABLE TelemetryMinuteAggregates DROP COLUMN stockPumpAutomaticActive;
+                    DELETE FROM SchemaMigrations WHERE Version = 13;
+                    """;
+                await command.ExecuteNonQueryAsync();
+            }
+
+            await repository.InitializeAsync(CancellationToken.None);
+
+            await using var verification = new SqliteConnection($"Data Source={databasePath}");
+            await verification.OpenAsync();
+            await using var verificationCommand = verification.CreateCommand();
+            verificationCommand.CommandText = """
+                SELECT
+                    (SELECT COUNT(*) FROM pragma_table_info('TelemetrySamples')
+                     WHERE name IN ('stockPumpFlowM3h', 'stockPumpAutomaticActive')) +
+                    (SELECT COUNT(*) FROM pragma_table_info('TelemetryMinuteAggregates')
+                     WHERE name IN ('stockPumpFlowM3h', 'stockPumpAutomaticActive'));
+                """;
+            Assert.Equal(4L, Convert.ToInt64(await verificationCommand.ExecuteScalarAsync()));
+        }
+        finally
+        {
+            SqliteConnection.ClearAllPools();
+            if (Directory.Exists(testDirectory))
+                Directory.Delete(testDirectory, recursive: true);
+        }
+    }
+
+    [Fact]
     public async Task InitializesNewDatabaseAndPersistsHistorianEvents()
     {
         var testDirectory = Path.Combine(
@@ -28,7 +79,7 @@ public sealed class SqliteHistorianRepositoryTests
             await repository.PersistCycleAsync(
                 processor.Process(HistorianProcessorTests.CreateSnapshot(
                     firstAt,
-                    """{"speed":10.0,"dryingSectionGroup3UpperMasterSpeedMPM":336.7,"dryingSectionGroup3PaperPresence":true,"stockPumpState":1,"mixingPumpFaultCode":0,"mixingPumpFaultTorque":0.0,"mixingPumpFaultEventCounter":0}""",
+                    """{"speed":10.0,"dryingSectionGroup3UpperMasterSpeedMPM":336.7,"dryingSectionGroup3PaperPresence":true,"stockPumpState":1,"stockPumpFlowM3h":42.8,"stockPumpAutomaticActive":true,"mixingPumpFaultCode":0,"mixingPumpFaultTorque":0.0,"mixingPumpFaultEventCounter":0}""",
                     """{"start":false}""",
                     """{"mixingPumpFaultAlarm":false}""")),
                 CancellationToken.None);
@@ -73,6 +124,8 @@ public sealed class SqliteHistorianRepositoryTests
                 336.7,
                 optimizedTrend[0].NumericValues[
                     TelemetryCatalog.MachineSpeedField]);
+            Assert.Equal(42.8, optimizedTrend[0].NumericValues["stockPumpFlowM3h"]);
+            Assert.True(optimizedTrend[0].BooleanValues["stockPumpAutomaticActive"]);
             var productivitySample = Assert.Single(
                 await repository.GetMachineProductivitySamplesAsync(
                     firstAt,

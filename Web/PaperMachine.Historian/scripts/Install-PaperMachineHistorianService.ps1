@@ -535,6 +535,17 @@ if ($null -eq $historianProperty -or $null -eq $historianProperty.Value) {
     }
 }
 
+# MappingVersion identifica o contrato de simbolos do PLC e acompanha o
+# executavel, nao uma preferencia local. Sempre aplique o valor do pacote para
+# que configuracoes preservadas de releases anteriores nao continuem gravando
+# snapshots com a versao antiga do mapeamento.
+$packageMappingVersion = $packageHistorianProperty.Value.PSObject.Properties['MappingVersion']
+if ($null -eq $packageMappingVersion -or
+    [string]::IsNullOrWhiteSpace([string]$packageMappingVersion.Value)) {
+    throw "A configuracao do pacote nao possui 'Historian:MappingVersion'."
+}
+$historianProperty.Value.MappingVersion = [string]$packageMappingVersion.Value
+
 $updatesProperty = $configuration.PSObject.Properties['Updates']
 $packageUpdatesProperty = $packageConfiguration.PSObject.Properties['Updates']
 if ($null -eq $packageUpdatesProperty -or $null -eq $packageUpdatesProperty.Value) {

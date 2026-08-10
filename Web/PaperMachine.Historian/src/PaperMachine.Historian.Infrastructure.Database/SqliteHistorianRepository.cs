@@ -8,7 +8,7 @@ namespace PaperMachine.Historian.Infrastructure.Database;
 
 public sealed class SqliteHistorianRepository : IHistorianRepository
 {
-    private const int SchemaVersion = 12;
+    private const int SchemaVersion = 13;
     private readonly string _databasePath;
     private readonly string _connectionString;
     private readonly SemaphoreSlim _writeGate = new(1, 1);
@@ -176,6 +176,8 @@ public sealed class SqliteHistorianRepository : IHistorianRepository
             VALUES (11, @AppliedAtUtc);
             INSERT OR IGNORE INTO SchemaMigrations (Version, AppliedAtUtc)
             VALUES (12, @AppliedAtUtc);
+            INSERT OR IGNORE INTO SchemaMigrations (Version, AppliedAtUtc)
+            VALUES (13, @AppliedAtUtc);
             """,
             cancellationToken,
             ("@AppliedAtUtc", ToDatabaseTimestamp(DateTimeOffset.UtcNow)));
@@ -2423,21 +2425,36 @@ public sealed class SqliteHistorianRepository : IHistorianRepository
             """,
             cancellationToken);
 
-        await EnsureBooleanTelemetryColumnsAsync(
+        await EnsureTelemetryColumnsAsync(
             connection,
             "TelemetrySamples",
-            "INTEGER NULL",
+            TelemetryCatalog.NumericFields,
+            "REAL NULL",
             cancellationToken);
-        await EnsureBooleanTelemetryColumnsAsync(
+        await EnsureTelemetryColumnsAsync(
             connection,
             "TelemetryMinuteAggregates",
+            TelemetryCatalog.NumericFields,
+            "REAL NULL",
+            cancellationToken);
+        await EnsureTelemetryColumnsAsync(
+            connection,
+            "TelemetrySamples",
+            TelemetryCatalog.BooleanFields,
+            "INTEGER NULL",
+            cancellationToken);
+        await EnsureTelemetryColumnsAsync(
+            connection,
+            "TelemetryMinuteAggregates",
+            TelemetryCatalog.BooleanFields,
             "REAL NULL",
             cancellationToken);
     }
 
-    private static async Task EnsureBooleanTelemetryColumnsAsync(
+    private static async Task EnsureTelemetryColumnsAsync(
         SqliteConnection connection,
         string tableName,
+        IEnumerable<string> fields,
         string columnType,
         CancellationToken cancellationToken)
     {
@@ -2450,7 +2467,7 @@ public sealed class SqliteHistorianRepository : IHistorianRepository
                 existing.Add(reader.GetString(1));
         }
 
-        foreach (var field in TelemetryCatalog.BooleanFields)
+        foreach (var field in fields)
         {
             if (existing.Contains(field))
                 continue;

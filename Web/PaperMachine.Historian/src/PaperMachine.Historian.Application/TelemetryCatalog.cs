@@ -56,13 +56,65 @@ public static class TelemetryCatalog
         "winderPaperPresence"
     ];
 
+    public static IReadOnlyList<string> StockPumpNumericFields { get; } =
+    [
+        "stockTankLevel",
+        "stockPumpFlowM3h",
+        "stockPumpSpeedReferencePct",
+        "stockPumpDryMassSetpointKgH",
+        "stockPumpDryMassFeedbackKgH",
+        "stockPumpFlowTheoreticalM3h",
+        "stockPumpFlowCorrectedM3h",
+        "stockPumpFlowLimitedM3h",
+        "stockPumpFlowSetpointM3h",
+        "stockPumpConsistencyFilteredPct",
+        "stockPumpConsistencyUsedPct",
+        "stockPumpPidErrorM3h",
+        "stockPumpPidOutputPct",
+        "stockPumpSuggestedCalibrationFactor",
+        "stockPumpCurrent"
+    ];
+
+    public static IReadOnlyList<string> StockPumpBooleanFields { get; } =
+    [
+        "stockPumpVfdStartCmd",
+        "stockPumpVfdResetCmd",
+        "stockTankLevelSignalInvalid",
+        "stockPumpPidOutputSaturated",
+        "stockPumpSuggestedCalibrationFactorValid",
+        "stockPumpFlowCalculationValid",
+        "stockPumpAutomaticControlValid",
+        "stockPumpAutomaticControlInvalid",
+        "stockPumpConsistencySignalInvalid",
+        "stockPumpFlowSignalInvalid",
+        "stockPumpBasisWeightSetpointInvalid",
+        "stockPumpEffectiveWidthInvalid",
+        "stockPumpWireSpeedInvalid",
+        "stockPumpCalibrationFactorInvalid",
+        "stockPumpOperatorTrimFactorInvalid",
+        "stockPumpFlowSetpointLimited",
+        "stockPumpSpeedReferenceLimited",
+        "stockPumpUsingLastValidConsistency",
+        "stockPumpFlowDeviationWarning",
+        "stockPumpFlowDeviationAlarm",
+        "stockPumpWarningActive",
+        "stockPumpAlarmActive",
+        "stockPumpRunning",
+        "stockPumpControlActive",
+        "stockPumpManualActive",
+        "stockPumpAutomaticActive"
+    ];
+
     public static IReadOnlyList<string> BooleanFields { get; } = PaperPresenceFields
         .Append(EffectivePaperPresenceField)
+        .Concat(StockPumpBooleanFields)
+        .Distinct(StringComparer.Ordinal)
         .ToArray();
 
     public static IReadOnlyList<string> NumericFields { get; } = Motors
         .SelectMany(motor => new[] { motor.SpeedField, motor.TorqueField })
         .Concat(SteamPressures.Select(item => item.Field))
+        .Concat(StockPumpNumericFields)
         .Distinct(StringComparer.Ordinal)
         .ToArray();
 
@@ -82,7 +134,8 @@ public static class TelemetryCatalog
         }
 
         var boolean = new Dictionary<string, bool?>(StringComparer.Ordinal);
-        foreach (var field in PaperPresenceFields)
+        foreach (var field in BooleanFields.Where(field =>
+                     field != EffectivePaperPresenceField))
         {
             boolean[field] =
                 properties.TryGetValue(field, out var value) &&
