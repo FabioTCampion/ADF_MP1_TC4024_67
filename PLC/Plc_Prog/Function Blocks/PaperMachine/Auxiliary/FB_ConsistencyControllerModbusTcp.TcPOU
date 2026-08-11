@@ -1,0 +1,161 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.15">
+  <POU Name="FB_ConsistencyControllerModbusTcp" Id="{484650b2-bd51-4fad-83e9-341b8915f1c3}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_ConsistencyControllerModbusTcp
+VAR_INPUT PERSISTENT
+    deviceConfig : ST_ConsistencyControllerConfig;
+END_VAR
+
+VAR_OUTPUT
+    controllerInputs : ST_ConsistencyControllerInputs;
+END_VAR
+
+VAR
+    fbReadRegisters : FB_MBReadRegs;
+    fbDelay         : TON;
+    aRegisters     : ARRAY[0..5] OF WORD;
+    dwProcessValue : DWORD;
+    eState         : USINT;
+    bExecute       : BOOL;
+    bDelayEnable   : BOOL;
+    tActiveDelay   : TIME;
+    nIndex         : INT;
+END_VAR
+
+VAR CONSTANT
+    STATE_DISABLED       : USINT := 0;
+    STATE_STARTUP_DELAY  : USINT := 10;
+    STATE_POLL_DELAY     : USINT := 20;
+    STATE_WAIT_RESPONSE  : USINT := 30;
+    EXPECTED_BYTE_COUNT  : UDINT := 12;
+    ERROR_INVALID_LENGTH : UDINT := 16#E0010001;
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[// SEGURANCA DE COMISSIONAMENTO:
+// Este FB implementa somente leitura Modbus FC03 por meio de FB_MBReadRegs.
+// Nao existem blocos FB_MBWrite* nem chamadas FC05/FC06/FC15/FC16 nesta implementacao.
+// Com deviceConfig.bEnable=FALSE, nenhuma requisicao TCP e disparada para o equipamento.
+// Qualquer escrita futura exige revisao, validacao em bancada e um intertravamento dedicado.
+
+// Uma unica requisicao FC03 le o bloco continuo 4001..4006.
+// O bloco e instanciado uma vez por equipamento pelo metodo do MAIN.
+controllerInputs.bEnabled := deviceConfig.bEnable;
+controllerInputs.bBusy := fbReadRegisters.bBusy;
+bExecute := FALSE;
+
+// O mesmo TON atende a defasagem de partida e o periodo entre leituras.
+bDelayEnable := (eState = STATE_STARTUP_DELAY) OR (eState = STATE_POLL_DELAY);
+IF eState = STATE_STARTUP_DELAY THEN
+    tActiveDelay := deviceConfig.tStartupDelay;
+ELSE
+    tActiveDelay := deviceConfig.tPollInterval;
+END_IF
+
+fbDelay(
+    IN := bDelayEnable,
+    PT := tActiveDelay
+);
+
+CASE eState OF
+    STATE_DISABLED:
+        controllerInputs.bOnline := FALSE;
+        IF deviceConfig.bEnable THEN
+            eState := STATE_STARTUP_DELAY;
+        END_IF
+
+    STATE_STARTUP_DELAY,
+    STATE_POLL_DELAY:
+        IF NOT deviceConfig.bEnable THEN
+            eState := STATE_DISABLED;
+        ELSIF fbDelay.Q THEN
+            bExecute := TRUE;
+            eState := STATE_WAIT_RESPONSE;
+        END_IF
+
+    STATE_WAIT_RESPONSE:
+        // A primeira passagem por este estado ocorre depois da borda de Execute.
+        // Ao terminar, Busy cai e os dados/diagnosticos ja estao estaveis.
+        IF NOT fbReadRegisters.bBusy THEN
+            controllerInputs.cbLastRead := fbReadRegisters.cbRead;
+
+            IF fbReadRegisters.bError OR (fbReadRegisters.cbRead <> EXPECTED_BYTE_COUNT) THEN
+                controllerInputs.bOnline := FALSE;
+                controllerInputs.udiFailedReads := controllerInputs.udiFailedReads + 1;
+                controllerInputs.udiConsecutiveErrors := controllerInputs.udiConsecutiveErrors + 1;
+
+                IF fbReadRegisters.bError THEN
+                    controllerInputs.nErrorId := fbReadRegisters.nErrId;
+                ELSE
+                    controllerInputs.nErrorId := ERROR_INVALID_LENGTH;
+                END_IF
+            ELSE
+                FOR nIndex := 0 TO 5 DO
+                    controllerInputs.aRawRegisters[nIndex] := aRegisters[nIndex];
+                END_FOR
+
+                controllerInputs.nSetpointRaw := WORD_TO_INT(aRegisters[0]);
+
+                // PV e um DINT distribuido nos registros 4002 e 4003.
+                // A ordem de words pode ser invertida na configuracao sem alterar o FB.
+                IF deviceConfig.bPvLowWordFirst THEN
+                    dwProcessValue := SHL(WORD_TO_DWORD(aRegisters[2]), 16)
+                                      OR WORD_TO_DWORD(aRegisters[1]);
+                ELSE
+                    dwProcessValue := SHL(WORD_TO_DWORD(aRegisters[1]), 16)
+                                      OR WORD_TO_DWORD(aRegisters[2]);
+                END_IF
+
+                controllerInputs.diProcessValueRaw := DWORD_TO_DINT(dwProcessValue);
+                controllerInputs.nManipulatedValueRaw := WORD_TO_INT(aRegisters[3]);
+                controllerInputs.nCalibrationRaw := WORD_TO_INT(aRegisters[4]);
+                controllerInputs.nModeRaw := WORD_TO_INT(aRegisters[5]);
+
+                controllerInputs.rSetpoint := INT_TO_REAL(controllerInputs.nSetpointRaw) / 100.0;
+                controllerInputs.rProcessValue := DINT_TO_REAL(controllerInputs.diProcessValueRaw) / 100.0;
+                controllerInputs.rManipulatedValuePct := INT_TO_REAL(controllerInputs.nManipulatedValueRaw) / 10.0;
+                controllerInputs.nCalibration := controllerInputs.nCalibrationRaw;
+                controllerInputs.bCalibrationValid := (controllerInputs.nCalibrationRaw >= 1)
+                                                      AND (controllerInputs.nCalibrationRaw <= 3);
+                controllerInputs.bAutomatic := controllerInputs.nModeRaw = 1;
+                controllerInputs.bModeValid := (controllerInputs.nModeRaw = 0)
+                                               OR (controllerInputs.nModeRaw = 1);
+
+                controllerInputs.bOnline := TRUE;
+                controllerInputs.nErrorId := 0;
+                controllerInputs.udiSuccessfulReads := controllerInputs.udiSuccessfulReads + 1;
+                controllerInputs.udiConsecutiveErrors := 0;
+                controllerInputs.uliLastSuccessFileTime := F_GetSystemTime();
+            END_IF
+
+            IF deviceConfig.bEnable THEN
+                eState := STATE_POLL_DELAY;
+            ELSE
+                eState := STATE_DISABLED;
+            END_IF
+        END_IF
+
+ELSE
+    eState := STATE_DISABLED;
+END_CASE
+
+// O FB Beckhoff deve ser chamado em todos os ciclos, inclusive durante Busy.
+fbReadRegisters(
+    sIPAddr := deviceConfig.sIpAddress,
+    nTCPPort := deviceConfig.uiTcpPort,
+    nUnitID := deviceConfig.byUnitId,
+    nQuantity := 6,
+    nMBAddr := deviceConfig.uiFirstRegister,
+    cbLength := SIZEOF(aRegisters),
+    pDestAddr := ADR(aRegisters),
+    bExecute := bExecute,
+    tTimeout := deviceConfig.tResponseTimeout
+);
+
+// Atualiza Busy novamente para refletir a chamada realizada neste ciclo.
+controllerInputs.bBusy := fbReadRegisters.bBusy;]]></ST>
+    </Implementation>
+    <LineIds Name="FB_ConsistencyControllerModbusTcp">
+      <LineId Id="1" Count="119" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

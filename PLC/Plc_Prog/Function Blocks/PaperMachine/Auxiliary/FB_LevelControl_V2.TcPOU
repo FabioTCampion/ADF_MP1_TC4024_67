@@ -28,7 +28,8 @@ VAR_INPUT
     kp                      : REAL := 1.0;     // proportional gain (magnitude; sign handled by reverseActing)
     tn                      : REAL := 8.0;     // integral time [s]
     tv                      : REAL := 0.0;     // derivative time [s]
-
+    deadBand				: REAL := 0.0;     // PID DeadBand
+	
     // ===== NEW: Reverse/Direct action selector =====
     reverseActing           : BOOL := TRUE;    // TRUE = reverse action (draining pump default)
 
@@ -392,6 +393,7 @@ CASE step OF
                 KP  := kpUse,              // <— inverted when reverseActing=TRUE
                 TN  := tn,
                 TV  := tv,
+				SUP := deadBand,
                 LL  := outLowLimitPct,
                 LH  := outHighLimitPct,
                 Y   => yPID,
@@ -482,7 +484,9 @@ END_IF]]></ST>
     </Method>
     <LineIds Name="FB_LevelControl_V2">
       <LineId Id="3469" Count="22" />
-      <LineId Id="3494" Count="266" />
+      <LineId Id="3494" Count="219" />
+      <LineId Id="3917" Count="0" />
+      <LineId Id="3714" Count="46" />
       <LineId Id="3767" Count="2" />
       <LineId Id="9" Count="0" />
     </LineIds>

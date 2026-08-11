@@ -1,0 +1,18 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.15">
+  <DUT Name="ST_ConsistencyControllerConfig" Id="{0893d333-38df-4abf-b591-519b5ba0aacc}">
+    <Declaration><![CDATA[TYPE ST_ConsistencyControllerConfig :
+STRUCT
+    bEnable             : BOOL;                  // Habilita a leitura deste controlador
+    sIpAddress          : STRING(15);            // Endereco IPv4 do controlador
+    uiTcpPort           : UINT := 502;           // Porta Modbus TCP
+    byUnitId            : BYTE := 1;          // 16#FF para dispositivo Modbus TCP direto
+    uiFirstRegister     : UINT := 16#FA1;           // Endereco zero-based: registro documentado 4001 = 4000
+    tPollInterval       : TIME := T#500MS;        // Intervalo entre o fim de uma leitura e a proxima
+    tResponseTimeout    : TIME := T#2S;           // Timeout de uma transacao
+    tStartupDelay       : TIME := T#0MS;          // Defasagem inicial para distribuir as requisicoes
+    bPvLowWordFirst     : BOOL := FALSE;          // FALSE: 4002=MSW; TRUE: 4002=LSW
+END_STRUCT
+END_TYPE]]></Declaration>
+  </DUT>
+</TcPlcObject>

@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.15">
+  <DUT Name="ST_ConsistencyControllerInputs" Id="{7ae9281e-9b58-44f3-8bd3-db976fda0468}">
+    <Declaration><![CDATA[TYPE ST_ConsistencyControllerInputs :
+STRUCT
+    // Estado da comunicacao
+    bEnabled               : BOOL;
+    bBusy                  : BOOL;
+    bOnline                : BOOL;
+    nErrorId               : UDINT;
+    cbLastRead             : UDINT;
+    udiSuccessfulReads     : UDINT;
+    udiFailedReads         : UDINT;
+    udiConsecutiveErrors   : UDINT;
+    uliLastSuccessFileTime : ULINT;               // UTC FILETIME; 0 enquanto nunca houve leitura valida
+
+    // Imagem bruta dos holding registers 4001..4006
+    aRawRegisters          : ARRAY[0..5] OF WORD;
+    nSetpointRaw           : INT;                 // 4001
+    diProcessValueRaw      : DINT;                // 4002 + 4003
+    nManipulatedValueRaw   : INT;                 // 4004
+    nCalibrationRaw        : INT;                 // 4005
+    nModeRaw               : INT;                 // 4006
+
+    // Valores convertidos para uso da logica e da IHM
+    rSetpoint              : REAL;                // formato XX.XX
+    rProcessValue          : REAL;                // formato XX.XX
+    rManipulatedValuePct   : REAL;                // formato XX.X, faixa 0..100 %
+    nCalibration           : INT;                 // 1..3
+    bCalibrationValid      : BOOL;
+    bAutomatic             : BOOL;                // 0=manual, 1=automatico
+    bModeValid             : BOOL;
+END_STRUCT
+END_TYPE]]></Declaration>
+  </DUT>
+</TcPlcObject>

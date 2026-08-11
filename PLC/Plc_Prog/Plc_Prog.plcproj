@@ -201,6 +201,9 @@
     <Compile Include="Function Blocks\PaperMachine\Auxiliary\FB_FormingBoardDriveControl.TcPOU">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="Function Blocks\PaperMachine\Auxiliary\FB_ConsistencyControllerModbusTcp.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="Function Blocks\PaperMachine\Auxiliary\FB_FormingBoardRollUpDown.TcPOU">
       <SubType>Code</SubType>
     </Compile>
@@ -235,6 +238,9 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="Function Blocks\PaperMachine\Auxiliary\FB_PressureControl_V1.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Function Blocks\PaperMachine\Auxiliary\FB_StockPumpFlowControl.TcPOU">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="Function Blocks\PaperMachine\Auxiliary\FB_VfdProcessControler.TcPOU">
@@ -283,6 +289,12 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="Function Blocks\PaperMachine\DataTypes\PaperMachine_TypeHmiAlarms.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Function Blocks\PaperMachine\DataTypes\ST_ConsistencyControllerConfig.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Function Blocks\PaperMachine\DataTypes\ST_ConsistencyControllerInputs.TcDUT">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="Function Blocks\PaperMachine\DriveControl\FB_DryingSectionDriveControl_V1.TcPOU">
@@ -445,10 +457,14 @@
     <PlaceholderReference Include="RecipeManagement">
       <DefaultResolution>Recipe Management, 3.3.1.0 (System)</DefaultResolution>
       <SystemLibrary>true</SystemLibrary>
+      <Namespace>Recipe_Management</Namespace>
     </PlaceholderReference>
     <PlaceholderReference Include="Tc2_EtherCAT">
       <DefaultResolution>Tc2_EtherCAT, * (Beckhoff Automation GmbH)</DefaultResolution>
       <Namespace>Tc2_EtherCAT</Namespace>
+    </PlaceholderReference>
+    <PlaceholderReference Include="Tc2_ModbusSrv">
+      <DefaultResolution>Tc2_ModbusSrv, * (Beckhoff Automation GmbH)</DefaultResolution>
     </PlaceholderReference>
     <PlaceholderReference Include="Tc2_Standard">
       <DefaultResolution>Tc2_Standard, * (Beckhoff Automation GmbH)</DefaultResolution>

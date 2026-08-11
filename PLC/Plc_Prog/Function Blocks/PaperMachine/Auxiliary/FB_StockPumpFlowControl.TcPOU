@@ -1,0 +1,1048 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.15">
+  <POU Name="FB_StockPumpFlowControl" Id="{cc7ba571-e31e-4e8e-b528-88dfcc241009}" SpecialFunc="None">
+    <Declaration><![CDATA[(*
+    FB_StockPumpFlowControl
+
+    Purpose:
+    Dedicated dry-stock flow controller for the Stock Pump (P1_100_UG05).
+    The existing Mix Pump (P1_100_UG01) is the approach-flow fan/mix pump and
+    is intentionally outside the scope of this function block.
+
+    First delivery:
+    Public interface and method declarations only. No control logic is active.
+*)
+
+FUNCTION_BLOCK FB_StockPumpFlowControl
+VAR_INPUT
+    // ===== General enable and sequence commands =====
+    enable                              : BOOL;
+    processPermissive                   : BOOL;
+    startCommand                        : BOOL;
+    stopCommand                         : BOOL;
+    resetCommand                        : BOOL;
+    autoMode                            : BOOL;   // TRUE=Automatic / FALSE=Manual
+    machineRunning                      : BOOL;
+    processStable                       : BOOL;
+
+    // ===== Manual speed-reference adjustment =====
+    stockPumpSetpointManInc             : BOOL;   // Increase manual speed reference
+    stockPumpSetpointManDec             : BOOL;   // Decrease manual speed reference
+    manualSetpointStepPct               : REAL := 0.1;
+
+    // ===== Process inputs =====
+    basisWeightSetpointGm2              : REAL;   // Desired basis weight [g/m2]
+    effectiveWidthM                     : REAL;   // Effective sheet/jet width [m]
+    wireSpeedMPM                        : REAL;   // Forming wire speed [m/min]
+    stockConsistencyPct                 : REAL;   // Stock consistency [%], e.g. 3.5 = 3.5%
+    stockConsistencySignalValid         : BOOL;
+    refinedStockTankConsistencyPct      : REAL;   // Refined-stock tank consistency indication [%]
+    refinedStockTankConsistencySignalValid : BOOL;
+    stockFlowFeedbackM3h                : REAL;   // Measured suspension flow [m3/h]
+    stockFlowSignalValid                : BOOL;
+    stockTankLevelPct                   : REAL;   // Stock-tank level, already scaled [%]
+    stockTankLevelSignalValid           : BOOL;
+
+    // ===== Production correction factors =====
+    recipeCalibrationFactor             : REAL := 1.0;
+    operatorTrimFactor                  : REAL := 1.0;
+    basisWeightLabGm2                   : REAL;
+    calculateCalibrationCommand         : BOOL;
+
+    // ===== PID parameters =====
+    kp                                  : REAL := 1.0;
+    tn                                  : REAL := 8.0;     // Integral time [s]
+    tv                                  : REAL := 0.0;     // Derivative time [s]
+    pidDeadbandM3h                      : REAL := 0.0;     // Flow deadband [m3/h]
+    resetPID                            : BOOL;
+
+    // ===== Process engineering limits =====
+    stockDensityKgM3                    : REAL := 1000.0;
+    minimumValidConsistencyPct          : REAL := 0.1;
+    maximumValidConsistencyPct          : REAL := 10.0;
+    minimumStockFlowM3h                 : REAL := 0.0;
+    maximumStockFlowM3h                 : REAL := 250.0;
+    standbyStockFlowM3h                 : REAL := 0.0;
+    minimumAutomaticWireSpeedMPM        : REAL := 0.0;
+
+    // ===== Calibration and trim limits =====
+    minimumRecipeCalibrationFactor      : REAL := 0.5;
+    maximumRecipeCalibrationFactor      : REAL := 1.5;
+    minimumOperatorTrimFactor           : REAL := 0.95;
+    maximumOperatorTrimFactor           : REAL := 1.05;
+
+    // ===== Filters and ramps =====
+    consistencyFilterTime               : TIME := T#5s;
+    flowFeedbackFilterTime              : TIME := T#1s;
+    stockTankLevelFilterTime            : TIME := T#2s;
+    stockFlowSetpointRampUpM3hS         : REAL := 1.0;
+    stockFlowSetpointRampDownM3hS       : REAL := 1.0;
+    speedReferenceRampUpPctS            : REAL := 10.0;
+    speedReferenceRampDownPctS          : REAL := 10.0;
+
+    // ===== Speed-reference limits =====
+    minimumSpeedReferencePct            : REAL := 0.0;
+    maximumSpeedReferencePct            : REAL := 100.0;
+
+    // ===== Signal fallback and alarm timing =====
+    invalidConsistencyGraceTime         : TIME := T#5s;
+    automaticStabilizationTime          : TIME := T#10s;
+    flowDeviationWarningPct             : REAL := 5.0;
+    flowDeviationAlarmPct               : REAL := 10.0;
+    flowDeviationWarningDelay           : TIME := T#10s;
+    flowDeviationAlarmDelay             : TIME := T#20s;
+
+    // ===== Drive interface and supervision =====
+    vfdReady                            : BOOL;
+    vfdRunFeedback                      : BOOL;
+    vfdFaultFeedback                    : BOOL;
+    vfdRunFbTimeout                     : TIME := T#5s;
+    vfdCurrentFeedback                  : REAL;
+    vfdSpeedFeedbackPct                 : REAL;
+    vfdTorqueFeedback                   : REAL;
+
+    // ===== Safety and process interlocks =====
+    safetyOk                            : BOOL := TRUE;
+    estopOk                             : BOOL := TRUE;
+    guardClosedOk                       : BOOL := TRUE;
+    interlock1                          : BOOL := TRUE;
+    interlock2                          : BOOL := TRUE;
+    interlock3                          : BOOL := TRUE;
+    interlock4                          : BOOL := TRUE;
+    interlock5                          : BOOL := TRUE;
+    interlock6                          : BOOL := TRUE;
+END_VAR
+
+VAR_IN_OUT
+    // Existing HMI manual reference can be connected here without duplicating it.
+    manualSpeedSetpointPct              : REAL;
+END_VAR
+
+VAR_OUTPUT
+    // ===== Drive commands =====
+    vfdStartCmdOut                      : BOOL;
+    vfdResetCmdOut                      : BOOL;
+    speedReferencePct                   : REAL;
+
+    // ===== Flow and dry-mass calculation =====
+    dryMassSetpointKgH                  : REAL;
+    dryMassFeedbackKgH                  : REAL;
+    stockFlowTheoreticalM3h             : REAL;
+    stockFlowCorrectedM3h               : REAL;
+    stockFlowLimitedM3h                 : REAL;
+    stockFlowSetpointM3h                : REAL;
+    stockFlowFeedbackFilteredM3h        : REAL;
+    stockConsistencyFilteredPct         : REAL;
+    stockConsistencyUsedPct             : REAL;
+
+    // ===== Refined-stock tank consistency indication =====
+    refinedStockTankConsistencyFilteredPct : REAL;
+    refinedStockTankConsistencySignalInvalid : BOOL;
+
+    // ===== Stock-tank indication =====
+    stockTankLevelFilteredPct           : REAL;
+    stockTankLevelSignalInvalid         : BOOL;
+
+    // ===== PID diagnostics =====
+    pidErrorM3h                         : REAL;
+    pidOutputPct                        : REAL;
+    pidOutputSaturated                  : BOOL;
+
+    // ===== Calibration diagnostics =====
+    suggestedCalibrationFactor         : REAL;
+    suggestedCalibrationFactorValid    : BOOL;
+
+    // ===== Validation and limitation status =====
+    flowCalculationValid                : BOOL;
+    automaticControlValid               : BOOL;
+    automaticControlInvalid             : BOOL;
+    consistencySignalInvalid            : BOOL;
+    flowSignalInvalid                   : BOOL;
+    basisWeightSetpointInvalid          : BOOL;
+    effectiveWidthInvalid               : BOOL;
+    wireSpeedInvalid                    : BOOL;
+    calibrationFactorInvalid            : BOOL;
+    operatorTrimFactorInvalid           : BOOL;
+    flowSetpointLimited                 : BOOL;
+    speedReferenceLimited              : BOOL;
+    calculationUsingLastValidConsistency : BOOL;
+
+    // ===== Deviation alarms =====
+    flowDeviationWarning                : BOOL;
+    flowDeviationAlarm                  : BOOL;
+    warningActive                       : BOOL;
+    alarmActive                         : BOOL;
+
+    // ===== Operating state =====
+    running                             : BOOL;
+    controlActive                       : BOOL;
+    manualActive                        : BOOL;
+    automaticActive                     : BOOL;
+    statusCode                          : INT;
+    deviceState                         : STRING(80);
+
+    // ===== Drive feedback displays =====
+    vfdCurrentDisplay                   : REAL;
+    vfdSpeedDisplayPct                  : REAL;
+    vfdTorqueDisplay                    : REAL;
+END_VAR
+
+VAR
+    // ===== Initialization and command edges =====
+    firstScan                           : BOOL := TRUE;
+    startCommandOld                     : BOOL;
+    stopCommandOld                      : BOOL;
+    resetCommandOld                     : BOOL;
+    autoModeOld                         : BOOL;
+    calculateCalibrationCommandOld      : BOOL;
+    automaticControlValidOld            : BOOL;
+    automaticActiveOld                  : BOOL;
+    rStart                              : BOOL;
+    rStop                               : BOOL;
+    rReset                              : BOOL;
+    rToAutomatic                        : BOOL;
+    rToManual                           : BOOL;
+    rCalculateCalibration               : BOOL;
+
+    // ===== Drive sequence =====
+    step                                : INT;
+    runLatch                            : BOOL;
+    allSafetyOk                         : BOOL;
+    allInterlocksOk                     : BOOL;
+    tonRunFeedbackWait                  : TON;
+
+    // ===== Validity and fallback =====
+    consistencyRawValid                 : BOOL;
+    refinedStockTankConsistencyRawValid : BOOL;
+    flowRawValid                        : BOOL;
+    tankLevelRawValid                   : BOOL;
+    consistencyAvailableForCalculation  : BOOL;
+    engineeringConfigurationValid       : BOOL;
+    lastValidConsistencyPct             : REAL;
+    consistencyFilterInputPct           : REAL;
+    refinedStockTankConsistencyFilterInputPct : REAL;
+    flowFilterInputM3h                  : REAL;
+    tankLevelFilterInputPct             : REAL;
+    tonInvalidConsistency               : TON;
+
+    // ===== Sanitized external limits =====
+    consistencyLowUsePct                : REAL;
+    consistencyHighUsePct               : REAL;
+    flowLowUseM3h                       : REAL;
+    flowHighUseM3h                      : REAL;
+    speedLowUsePct                      : REAL;
+    speedHighUsePct                     : REAL;
+    calibrationLowUse                   : REAL;
+    calibrationHighUse                  : REAL;
+    operatorTrimLowUse                  : REAL;
+    operatorTrimHighUse                 : REAL;
+
+    // ===== Setpoint calculation and ramps =====
+    stockFlowTargetBeforeLimitM3h       : REAL;
+    suggestedCalibrationRaw             : REAL;
+    speedReferenceTargetPct             : REAL;
+    speedReferenceUnclampedPct          : REAL;
+    manualCommandPct                    : REAL;
+    manualSpeedSetpointOldPct           : REAL;
+    manualSetpointStepUsePct            : REAL;
+    manualSetpointInitialized           : BOOL;
+    instManualSpeedSetpoint             : TUNE2;
+    modeTransferHold                    : BOOL;
+    instFlowSetpointRamp                : FB_Gen_SRamp;
+    instSpeedReferenceRamp              : FB_Gen_SRamp;
+
+    // ===== Filters and PID =====
+    instConsistencyFilter               : FT_PT1;
+    instRefinedStockTankConsistencyFilter : FT_PT1;
+    instFlowFeedbackFilter              : FT_PT1;
+    instStockTankLevelFilter            : FT_PT1;
+    instPID                             : CTRL_PID;
+    pidManualMode                       : BOOL;
+    pidLimitedInternal                  : BOOL;
+
+    // ===== Deviation supervision =====
+    flowDeviationPct                    : REAL;
+    deviationEvaluationEnabled          : BOOL;
+    tonAutomaticStabilization           : TON;
+    tonFlowDeviationWarning             : TON;
+    tonFlowDeviationAlarm               : TON;
+END_VAR
+
+VAR CONSTANT
+    cZeroTolerance                      : REAL := 0.000001;
+    cRampVelocityLimit                  : REAL := 100000.0;
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[_Initialize();
+_UpdateEdges();
+_ValidateInputs();
+_UpdateManualSetpoint();
+_FilterProcessSignals();
+_ManageConsistencyFallback();
+_CalculateFlowSetpoint();
+_RampFlowSetpoint();
+_CalculateCalibrationSuggestion();
+_HandleModeTransfer();
+_RunDriveSequence();
+_RunFlowController();
+_RampSpeedReference();
+_UpdateAlarmsAndDiagnostics();]]></ST>
+    </Implementation>
+    <Method Name="_CalculateCalibrationSuggestion" Id="{f4982c03-9b5a-4af8-99ee-673427eabae5}">
+      <Declaration><![CDATA[// Calculate a suggested recipe factor without applying or persisting it.
+METHOD PRIVATE _CalculateCalibrationSuggestion]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF rCalculateCalibration THEN
+    suggestedCalibrationFactorValid := FALSE;
+
+    IF processStable AND
+       (basisWeightSetpointGm2 > cZeroTolerance) AND
+       (basisWeightLabGm2 > cZeroTolerance) AND
+       NOT calibrationFactorInvalid THEN
+
+        suggestedCalibrationRaw := recipeCalibrationFactor *
+                                  basisWeightSetpointGm2 /
+                                  basisWeightLabGm2;
+
+        suggestedCalibrationFactor := LIMIT(
+            calibrationLowUse,
+            suggestedCalibrationRaw,
+            calibrationHighUse
+        );
+
+        suggestedCalibrationFactorValid :=
+            (suggestedCalibrationRaw >= calibrationLowUse) AND
+            (suggestedCalibrationRaw <= calibrationHighUse);
+    END_IF;
+END_IF;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_CalculateFlowSetpoint" Id="{5e4ef324-5381-462e-8347-6abf08c2a403}">
+      <Declaration><![CDATA[// Calculate dry mass and consistency-compensated stock-flow setpoint.
+METHOD PRIVATE _CalculateFlowSetpoint]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF flowCalculationValid THEN
+    // g/m2 * m * m/min * 0.06 = kg/h of dry stock.
+    dryMassSetpointKgH := basisWeightSetpointGm2 * effectiveWidthM * wireSpeedMPM * 0.06;
+
+    // kg/h / (kg/m3 * consistency fraction) = m3/h of stock suspension.
+    IF (stockDensityKgM3 > cZeroTolerance) AND
+       (stockConsistencyUsedPct > cZeroTolerance) THEN
+        stockFlowTheoreticalM3h := dryMassSetpointKgH /
+            (stockDensityKgM3 * stockConsistencyUsedPct * 0.01);
+    ELSE
+        stockFlowTheoreticalM3h := 0.0;
+    END_IF;
+
+    stockFlowCorrectedM3h := stockFlowTheoreticalM3h *
+                             recipeCalibrationFactor *
+                             operatorTrimFactor;
+
+    IF wireSpeedMPM < MAX(0.0, minimumAutomaticWireSpeedMPM) THEN
+        stockFlowTargetBeforeLimitM3h := standbyStockFlowM3h;
+    ELSE
+        stockFlowTargetBeforeLimitM3h := stockFlowCorrectedM3h;
+    END_IF;
+
+    stockFlowLimitedM3h := LIMIT(
+        flowLowUseM3h,
+        stockFlowTargetBeforeLimitM3h,
+        flowHighUseM3h
+    );
+
+    flowSetpointLimited :=
+        ABS(stockFlowLimitedM3h - stockFlowTargetBeforeLimitM3h) > cZeroTolerance;
+ELSE
+    dryMassSetpointKgH := 0.0;
+    stockFlowTheoreticalM3h := 0.0;
+    stockFlowCorrectedM3h := 0.0;
+    stockFlowTargetBeforeLimitM3h := 0.0;
+    stockFlowLimitedM3h := 0.0;
+    flowSetpointLimited := FALSE;
+END_IF;
+
+IF consistencyAvailableForCalculation AND NOT flowSignalInvalid THEN
+    dryMassFeedbackKgH := stockFlowFeedbackFilteredM3h *
+                          stockDensityKgM3 *
+                          stockConsistencyUsedPct * 0.01;
+ELSE
+    dryMassFeedbackKgH := 0.0;
+END_IF;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_FilterProcessSignals" Id="{1b3691d6-6bde-4990-8260-28d5e3a6a28a}">
+      <Declaration><![CDATA[// Filter stock consistency, refined-stock indication, flow feedback and stock-tank level.
+METHOD PRIVATE _FilterProcessSignals]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// Invalid samples never enter the filters.
+IF consistencyRawValid THEN
+    consistencyFilterInputPct := stockConsistencyPct;
+ELSIF lastValidConsistencyPct > cZeroTolerance THEN
+    consistencyFilterInputPct := lastValidConsistencyPct;
+ELSE
+    consistencyFilterInputPct := consistencyLowUsePct;
+END_IF;
+
+instConsistencyFilter(
+    in  := consistencyFilterInputPct,
+    T   := consistencyFilterTime,
+    K   := 1.0,
+    out => stockConsistencyFilteredPct
+);
+
+// Indication-only: this measurement never participates in the flow calculation or PID.
+IF refinedStockTankConsistencyRawValid THEN
+    refinedStockTankConsistencyFilterInputPct := refinedStockTankConsistencyPct;
+ELSE
+    refinedStockTankConsistencyFilterInputPct := refinedStockTankConsistencyFilteredPct;
+END_IF;
+
+instRefinedStockTankConsistencyFilter(
+    in  := refinedStockTankConsistencyFilterInputPct,
+    T   := consistencyFilterTime,
+    K   := 1.0,
+    out => refinedStockTankConsistencyFilteredPct
+);
+
+IF flowRawValid THEN
+    flowFilterInputM3h := stockFlowFeedbackM3h;
+ELSE
+    flowFilterInputM3h := stockFlowFeedbackFilteredM3h;
+END_IF;
+
+instFlowFeedbackFilter(
+    in  := flowFilterInputM3h,
+    T   := flowFeedbackFilterTime,
+    K   := 1.0,
+    out => stockFlowFeedbackFilteredM3h
+);
+
+// The tank level is indication-only and has no effect on pump control.
+IF tankLevelRawValid THEN
+    tankLevelFilterInputPct := stockTankLevelPct;
+ELSE
+    tankLevelFilterInputPct := stockTankLevelFilteredPct;
+END_IF;
+
+instStockTankLevelFilter(
+    in  := tankLevelFilterInputPct,
+    T   := stockTankLevelFilterTime,
+    K   := 1.0,
+    out => stockTankLevelFilteredPct
+);
+stockTankLevelFilteredPct := LIMIT(0.0, stockTankLevelFilteredPct, 100.0);
+
+// Use the raw valid consistency while the PT1 output is still initializing.
+IF consistencyRawValid THEN
+    IF (stockConsistencyFilteredPct >= consistencyLowUsePct) AND
+       (stockConsistencyFilteredPct <= consistencyHighUsePct) THEN
+        stockConsistencyUsedPct := stockConsistencyFilteredPct;
+    ELSE
+        stockConsistencyUsedPct := stockConsistencyPct;
+    END_IF;
+
+    lastValidConsistencyPct := stockConsistencyUsedPct;
+END_IF;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_HandleModeTransfer" Id="{41c8b18e-5ffc-490b-be77-d304e616acf2}">
+      <Declaration><![CDATA[// Prepare manual/automatic transitions for bumpless transfer.
+METHOD PRIVATE _HandleModeTransfer]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// Automatic to manual: initialize the manual reference with the active output.
+IF rToManual THEN
+    manualSpeedSetpointPct := LIMIT(speedLowUsePct, speedReferencePct, speedHighUsePct);
+END_IF;
+
+// Invalid automatic control falls back to a tracked manual reference.
+IF autoMode AND automaticControlValidOld AND NOT automaticControlValid THEN
+    manualSpeedSetpointPct := LIMIT(speedLowUsePct, speedReferencePct, speedHighUsePct);
+END_IF;
+
+// Track for one cycle before enabling automatic PID output.
+IF rToAutomatic OR
+   (autoMode AND automaticControlValid AND NOT automaticControlValidOld) THEN
+    modeTransferHold := TRUE;
+END_IF;
+
+manualSpeedSetpointPct := LIMIT(
+    speedLowUsePct,
+    manualSpeedSetpointPct,
+    speedHighUsePct
+);
+manualCommandPct := manualSpeedSetpointPct;
+
+automaticControlValidOld := automaticControlValid;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_Initialize" Id="{3b224751-0aa4-4540-ac5d-2799e404cb38}">
+      <Declaration><![CDATA[// Initialize internal states, retained values and safe output defaults.
+METHOD PRIVATE _Initialize]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF firstScan THEN
+    firstScan := FALSE;
+
+    step := 0;
+    runLatch := FALSE;
+    speedReferencePct := 0.0;
+    speedReferenceTargetPct := 0.0;
+    stockFlowSetpointM3h := 0.0;
+
+    startCommandOld := startCommand;
+    stopCommandOld := stopCommand;
+    resetCommandOld := resetCommand;
+    autoModeOld := autoMode;
+    calculateCalibrationCommandOld := calculateCalibrationCommand;
+    automaticControlValidOld := FALSE;
+
+    speedLowUsePct := LIMIT(0.0, MIN(minimumSpeedReferencePct, maximumSpeedReferencePct), 100.0);
+    speedHighUsePct := LIMIT(speedLowUsePct, MAX(minimumSpeedReferencePct, maximumSpeedReferencePct), 100.0);
+    manualSpeedSetpointPct := LIMIT(speedLowUsePct, manualSpeedSetpointPct, speedHighUsePct);
+
+    IF stockConsistencySignalValid AND
+       (stockConsistencyPct >= minimumValidConsistencyPct) AND
+       (stockConsistencyPct <= maximumValidConsistencyPct) THEN
+        lastValidConsistencyPct := stockConsistencyPct;
+        stockConsistencyUsedPct := stockConsistencyPct;
+    END_IF;
+END_IF;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_ManageConsistencyFallback" Id="{aa494841-fdc1-4c62-bc50-190be7fcab39}">
+      <Declaration><![CDATA[// Hold the last valid consistency during the configured grace period.
+METHOD PRIVATE _ManageConsistencyFallback]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[tonInvalidConsistency(
+    IN := consistencySignalInvalid,
+    PT := invalidConsistencyGraceTime
+);
+
+IF NOT consistencySignalInvalid THEN
+    consistencyAvailableForCalculation := TRUE;
+    calculationUsingLastValidConsistency := FALSE;
+
+ELSIF (lastValidConsistencyPct > cZeroTolerance) AND NOT tonInvalidConsistency.Q THEN
+    stockConsistencyUsedPct := lastValidConsistencyPct;
+    consistencyAvailableForCalculation := TRUE;
+    calculationUsingLastValidConsistency := TRUE;
+
+ELSE
+    consistencyAvailableForCalculation := FALSE;
+    calculationUsingLastValidConsistency := FALSE;
+END_IF;
+
+flowCalculationValid :=
+    engineeringConfigurationValid AND
+    NOT basisWeightSetpointInvalid AND
+    NOT effectiveWidthInvalid AND
+    NOT wireSpeedInvalid AND
+    NOT calibrationFactorInvalid AND
+    NOT operatorTrimFactorInvalid AND
+    consistencyAvailableForCalculation;
+
+automaticControlValid :=
+    enable AND
+    processPermissive AND
+    machineRunning AND
+    flowCalculationValid AND
+    NOT flowSignalInvalid AND
+    vfdReady AND
+    NOT vfdFaultFeedback AND
+    allSafetyOk AND
+    allInterlocksOk;
+
+automaticControlInvalid := autoMode AND NOT automaticControlValid;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_RampFlowSetpoint" Id="{30ff24cb-b4bf-4ae0-b85b-f4f5255502c4}">
+      <Declaration><![CDATA[// Apply the configured rate limits to the calculated stock-flow setpoint.
+METHOD PRIVATE _RampFlowSetpoint]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[instFlowSetpointRamp(
+    X          := stockFlowLimitedM3h,
+    A_UP       := MAX(0.0, stockFlowSetpointRampUpM3hS),
+    A_DN       := -MAX(0.0, stockFlowSetpointRampDownM3hS),
+    VU_MAX     := cRampVelocityLimit,
+    VD_MAX     := -cRampVelocityLimit,
+    LIMIT_HIGH := flowHighUseM3h,
+    LIMIT_LOW  := 0.0,
+    RST        := NOT flowCalculationValid
+);
+
+IF flowCalculationValid THEN
+    stockFlowSetpointM3h := LIMIT(
+        0.0,
+        instFlowSetpointRamp.Y,
+        flowHighUseM3h
+    );
+ELSE
+    stockFlowSetpointM3h := 0.0;
+END_IF;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_RampSpeedReference" Id="{dbbd77ea-3565-40c5-b33f-3034dae438a9}">
+      <Declaration><![CDATA[// Apply the configured rate limits to the final drive-speed reference.
+METHOD PRIVATE _RampSpeedReference]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[instSpeedReferenceRamp(
+    X          := speedReferenceTargetPct,
+    A_UP       := MAX(0.0, speedReferenceRampUpPctS),
+    A_DN       := -MAX(0.0, speedReferenceRampDownPctS),
+    VU_MAX     := cRampVelocityLimit,
+    VD_MAX     := -cRampVelocityLimit,
+    LIMIT_HIGH := speedHighUsePct,
+    LIMIT_LOW  := 0.0,
+    RST        := NOT running
+);
+
+IF running THEN
+    speedReferencePct := LIMIT(
+        0.0,
+        instSpeedReferenceRamp.Y,
+        speedHighUsePct
+    );
+ELSE
+    speedReferencePct := 0.0;
+END_IF;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_RunDriveSequence" Id="{a8cd7ecb-9695-433e-b7f3-3588934a93e9}">
+      <Declaration><![CDATA[// Execute start, run, stop and drive-supervision state handling.
+METHOD PRIVATE _RunDriveSequence]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[vfdStartCmdOut := FALSE;
+vfdResetCmdOut := rReset;
+
+// Immediate stop conditions.
+IF stopCommand OR NOT enable OR NOT allSafetyOk OR vfdFaultFeedback THEN
+    runLatch := FALSE;
+    step := 90;
+END_IF;
+
+CASE step OF
+    0: // Idle
+        running := FALSE;
+        vfdStartCmdOut := FALSE;
+        deviceState := 'Idle';
+        tonRunFeedbackWait(IN := FALSE);
+
+        IF runLatch AND NOT stopCommand THEN
+            IF NOT enable THEN
+                deviceState := 'Start blocked: control disabled';
+                runLatch := FALSE;
+            ELSIF NOT allSafetyOk THEN
+                deviceState := 'Start blocked: safety not OK';
+                runLatch := FALSE;
+            ELSIF NOT processPermissive OR NOT allInterlocksOk THEN
+                deviceState := 'Start blocked: process interlock';
+                runLatch := FALSE;
+            ELSIF NOT vfdReady OR vfdFaultFeedback THEN
+                deviceState := 'Start blocked: drive not ready';
+                runLatch := FALSE;
+            ELSE
+                deviceState := 'Starting';
+                vfdStartCmdOut := TRUE;
+                step := 10;
+            END_IF;
+        END_IF;
+
+    10: // Starting
+        running := FALSE;
+        vfdStartCmdOut := TRUE;
+        deviceState := 'Starting: awaiting RUN feedback';
+        tonRunFeedbackWait(IN := TRUE, PT := vfdRunFbTimeout);
+
+        IF NOT enable OR stopCommand OR NOT allSafetyOk OR vfdFaultFeedback THEN
+            runLatch := FALSE;
+            step := 90;
+        ELSIF NOT processPermissive OR NOT allInterlocksOk OR NOT vfdReady THEN
+            runLatch := FALSE;
+            step := 90;
+        ELSIF vfdRunFeedback THEN
+            tonRunFeedbackWait(IN := FALSE);
+            step := 20;
+        ELSIF tonRunFeedbackWait.Q THEN
+            deviceState := 'Start failed: RUN feedback timeout';
+            runLatch := FALSE;
+            step := 90;
+        END_IF;
+
+    20: // Running
+        running := TRUE;
+        vfdStartCmdOut := TRUE;
+        deviceState := 'Running';
+        tonRunFeedbackWait(IN := FALSE);
+
+        IF NOT enable OR stopCommand OR NOT allSafetyOk OR vfdFaultFeedback THEN
+            runLatch := FALSE;
+            step := 90;
+        ELSIF NOT processPermissive OR NOT allInterlocksOk THEN
+            runLatch := FALSE;
+            step := 90;
+        ELSIF NOT vfdReady OR NOT vfdRunFeedback THEN
+            runLatch := FALSE;
+            step := 90;
+        ELSIF NOT runLatch THEN
+            step := 90;
+        END_IF;
+
+    90: // Stopping
+        running := FALSE;
+        vfdStartCmdOut := FALSE;
+        tonRunFeedbackWait(IN := FALSE);
+
+        IF vfdFaultFeedback THEN
+            deviceState := 'Fault from drive';
+        ELSE
+            deviceState := 'Stopping';
+        END_IF;
+
+        IF NOT stopCommand AND NOT vfdFaultFeedback AND allSafetyOk THEN
+            step := 0;
+        END_IF;
+
+    ELSE
+        running := FALSE;
+        vfdStartCmdOut := FALSE;
+        deviceState := 'Idle';
+        runLatch := FALSE;
+        step := 0;
+END_CASE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_RunFlowController" Id="{85c06a5a-950f-480a-9e53-423278d12309}">
+      <Declaration><![CDATA[// Execute the flow PID once per PLC cycle when control conditions are valid.
+METHOD PRIVATE _RunFlowController]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[manualCommandPct := LIMIT(speedLowUsePct, manualSpeedSetpointPct, speedHighUsePct);
+
+automaticActive := running AND autoMode AND automaticControlValid;
+manualActive := running AND (NOT autoMode OR NOT automaticControlValid);
+controlActive := automaticActive OR manualActive;
+
+IF automaticActive AND NOT automaticActiveOld THEN
+    modeTransferHold := TRUE;
+END_IF;
+
+// The PID is called exactly once per PLC cycle. In manual, stopped, invalid or
+// transfer states, MAN/M_I tracks the active manual reference for anti-windup.
+pidManualMode := NOT automaticActive OR modeTransferHold;
+
+instPID(
+    ACT  := stockFlowFeedbackFilteredM3h,
+    SET  := stockFlowSetpointM3h,
+    SUP  := MAX(0.0, pidDeadbandM3h),
+    OFS  := 0.0,
+    M_I  := manualCommandPct,
+    MAN  := pidManualMode,
+    RST  := resetPID OR NOT enable,
+    KP   := ABS(kp),
+    TN   := MAX(0.0, tn),
+    TV   := MAX(0.0, tv),
+    LL   := speedLowUsePct,
+    LH   := speedHighUsePct,
+    Y    => pidOutputPct,
+    DIFF => pidErrorM3h,
+    LIM  => pidLimitedInternal
+);
+
+pidOutputSaturated := pidLimitedInternal;
+
+IF NOT running THEN
+    speedReferenceUnclampedPct := 0.0;
+
+ELSIF automaticActive AND NOT modeTransferHold THEN
+    speedReferenceUnclampedPct := pidOutputPct;
+
+ELSIF modeTransferHold THEN
+    speedReferenceUnclampedPct := speedReferencePct;
+
+ELSE
+    // Explicit manual mode and invalid-automatic fallback both use this path.
+    speedReferenceUnclampedPct := manualCommandPct;
+END_IF;
+
+IF running THEN
+    speedReferenceTargetPct := LIMIT(
+        speedLowUsePct,
+        speedReferenceUnclampedPct,
+        speedHighUsePct
+    );
+
+    speedReferenceLimited :=
+        ABS(speedReferenceTargetPct - speedReferenceUnclampedPct) > cZeroTolerance;
+ELSE
+    speedReferenceTargetPct := 0.0;
+    speedReferenceLimited := FALSE;
+END_IF;
+
+IF modeTransferHold THEN
+    modeTransferHold := FALSE;
+END_IF;
+
+automaticActiveOld := automaticActive;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_UpdateAlarmsAndDiagnostics" Id="{564c56ba-45e7-4abc-a698-450a4505fac7}">
+      <Declaration><![CDATA[// Evaluate flow deviation and consolidate status, warning and alarm outputs.
+METHOD PRIVATE _UpdateAlarmsAndDiagnostics]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[tonAutomaticStabilization(
+    IN := automaticActive,
+    PT := automaticStabilizationTime
+);
+
+IF stockFlowSetpointM3h > cZeroTolerance THEN
+    flowDeviationPct := ABS(stockFlowSetpointM3h - stockFlowFeedbackFilteredM3h) /
+                        stockFlowSetpointM3h * 100.0;
+ELSE
+    flowDeviationPct := 0.0;
+END_IF;
+
+deviationEvaluationEnabled :=
+    automaticActive AND
+    vfdRunFeedback AND
+    tonAutomaticStabilization.Q AND
+    automaticControlValid AND
+    (stockFlowSetpointM3h > cZeroTolerance);
+
+tonFlowDeviationWarning(
+    IN := deviationEvaluationEnabled AND
+          (flowDeviationPct >= MAX(0.0, flowDeviationWarningPct)),
+    PT := flowDeviationWarningDelay
+);
+
+tonFlowDeviationAlarm(
+    IN := deviationEvaluationEnabled AND
+          (flowDeviationPct >= MAX(0.0, flowDeviationAlarmPct)),
+    PT := flowDeviationAlarmDelay
+);
+
+flowDeviationWarning := tonFlowDeviationWarning.Q;
+flowDeviationAlarm := tonFlowDeviationAlarm.Q;
+
+warningActive :=
+    flowDeviationWarning OR
+    calculationUsingLastValidConsistency OR
+    flowSetpointLimited OR
+    speedReferenceLimited;
+
+alarmActive :=
+    flowDeviationAlarm OR
+    vfdFaultFeedback OR
+    (running AND automaticControlInvalid);
+
+IF vfdFaultFeedback THEN
+    statusCode := 2;
+ELSIF running THEN
+    statusCode := 1;
+ELSE
+    statusCode := 0;
+END_IF;
+
+vfdCurrentDisplay := vfdCurrentFeedback;
+vfdSpeedDisplayPct := vfdSpeedFeedbackPct;
+vfdTorqueDisplay := vfdTorqueFeedback;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_UpdateEdges" Id="{3b60e609-0b82-4795-bb9a-bf642fd75c9d}">
+      <Declaration><![CDATA[// Detect command and mode-transition edges.
+METHOD PRIVATE _UpdateEdges]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[rStart := startCommand AND NOT startCommandOld;
+rStop := stopCommand AND NOT stopCommandOld;
+rReset := resetCommand AND NOT resetCommandOld;
+rToAutomatic := autoMode AND NOT autoModeOld;
+rToManual := NOT autoMode AND autoModeOld;
+rCalculateCalibration := calculateCalibrationCommand AND NOT calculateCalibrationCommandOld;
+
+startCommandOld := startCommand;
+stopCommandOld := stopCommand;
+resetCommandOld := resetCommand;
+autoModeOld := autoMode;
+calculateCalibrationCommandOld := calculateCalibrationCommand;
+
+IF rStart THEN
+    runLatch := TRUE;
+END_IF;
+
+IF rStop OR stopCommand THEN
+    runLatch := FALSE;
+END_IF;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_UpdateManualSetpoint" Id="{8c59228a-54ec-4ea5-aaf3-171065afef91}">
+      <Declaration><![CDATA[// Apply the existing HMI increase/decrease commands to the manual speed reference.
+METHOD PRIVATE _UpdateManualSetpoint]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[manualSetpointStepUsePct := MAX(cZeroTolerance, ABS(manualSetpointStepPct));
+
+// Synchronize the tuner after an HMI numeric entry or an internal bumpless transfer.
+IF NOT manualSetpointInitialized OR
+   (ABS(manualSpeedSetpointPct - manualSpeedSetpointOldPct) > cZeroTolerance) THEN
+    instManualSpeedSetpoint(
+        SET_val := LIMIT(speedLowUsePct, manualSpeedSetpointPct, speedHighUsePct),
+        SET     := TRUE
+    );
+    instManualSpeedSetpoint(SET := FALSE);
+    manualSetpointInitialized := TRUE;
+END_IF;
+
+// Preserve the established HMI button behavior. Opposite commands cancel each other.
+instManualSpeedSetpoint(
+    SET     := FALSE,
+    SU      := stockPumpSetpointManInc AND NOT stockPumpSetpointManDec,
+    SD      := stockPumpSetpointManDec AND NOT stockPumpSetpointManInc,
+    RST     := FALSE,
+    SS      := manualSetpointStepUsePct,
+    FS      := 0.0,
+    LIMIT_L := speedLowUsePct,
+    LIMIT_H := speedHighUsePct,
+    Y       => manualSpeedSetpointPct
+);
+
+manualSpeedSetpointPct := LIMIT(
+    speedLowUsePct,
+    manualSpeedSetpointPct,
+    speedHighUsePct
+);
+manualSpeedSetpointOldPct := manualSpeedSetpointPct;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_ValidateInputs" Id="{37349e55-a27d-48fa-91a3-48c4f54719ba}">
+      <Declaration><![CDATA[// Validate process signals, configuration limits and correction factors.
+METHOD PRIVATE _ValidateInputs]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// Sanitize all configurable ranges before they are used by LIMIT or the PID.
+consistencyLowUsePct := MAX(cZeroTolerance, MIN(minimumValidConsistencyPct, maximumValidConsistencyPct));
+consistencyHighUsePct := MAX(consistencyLowUsePct, MAX(minimumValidConsistencyPct, maximumValidConsistencyPct));
+
+flowLowUseM3h := MAX(0.0, MIN(minimumStockFlowM3h, maximumStockFlowM3h));
+flowHighUseM3h := MAX(flowLowUseM3h, MAX(minimumStockFlowM3h, maximumStockFlowM3h));
+
+speedLowUsePct := LIMIT(0.0, MIN(minimumSpeedReferencePct, maximumSpeedReferencePct), 100.0);
+speedHighUsePct := LIMIT(speedLowUsePct, MAX(minimumSpeedReferencePct, maximumSpeedReferencePct), 100.0);
+
+calibrationLowUse := MAX(cZeroTolerance, MIN(minimumRecipeCalibrationFactor, maximumRecipeCalibrationFactor));
+calibrationHighUse := MAX(calibrationLowUse, MAX(minimumRecipeCalibrationFactor, maximumRecipeCalibrationFactor));
+
+operatorTrimLowUse := MAX(cZeroTolerance, MIN(minimumOperatorTrimFactor, maximumOperatorTrimFactor));
+operatorTrimHighUse := MAX(operatorTrimLowUse, MAX(minimumOperatorTrimFactor, maximumOperatorTrimFactor));
+
+consistencyRawValid := stockConsistencySignalValid AND
+                       (stockConsistencyPct >= consistencyLowUsePct) AND
+                       (stockConsistencyPct <= consistencyHighUsePct);
+refinedStockTankConsistencyRawValid := refinedStockTankConsistencySignalValid AND
+                                       (refinedStockTankConsistencyPct >= consistencyLowUsePct) AND
+                                       (refinedStockTankConsistencyPct <= consistencyHighUsePct);
+
+flowRawValid := stockFlowSignalValid AND (stockFlowFeedbackM3h >= 0.0);
+tankLevelRawValid := stockTankLevelSignalValid AND
+                     (stockTankLevelPct >= 0.0) AND
+                     (stockTankLevelPct <= 100.0);
+
+consistencySignalInvalid := NOT consistencyRawValid;
+refinedStockTankConsistencySignalInvalid := NOT refinedStockTankConsistencyRawValid;
+flowSignalInvalid := NOT flowRawValid;
+stockTankLevelSignalInvalid := NOT tankLevelRawValid;
+basisWeightSetpointInvalid := basisWeightSetpointGm2 <= 0.0;
+effectiveWidthInvalid := effectiveWidthM <= 0.0;
+wireSpeedInvalid := wireSpeedMPM < 0.0;
+
+calibrationFactorInvalid :=
+    (minimumRecipeCalibrationFactor <= 0.0) OR
+    (maximumRecipeCalibrationFactor < minimumRecipeCalibrationFactor) OR
+    (recipeCalibrationFactor < calibrationLowUse) OR
+    (recipeCalibrationFactor > calibrationHighUse);
+
+operatorTrimFactorInvalid :=
+    (minimumOperatorTrimFactor <= 0.0) OR
+    (maximumOperatorTrimFactor < minimumOperatorTrimFactor) OR
+    (operatorTrimFactor < operatorTrimLowUse) OR
+    (operatorTrimFactor > operatorTrimHighUse);
+
+engineeringConfigurationValid :=
+    (stockDensityKgM3 > cZeroTolerance) AND
+    (minimumValidConsistencyPct > 0.0) AND
+    (maximumValidConsistencyPct >= minimumValidConsistencyPct) AND
+    (minimumStockFlowM3h >= 0.0) AND
+    (maximumStockFlowM3h >= minimumStockFlowM3h) AND
+    (minimumSpeedReferencePct >= 0.0) AND
+    (maximumSpeedReferencePct <= 100.0) AND
+    (maximumSpeedReferencePct >= minimumSpeedReferencePct);
+
+allSafetyOk := safetyOk AND estopOk AND guardClosedOk;
+allInterlocksOk := interlock1 AND interlock2 AND interlock3 AND
+                   interlock4 AND interlock5 AND interlock6;
+
+// Final consolidated validity is updated after consistency fallback handling.
+flowCalculationValid := FALSE;
+automaticControlValid := FALSE;
+automaticControlInvalid := autoMode;]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_StockPumpFlowControl">
+      <LineId Id="3" Count="11" />
+      <LineId Id="2" Count="0" />
+      <LineId Id="16" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_StockPumpFlowControl._CalculateCalibrationSuggestion">
+      <LineId Id="3" Count="21" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_StockPumpFlowControl._CalculateFlowSetpoint">
+      <LineId Id="3" Count="45" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_StockPumpFlowControl._FilterProcessSignals">
+      <LineId Id="3" Count="38" />
+      <LineId Id="2" Count="0" />
+      <LineId Id="43" Count="14" />
+    </LineIds>
+    <LineIds Name="FB_StockPumpFlowControl._HandleModeTransfer">
+      <LineId Id="3" Count="22" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_StockPumpFlowControl._Initialize">
+      <LineId Id="3" Count="25" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_StockPumpFlowControl._ManageConsistencyFallback">
+      <LineId Id="3" Count="38" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_StockPumpFlowControl._RampFlowSetpoint">
+      <LineId Id="3" Count="18" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_StockPumpFlowControl._RampSpeedReference">
+      <LineId Id="3" Count="18" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_StockPumpFlowControl._RunDriveSequence">
+      <LineId Id="3" Count="96" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_StockPumpFlowControl._RunFlowController">
+      <LineId Id="3" Count="65" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_StockPumpFlowControl._UpdateAlarmsAndDiagnostics">
+      <LineId Id="3" Count="54" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_StockPumpFlowControl._UpdateEdges">
+      <LineId Id="3" Count="18" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_StockPumpFlowControl._UpdateManualSetpoint">
+      <LineId Id="3" Count="30" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_StockPumpFlowControl._ValidateInputs">
+      <LineId Id="3" Count="56" />
+      <LineId Id="2" Count="0" />
+      <LineId Id="61" Count="3" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

@@ -175,8 +175,52 @@ STRUCT
 
     // ─────────────── STOCK PUMP ───────────────
     stockPumpState                  : INT;   // Stock pump state (Estado da bomba de massa)
+    stockTankLevel                  : REAL;  // Stock tank level [%] (Nivel do tanque de massa [%])
+    stockPumpFlowM3h                : REAL;  // Filtered stock flow [m3/h] (Vazao de massa filtrada [m3/h])
     stockPumpSpeed               	: REAL;  // Stock pump speed (Velocidade da bomba de massa)
     stockPumpTorque              	: REAL;  // Stock pump torque (Torque da bomba de massa)
+    stockPumpVfdStartCmd             : BOOL;
+    stockPumpVfdResetCmd             : BOOL;
+    stockPumpSpeedReferencePct       : REAL;
+    stockPumpDryMassSetpointKgH      : REAL;
+    stockPumpDryMassFeedbackKgH      : REAL;
+    stockPumpFlowTheoreticalM3h      : REAL;
+    stockPumpFlowCorrectedM3h        : REAL;
+    stockPumpFlowLimitedM3h          : REAL;
+    stockPumpFlowSetpointM3h         : REAL;
+    stockPumpConsistencyFilteredPct  : REAL;
+    stockPumpConsistencyUsedPct      : REAL;
+    refinedStockTankConsistencyFilteredPct : REAL;
+    refinedStockTankConsistencySignalInvalid : BOOL;
+    stockTankLevelSignalInvalid      : BOOL;
+    stockPumpPidErrorM3h             : REAL;
+    stockPumpPidOutputPct            : REAL;
+    stockPumpPidOutputSaturated      : BOOL;
+    stockPumpSuggestedCalibrationFactor      : REAL;
+    stockPumpSuggestedCalibrationFactorValid : BOOL;
+    stockPumpFlowCalculationValid            : BOOL;
+    stockPumpAutomaticControlValid           : BOOL;
+    stockPumpAutomaticControlInvalid         : BOOL;
+    stockPumpConsistencySignalInvalid        : BOOL;
+    stockPumpFlowSignalInvalid               : BOOL;
+    stockPumpBasisWeightSetpointInvalid      : BOOL;
+    stockPumpEffectiveWidthInvalid           : BOOL;
+    stockPumpWireSpeedInvalid                : BOOL;
+    stockPumpCalibrationFactorInvalid        : BOOL;
+    stockPumpOperatorTrimFactorInvalid       : BOOL;
+    stockPumpFlowSetpointLimited             : BOOL;
+    stockPumpSpeedReferenceLimited           : BOOL;
+    stockPumpUsingLastValidConsistency       : BOOL;
+    stockPumpFlowDeviationWarning            : BOOL;
+    stockPumpFlowDeviationAlarm              : BOOL;
+    stockPumpWarningActive                   : BOOL;
+    stockPumpAlarmActive                     : BOOL;
+    stockPumpRunning                         : BOOL;
+    stockPumpControlActive                   : BOOL;
+    stockPumpManualActive                    : BOOL;
+    stockPumpAutomaticActive                 : BOOL;
+    stockPumpDeviceState                     : STRING(80);
+    stockPumpCurrent                         : REAL;
 
 
     // ─────────────── MIXING PUMP ───────────────

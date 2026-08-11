@@ -167,6 +167,35 @@
 	// Keep new persistent fields at the end to minimize the layout impact.
 	jumboShaftWeight : ARRAY[1..20] OF REAL; // Shaft tare selectors 1..20 [kg]
 
+	// ─────────────── CONSISTENCY CONTROLLERS ───────────────
+	// Persistent machine configuration. Enable the next array position when a new device is installed.
+	consistencyControllerConfig : ARRAY[1..8] OF ST_ConsistencyControllerConfig := [
+		(
+			// Intertravamento de comissionamento: FALSE impede inclusive requisicoes de leitura.
+			bEnable := FALSE,
+			sIpAddress := '192.168.100.156',
+			uiTcpPort := 502,
+			byUnitId := 1,
+			uiFirstRegister := 16#FA1,
+			tPollInterval := T#500MS,
+			tResponseTimeout := T#2S,
+			tStartupDelay := T#0MS,
+			bPvLowWordFirst := FALSE
+		),
+		(
+			// Intertravamento de comissionamento: FALSE impede inclusive requisicoes de leitura.
+			bEnable := FALSE,
+			sIpAddress := '192.168.100.157',
+			uiTcpPort := 502,
+			byUnitId := 1,
+			uiFirstRegister := 16#FA1,
+			tPollInterval := T#500MS,
+			tResponseTimeout := T#2S,
+			tStartupDelay := T#250MS,
+			bPvLowWordFirst := FALSE
+		)
+	];
+
 			
 	END_STRUCT
 END_TYPE
