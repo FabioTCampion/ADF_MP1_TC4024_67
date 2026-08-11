@@ -93,8 +93,43 @@ internal static class JumboWeightCaptureEndpoints
                 HistorianRoles.Supervisor,
                 HistorianRoles.Administrator));
 
+        group.MapDelete(
+            "/{id:long}",
+            async (
+                long id,
+                DeleteJumboWeightRequest request,
+                ClaimsPrincipal principal,
+                IHistorianRepository repository,
+                TimeProvider clock,
+                CancellationToken cancellationToken) =>
+            {
+                if (id <= 0)
+                    return Results.BadRequest(new { error = "Registro de pesagem inválido." });
+
+                var reason = request.Reason?.Trim() ?? string.Empty;
+                if (reason.Length is < 5 or > 500)
+                    return Results.BadRequest(new { error = "Informe um motivo com 5 a 500 caracteres." });
+
+                var deletedBy = principal.FindFirstValue("display_name")
+                    ?? principal.Identity?.Name
+                    ?? "Supervisor";
+                var deleted = await repository.DeleteJumboWeightCaptureAsync(
+                    id,
+                    reason,
+                    deletedBy,
+                    clock.GetUtcNow(),
+                    cancellationToken);
+                return deleted
+                    ? Results.NoContent()
+                    : Results.NotFound(new { error = "Pesagem não encontrada ou já excluída." });
+            })
+            .RequireAuthorization(policy => policy.RequireRole(
+                HistorianRoles.Supervisor,
+                HistorianRoles.Administrator));
+
         return endpoints;
     }
 
     private sealed record CorrectJumboWeightRequest(double WeightKg, string? Reason);
+    private sealed record DeleteJumboWeightRequest(string? Reason);
 }

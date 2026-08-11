@@ -119,6 +119,38 @@ public sealed class JumboWeightCaptureTests
             Assert.Equal("Supervisor Teste", corrected.CorrectedBy);
             Assert.Equal(correctedAt, corrected.CorrectedAtUtc);
             Assert.Equal(1, await CountWeightCorrectionsAsync(databasePath, row.Id));
+
+            var deletedAt = capturedAt.AddMinutes(8);
+            Assert.True(await repository.DeleteJumboWeightCaptureAsync(
+                row.Id,
+                "Apontamento duplicado confirmado",
+                "Supervisor Teste",
+                deletedAt,
+                CancellationToken.None));
+            Assert.False(await repository.DeleteJumboWeightCaptureAsync(
+                row.Id,
+                "Segunda exclusão não permitida",
+                "Supervisor Teste",
+                deletedAt.AddSeconds(1),
+                CancellationToken.None));
+            Assert.Empty(await repository.GetJumboWeightCapturesAsync(
+                capturedAt.AddMinutes(-1),
+                capturedAt.AddMinutes(10),
+                10,
+                CancellationToken.None));
+            Assert.False(await repository.CorrectJumboWeightCaptureAsync(
+                row.Id,
+                5000,
+                "Registro já excluído",
+                "Supervisor Teste",
+                deletedAt.AddSeconds(2),
+                CancellationToken.None));
+
+            var deletion = await ReadWeightDeletionAsync(databasePath, row.Id);
+            Assert.Equal(5120.25, deletion.OriginalWeightKg);
+            Assert.Equal(deletedAt, deletion.DeletedAtUtc);
+            Assert.Equal("Supervisor Teste", deletion.DeletedBy);
+            Assert.Equal("Apontamento duplicado confirmado", deletion.Reason);
         }
         finally
         {
@@ -161,5 +193,26 @@ public sealed class JumboWeightCaptureTests
             """;
         command.Parameters.AddWithValue("@CaptureId", captureId);
         return Convert.ToInt64(await command.ExecuteScalarAsync());
+    }
+
+    private static async Task<(double OriginalWeightKg, DateTimeOffset DeletedAtUtc, string DeletedBy, string Reason)>
+        ReadWeightDeletionAsync(string databasePath, long captureId)
+    {
+        await using var connection = new SqliteConnection($"Data Source={databasePath}");
+        await connection.OpenAsync();
+        await using var command = connection.CreateCommand();
+        command.CommandText = """
+            SELECT WeightKg, DeletedAtUtc, DeletedBy, DeletionReason
+            FROM JumboWeightCaptures
+            WHERE Id = @CaptureId;
+            """;
+        command.Parameters.AddWithValue("@CaptureId", captureId);
+        await using var reader = await command.ExecuteReaderAsync();
+        Assert.True(await reader.ReadAsync());
+        return (
+            reader.GetDouble(0),
+            DateTimeOffset.Parse(reader.GetString(1)),
+            reader.GetString(2),
+            reader.GetString(3));
     }
 }

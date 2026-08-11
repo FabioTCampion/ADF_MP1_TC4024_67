@@ -8,7 +8,7 @@ namespace PaperMachine.Historian.Infrastructure.Database;
 
 public sealed class SqliteHistorianRepository : IHistorianRepository
 {
-    private const int SchemaVersion = 13;
+    private const int SchemaVersion = 14;
     private readonly string _databasePath;
     private readonly string _connectionString;
     private readonly SemaphoreSlim _writeGate = new(1, 1);
@@ -178,6 +178,8 @@ public sealed class SqliteHistorianRepository : IHistorianRepository
             VALUES (12, @AppliedAtUtc);
             INSERT OR IGNORE INTO SchemaMigrations (Version, AppliedAtUtc)
             VALUES (13, @AppliedAtUtc);
+            INSERT OR IGNORE INTO SchemaMigrations (Version, AppliedAtUtc)
+            VALUES (14, @AppliedAtUtc);
             """,
             cancellationToken,
             ("@AppliedAtUtc", ToDatabaseTimestamp(DateTimeOffset.UtcNow)));
@@ -359,6 +361,24 @@ public sealed class SqliteHistorianRepository : IHistorianRepository
         await EnsureColumnAsync(
             connection,
             "JumboWeightCaptures",
+            "DeletedAtUtc",
+            "TEXT NULL",
+            cancellationToken);
+        await EnsureColumnAsync(
+            connection,
+            "JumboWeightCaptures",
+            "DeletedBy",
+            "TEXT NULL",
+            cancellationToken);
+        await EnsureColumnAsync(
+            connection,
+            "JumboWeightCaptures",
+            "DeletionReason",
+            "TEXT NULL",
+            cancellationToken);
+        await EnsureColumnAsync(
+            connection,
+            "JumboWeightCaptures",
             "CorrectedBy",
             "TEXT NULL",
             cancellationToken);
@@ -484,7 +504,8 @@ public sealed class SqliteHistorianRepository : IHistorianRepository
                    ProductionLastSynchronizedAtUtc, CorrectedWeightKg,
                    CorrectionReason, CorrectedBy, CorrectedAtUtc
             FROM JumboWeightCaptures
-            WHERE (@FromUtc IS NULL OR CapturedAtUtc >= @FromUtc)
+            WHERE DeletedAtUtc IS NULL
+              AND (@FromUtc IS NULL OR CapturedAtUtc >= @FromUtc)
               AND (@ToUtc IS NULL OR CapturedAtUtc <= @ToUtc)
             ORDER BY CapturedAtUtc DESC, Id DESC
             LIMIT @Limit;
@@ -552,7 +573,7 @@ public sealed class SqliteHistorianRepository : IHistorianRepository
             currentCommand.CommandText = """
                 SELECT COALESCE(CorrectedWeightKg, WeightKg)
                 FROM JumboWeightCaptures
-                WHERE Id = @Id;
+                WHERE Id = @Id AND DeletedAtUtc IS NULL;
                 """;
             currentCommand.Parameters.AddWithValue("@Id", id);
             var currentValue = await currentCommand.ExecuteScalarAsync(cancellationToken);
@@ -599,6 +620,42 @@ public sealed class SqliteHistorianRepository : IHistorianRepository
 
             await transaction.CommitAsync(cancellationToken);
             return true;
+        }
+        finally
+        {
+            _writeGate.Release();
+        }
+    }
+
+    public async Task<bool> DeleteJumboWeightCaptureAsync(
+        long id,
+        string reason,
+        string deletedBy,
+        DateTimeOffset deletedAtUtc,
+        CancellationToken cancellationToken)
+    {
+        if (id <= 0)
+            throw new ArgumentOutOfRangeException(nameof(id));
+        ArgumentException.ThrowIfNullOrWhiteSpace(reason);
+        ArgumentException.ThrowIfNullOrWhiteSpace(deletedBy);
+
+        await _writeGate.WaitAsync(cancellationToken);
+        try
+        {
+            await using var connection = await OpenAsync(cancellationToken);
+            await using var command = connection.CreateCommand();
+            command.CommandText = """
+                UPDATE JumboWeightCaptures
+                SET DeletedAtUtc = @DeletedAtUtc,
+                    DeletedBy = @DeletedBy,
+                    DeletionReason = @DeletionReason
+                WHERE Id = @Id AND DeletedAtUtc IS NULL;
+                """;
+            command.Parameters.AddWithValue("@Id", id);
+            command.Parameters.AddWithValue("@DeletedAtUtc", ToDatabaseTimestamp(deletedAtUtc));
+            command.Parameters.AddWithValue("@DeletedBy", deletedBy.Trim());
+            command.Parameters.AddWithValue("@DeletionReason", reason.Trim());
+            return await command.ExecuteNonQueryAsync(cancellationToken) == 1;
         }
         finally
         {

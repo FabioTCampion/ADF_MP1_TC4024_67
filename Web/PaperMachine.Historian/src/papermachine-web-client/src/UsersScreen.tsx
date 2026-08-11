@@ -202,9 +202,9 @@ export default function UsersScreen() {
             <div>
               <span>Operação e conferência</span>
               <h3>Supervisor</h3>
-              <p>Consulta os históricos e pode corrigir pesos capturados, sempre com motivo registrado.</p>
+              <p>Consulta os históricos e pode corrigir ou excluir pesos capturados, sempre com motivo registrado.</p>
             </div>
-            <small>Inclui edição auditada de pesos</small>
+            <small>Inclui correção e exclusão auditadas</small>
           </article>
           <article className="access-profile-card">
             <div>

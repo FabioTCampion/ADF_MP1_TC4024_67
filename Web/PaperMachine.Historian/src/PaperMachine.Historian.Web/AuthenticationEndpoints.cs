@@ -285,7 +285,10 @@ public static partial class AuthenticationEndpoints
             "reports.generate"
         };
         if (role is HistorianRoles.Supervisor or HistorianRoles.Administrator)
+        {
             permissions.Add("weights.edit");
+            permissions.Add("weights.delete");
+        }
         if (role == HistorianRoles.Administrator)
         {
             permissions.AddRange(

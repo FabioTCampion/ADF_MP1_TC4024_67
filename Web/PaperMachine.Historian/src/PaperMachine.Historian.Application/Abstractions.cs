@@ -50,6 +50,12 @@ public interface IHistorianRepository
         string correctedBy,
         DateTimeOffset correctedAtUtc,
         CancellationToken cancellationToken);
+    Task<bool> DeleteJumboWeightCaptureAsync(
+        long id,
+        string reason,
+        string deletedBy,
+        DateTimeOffset deletedAtUtc,
+        CancellationToken cancellationToken);
     Task PersistCycleAsync(HistorianCycle cycle, CancellationToken cancellationToken);
     Task AddCommandEventAsync(
         FieldChange change,
