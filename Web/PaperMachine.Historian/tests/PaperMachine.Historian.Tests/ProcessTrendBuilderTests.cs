@@ -15,7 +15,9 @@ public sealed class ProcessTrendBuilderTests
               "stockPumpFlowM3h": 42.8,
               "stockPumpDryMassFeedbackKgH": 3180.5,
               "stockPumpConsistencyFilteredPct": 3.72,
+              "refinedStockTankConsistencyFilteredPct": 4.18,
               "stockPumpPidOutputPct": 56.2,
+              "refinedStockTankConsistencySignalInvalid": false,
               "stockPumpAutomaticActive": true,
               "stockPumpFlowDeviationAlarm": false
             }
@@ -27,11 +29,13 @@ public sealed class ProcessTrendBuilderTests
         Assert.Equal(42.8, values.Numeric["stockPumpFlowM3h"]);
         Assert.Equal(3180.5, values.Numeric["stockPumpDryMassFeedbackKgH"]);
         Assert.Equal(3.72, values.Numeric["stockPumpConsistencyFilteredPct"]);
+        Assert.Equal(4.18, values.Numeric["refinedStockTankConsistencyFilteredPct"]);
         Assert.Equal(56.2, values.Numeric["stockPumpPidOutputPct"]);
+        Assert.False(values.Boolean["refinedStockTankConsistencySignalInvalid"]);
         Assert.True(values.Boolean["stockPumpAutomaticActive"]);
         Assert.False(values.Boolean["stockPumpFlowDeviationAlarm"]);
-        Assert.Equal(15, TelemetryCatalog.StockPumpNumericFields.Count);
-        Assert.Equal(26, TelemetryCatalog.StockPumpBooleanFields.Count);
+        Assert.Equal(16, TelemetryCatalog.StockPumpNumericFields.Count);
+        Assert.Equal(27, TelemetryCatalog.StockPumpBooleanFields.Count);
         Assert.True(ProcessVariableCatalog.IsSupportedFieldName(
             "stockPumpDryMassFeedbackKgH"));
     }
@@ -84,9 +88,11 @@ public sealed class ProcessTrendBuilderTests
     [InlineData("stockPumpDryMassSetpointKgH", "Bomba de massa", "kg/h")]
     [InlineData("stockPumpFlowSetpointM3h", "Bomba de massa", "m³/h")]
     [InlineData("stockPumpConsistencyUsedPct", "Bomba de massa", "%")]
+    [InlineData("refinedStockTankConsistencyFilteredPct", "Bomba de massa", "%")]
     [InlineData("stockPumpSuggestedCalibrationFactor", "Bomba de massa", "fator")]
     [InlineData("stockPumpCurrent", "Bomba de massa", "A")]
     [InlineData("stockPumpAutomaticActive", "Bomba de massa", "0/1")]
+    [InlineData("refinedStockTankConsistencySignalInvalid", "Bomba de massa", "0/1")]
     public void DescribesProcessUnits(
         string fieldName,
         string expectedCategory,

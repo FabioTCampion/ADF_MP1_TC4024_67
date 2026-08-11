@@ -27,6 +27,10 @@ const approvedVariableLabels: Record<string, string> = {
   stockPumpFlowSetpointM3h: "Referência de vazão da massa",
   stockPumpConsistencyFilteredPct: "Consistência filtrada da massa",
   stockPumpConsistencyUsedPct: "Consistência utilizada no controle",
+  refinedStockTankConsistencyFilteredPct:
+    "Consistência filtrada do tanque de massa refinada",
+  refinedStockTankConsistencySignalInvalid:
+    "Sinal inválido de consistência do tanque de massa refinada",
   stockTankLevelSignalInvalid: "Sinal inválido do nível do tanque de massa",
   stockPumpPidErrorM3h: "Erro do PID de vazão da massa",
   stockPumpPidOutputPct: "Saída do PID da bomba de massa",

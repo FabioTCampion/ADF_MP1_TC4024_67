@@ -69,6 +69,7 @@ public static class TelemetryCatalog
         "stockPumpFlowSetpointM3h",
         "stockPumpConsistencyFilteredPct",
         "stockPumpConsistencyUsedPct",
+        "refinedStockTankConsistencyFilteredPct",
         "stockPumpPidErrorM3h",
         "stockPumpPidOutputPct",
         "stockPumpSuggestedCalibrationFactor",
@@ -79,6 +80,7 @@ public static class TelemetryCatalog
     [
         "stockPumpVfdStartCmd",
         "stockPumpVfdResetCmd",
+        "refinedStockTankConsistencySignalInvalid",
         "stockTankLevelSignalInvalid",
         "stockPumpPidOutputSaturated",
         "stockPumpSuggestedCalibrationFactorValid",

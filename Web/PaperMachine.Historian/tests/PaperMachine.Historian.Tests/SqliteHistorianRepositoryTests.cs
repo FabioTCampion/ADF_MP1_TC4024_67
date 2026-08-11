@@ -8,7 +8,7 @@ namespace PaperMachine.Historian.Tests;
 public sealed class SqliteHistorianRepositoryTests
 {
     [Fact]
-    public async Task AddsStockPumpTelemetryColumnsWhenUpgradingSchema12()
+    public async Task AddsRefinedStockTelemetryColumnsWhenUpgradingSchema14()
     {
         var testDirectory = Path.Combine(
             Path.GetTempPath(),
@@ -27,11 +27,11 @@ public sealed class SqliteHistorianRepositoryTests
                 await connection.OpenAsync();
                 await using var command = connection.CreateCommand();
                 command.CommandText = """
-                    ALTER TABLE TelemetrySamples DROP COLUMN stockPumpFlowM3h;
-                    ALTER TABLE TelemetrySamples DROP COLUMN stockPumpAutomaticActive;
-                    ALTER TABLE TelemetryMinuteAggregates DROP COLUMN stockPumpFlowM3h;
-                    ALTER TABLE TelemetryMinuteAggregates DROP COLUMN stockPumpAutomaticActive;
-                    DELETE FROM SchemaMigrations WHERE Version = 13;
+                    ALTER TABLE TelemetrySamples DROP COLUMN refinedStockTankConsistencyFilteredPct;
+                    ALTER TABLE TelemetrySamples DROP COLUMN refinedStockTankConsistencySignalInvalid;
+                    ALTER TABLE TelemetryMinuteAggregates DROP COLUMN refinedStockTankConsistencyFilteredPct;
+                    ALTER TABLE TelemetryMinuteAggregates DROP COLUMN refinedStockTankConsistencySignalInvalid;
+                    DELETE FROM SchemaMigrations WHERE Version = 15;
                     """;
                 await command.ExecuteNonQueryAsync();
             }
@@ -44,9 +44,11 @@ public sealed class SqliteHistorianRepositoryTests
             verificationCommand.CommandText = """
                 SELECT
                     (SELECT COUNT(*) FROM pragma_table_info('TelemetrySamples')
-                     WHERE name IN ('stockPumpFlowM3h', 'stockPumpAutomaticActive')) +
+                     WHERE name IN ('refinedStockTankConsistencyFilteredPct',
+                                    'refinedStockTankConsistencySignalInvalid')) +
                     (SELECT COUNT(*) FROM pragma_table_info('TelemetryMinuteAggregates')
-                     WHERE name IN ('stockPumpFlowM3h', 'stockPumpAutomaticActive'));
+                     WHERE name IN ('refinedStockTankConsistencyFilteredPct',
+                                    'refinedStockTankConsistencySignalInvalid'));
                 """;
             Assert.Equal(4L, Convert.ToInt64(await verificationCommand.ExecuteScalarAsync()));
         }
@@ -79,7 +81,7 @@ public sealed class SqliteHistorianRepositoryTests
             await repository.PersistCycleAsync(
                 processor.Process(HistorianProcessorTests.CreateSnapshot(
                     firstAt,
-                    """{"speed":10.0,"dryingSectionGroup3UpperMasterSpeedMPM":336.7,"dryingSectionGroup3PaperPresence":true,"stockPumpState":1,"stockPumpFlowM3h":42.8,"stockPumpAutomaticActive":true,"mixingPumpFaultCode":0,"mixingPumpFaultTorque":0.0,"mixingPumpFaultEventCounter":0}""",
+                    """{"speed":10.0,"dryingSectionGroup3UpperMasterSpeedMPM":336.7,"dryingSectionGroup3PaperPresence":true,"stockPumpState":1,"stockPumpFlowM3h":42.8,"stockPumpAutomaticActive":true,"refinedStockTankConsistencyFilteredPct":4.18,"refinedStockTankConsistencySignalInvalid":false,"mixingPumpFaultCode":0,"mixingPumpFaultTorque":0.0,"mixingPumpFaultEventCounter":0}""",
                     """{"start":false}""",
                     """{"mixingPumpFaultAlarm":false}""")),
                 CancellationToken.None);
@@ -125,7 +127,12 @@ public sealed class SqliteHistorianRepositoryTests
                 optimizedTrend[0].NumericValues[
                     TelemetryCatalog.MachineSpeedField]);
             Assert.Equal(42.8, optimizedTrend[0].NumericValues["stockPumpFlowM3h"]);
+            Assert.Equal(
+                4.18,
+                optimizedTrend[0].NumericValues["refinedStockTankConsistencyFilteredPct"]);
             Assert.True(optimizedTrend[0].BooleanValues["stockPumpAutomaticActive"]);
+            Assert.False(
+                optimizedTrend[0].BooleanValues["refinedStockTankConsistencySignalInvalid"]);
             var productivitySample = Assert.Single(
                 await repository.GetMachineProductivitySamplesAsync(
                     firstAt,

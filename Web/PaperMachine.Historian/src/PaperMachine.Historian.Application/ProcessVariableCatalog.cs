@@ -18,6 +18,7 @@ public static class ProcessVariableCatalog
             ["stockPumpFlowSetpointM3h"] = "m³/h",
             ["stockPumpConsistencyFilteredPct"] = "%",
             ["stockPumpConsistencyUsedPct"] = "%",
+            ["refinedStockTankConsistencyFilteredPct"] = "%",
             ["stockPumpPidErrorM3h"] = "m³/h",
             ["stockPumpPidOutputPct"] = "%",
             ["stockPumpSuggestedCalibrationFactor"] = "fator",
