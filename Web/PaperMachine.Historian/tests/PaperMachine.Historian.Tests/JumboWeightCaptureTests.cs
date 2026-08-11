@@ -1,12 +1,39 @@
 using Microsoft.Data.Sqlite;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Routing;
+using Microsoft.Extensions.DependencyInjection;
 using PaperMachine.Historian.Application;
 using PaperMachine.Historian.Domain;
 using PaperMachine.Historian.Infrastructure.Database;
+using PaperMachine.Historian.Web;
 
 namespace PaperMachine.Historian.Tests;
 
 public sealed class JumboWeightCaptureTests
 {
+    [Fact]
+    public async Task MapsWeightEndpointsIncludingDeleteRequestBody()
+    {
+        var builder = WebApplication.CreateBuilder();
+        builder.Services.AddAuthorization();
+        builder.Services.AddSingleton<IHistorianRepository>(_ => null!);
+        builder.Services.AddSingleton(TimeProvider.System);
+
+        await using var app = builder.Build();
+        app.MapJumboWeightCaptures();
+
+        var endpoints = ((IEndpointRouteBuilder)app).DataSources
+            .SelectMany(source => source.Endpoints)
+            .OfType<RouteEndpoint>()
+            .ToArray();
+
+        Assert.Contains(
+            endpoints,
+            endpoint => endpoint.RoutePattern.RawText == "/api/production/weights/{id:long}"
+                && endpoint.Metadata.GetMetadata<HttpMethodMetadata>()?.HttpMethods
+                    .Contains("DELETE") == true);
+    }
+
     [Fact]
     public void DetectsLatchedPlcCaptureAndConvertsFileTimeToUtc()
     {

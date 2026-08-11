@@ -1,6 +1,7 @@
 using PaperMachine.Historian.Application;
 using PaperMachine.Historian.Domain;
 using System.Security.Claims;
+using Microsoft.AspNetCore.Mvc;
 
 namespace PaperMachine.Historian.Web;
 
@@ -97,7 +98,7 @@ internal static class JumboWeightCaptureEndpoints
             "/{id:long}",
             async (
                 long id,
-                DeleteJumboWeightRequest request,
+                [FromBody] DeleteJumboWeightRequest request,
                 ClaimsPrincipal principal,
                 IHistorianRepository repository,
                 TimeProvider clock,

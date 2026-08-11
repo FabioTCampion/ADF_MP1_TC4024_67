@@ -796,8 +796,11 @@ try {
         Set-Content -LiteralPath $statePath -Encoding UTF8
 }
 catch {
+    $installError = $_
     Stop-ExistingService -Name $ServiceName | Out-Null
     Stop-ExistingService -Name $ConnectorServiceName | Out-Null
+    $restartConnectorAfterRollback = $false
+    $restartServiceAfterRollback = $false
     if ($previousExecutablePath -and (Test-Path -LiteralPath $previousExecutablePath -PathType Leaf)) {
         if (-not [string]::IsNullOrWhiteSpace([string]$rollbackBackupPath)) {
             Restore-DeploymentBackup `
@@ -812,9 +815,7 @@ catch {
                 -Name $ConnectorServiceName `
                 -ExecutablePath $previousConnectorExecutablePath `
                 -Arguments ('--service --config "' + $connectorConfigPath + '"')
-            if ($connectorServiceWasRunning) {
-                Start-Service -Name $ConnectorServiceName
-            }
+            $restartConnectorAfterRollback = $connectorServiceWasRunning
         }
         else {
             Invoke-ServiceControl -Arguments @(
@@ -826,9 +827,7 @@ catch {
                 Invoke-ServiceControl -Arguments @('delete', $ConnectorServiceName)
             }
         }
-        if ($serviceWasRunning) {
-            Start-Service -Name $ServiceName
-        }
+        $restartServiceAfterRollback = $serviceWasRunning
     }
     if ($releaseCopied -and
         -not [string]::Equals(
@@ -842,10 +841,23 @@ catch {
         if ($resolvedReleaseRoot.StartsWith(
                 $resolvedReleasesPrefix,
                 [StringComparison]::OrdinalIgnoreCase)) {
-            Remove-Item -LiteralPath $resolvedReleaseRoot -Recurse -Force
+            try {
+                Remove-Item -LiteralPath $resolvedReleaseRoot -Recurse -Force
+            }
+            catch {
+                Write-Warning (
+                    "Nao foi possivel remover a release que falhou; " +
+                    "ela sera substituida na proxima tentativa: $($_.Exception.Message)")
+            }
         }
     }
-    throw
+    if ($restartConnectorAfterRollback) {
+        Start-Service -Name $ConnectorServiceName
+    }
+    if ($restartServiceAfterRollback) {
+        Start-Service -Name $ServiceName
+    }
+    throw $installError
 }
 
 Write-Host ''
