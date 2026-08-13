@@ -17,6 +17,13 @@ public interface IProductionBreakReportService
         double productiveSpeedMpm,
         string requestedBy,
         CancellationToken cancellationToken);
+
+    Task<GeneratedReport> GenerateExcelAsync(
+        DateTimeOffset start,
+        DateTimeOffset end,
+        double productiveSpeedMpm,
+        string requestedBy,
+        CancellationToken cancellationToken);
 }
 
 public sealed class ProductionBreakReportService(
@@ -42,10 +49,63 @@ public sealed class ProductionBreakReportService(
         string requestedBy,
         CancellationToken cancellationToken)
     {
+        var data = await BuildReportDataAsync(
+            start,
+            end,
+            productiveSpeedMpm,
+            requestedBy,
+            cancellationToken);
+        cancellationToken.ThrowIfCancellationRequested();
+        var content = Render(data);
+        var fileName =
+            $"Relatorio-Producao-Quebras-{data.Start:yyyy-MM-dd}-a-{data.End:yyyy-MM-dd}.pdf";
+        logger.LogInformation(
+            "Production and breaks PDF generated. RequestedBy={RequestedBy}, Start={Start}, End={End}, Breaks={Breaks}, Bytes={Bytes}.",
+            data.RequestedBy,
+            start,
+            end,
+            data.Breaks.Breaks.Count,
+            content.Length);
+        return new GeneratedReport(content, fileName);
+    }
+
+    public async Task<GeneratedReport> GenerateExcelAsync(
+        DateTimeOffset start,
+        DateTimeOffset end,
+        double productiveSpeedMpm,
+        string requestedBy,
+        CancellationToken cancellationToken)
+    {
+        var data = await BuildReportDataAsync(
+            start,
+            end,
+            productiveSpeedMpm,
+            requestedBy,
+            cancellationToken);
+        cancellationToken.ThrowIfCancellationRequested();
+        var content = ProductionMetricsExcelReport.Render(data);
+        var fileName =
+            $"Metricas-da-Maquina-{data.Start:yyyy-MM-dd}-a-{data.End:yyyy-MM-dd}.xlsx";
+        logger.LogInformation(
+            "Production metrics Excel generated. RequestedBy={RequestedBy}, Start={Start}, End={End}, Breaks={Breaks}, Bytes={Bytes}.",
+            data.RequestedBy,
+            start,
+            end,
+            data.Breaks.Breaks.Count,
+            content.Length);
+        return new GeneratedReport(content, fileName);
+    }
+
+    private async Task<ProductionBreakReportData> BuildReportDataAsync(
+        DateTimeOffset start,
+        DateTimeOffset end,
+        double productiveSpeedMpm,
+        string requestedBy,
+        CancellationToken cancellationToken)
+    {
         ValidateRequest(start, end, productiveSpeedMpm);
         var startUtc = start.ToUniversalTime();
         var endUtc = end.ToUniversalTime();
-
         var samplesTask = repository.GetMachineProductivitySamplesAsync(
             startUtc,
             endUtc,
@@ -57,7 +117,6 @@ public sealed class ProductionBreakReportService(
             options.MaximumBreaks + 1,
             cancellationToken);
         await Task.WhenAll(samplesTask, breaksTask);
-
         var breaks = await breaksTask;
         if (breaks.Count > options.MaximumBreaks)
             throw new ReportLimitExceededException(
@@ -69,18 +128,10 @@ public sealed class ProductionBreakReportService(
             endUtc,
             productiveSpeedMpm);
         var generatedAt = timeProvider.GetUtcNow();
-        var localStart = start.ToLocalTime();
-        var localEnd = end.ToLocalTime();
-        var analysis = AnalyzeBreaks(
-            breaks.OrderBy(item => item.StartedAtUtc).ToArray(),
-            productivity,
-            endUtc,
-            generatedAt,
-            TimeSpan.FromSeconds(options.MinimumBreakDurationSeconds));
-        var data = new ProductionBreakReportData(
+        return new ProductionBreakReportData(
             options.MachineName.Trim(),
-            localStart,
-            localEnd,
+            start.ToLocalTime(),
+            end.ToLocalTime(),
             generatedAt.ToLocalTime(),
             string.IsNullOrWhiteSpace(requestedBy)
                 ? "Usuário não identificado"
@@ -88,20 +139,12 @@ public sealed class ProductionBreakReportService(
             productiveSpeedMpm,
             TimeSpan.FromSeconds(options.MinimumBreakDurationSeconds),
             productivity,
-            analysis);
-
-        cancellationToken.ThrowIfCancellationRequested();
-        var content = Render(data);
-        var fileName =
-            $"Relatorio-Producao-Quebras-{localStart:yyyy-MM-dd}-a-{localEnd:yyyy-MM-dd}.pdf";
-        logger.LogInformation(
-            "Production and breaks PDF generated. RequestedBy={RequestedBy}, Start={Start}, End={End}, Breaks={Breaks}, Bytes={Bytes}.",
-            data.RequestedBy,
-            start,
-            end,
-            analysis.Breaks.Count,
-            content.Length);
-        return new GeneratedReport(content, fileName);
+            AnalyzeBreaks(
+                breaks.OrderBy(item => item.StartedAtUtc).ToArray(),
+                productivity,
+                endUtc,
+                generatedAt,
+                TimeSpan.FromSeconds(options.MinimumBreakDurationSeconds)));
     }
 
     private void ValidateRequest(
@@ -659,17 +702,18 @@ public sealed class ProductionBreakReportService(
         return $"{hours:N0}h {remaining:00}min";
     }
 
-    private sealed record ProductionBreakReportData(
-        string MachineName,
-        DateTimeOffset Start,
-        DateTimeOffset End,
-        DateTimeOffset GeneratedAt,
-        string RequestedBy,
-        double ProductiveSpeedMpm,
-        TimeSpan MinimumBreakDuration,
-        MachineProductivityAnalysis Productivity,
-        BreakReportAnalysis Breaks);
 }
+
+internal sealed record ProductionBreakReportData(
+    string MachineName,
+    DateTimeOffset Start,
+    DateTimeOffset End,
+    DateTimeOffset GeneratedAt,
+    string RequestedBy,
+    double ProductiveSpeedMpm,
+    TimeSpan MinimumBreakDuration,
+    MachineProductivityAnalysis Productivity,
+    BreakReportAnalysis Breaks);
 
 public sealed class ReportLimitExceededException(string message) : Exception(message);
 

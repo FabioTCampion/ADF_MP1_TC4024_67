@@ -880,7 +880,9 @@ export default function MetricsScreen() {
   const [correlationWarning, setCorrelationWarning] = useState("");
   const [view, setView] = useState<MetricView>("speed");
   const [loading, setLoading] = useState(false);
-  const [generatingReport, setGeneratingReport] = useState(false);
+  const [generatingReport, setGeneratingReport] = useState<
+    "pdf" | "excel" | null
+  >(null);
   const [error, setError] = useState("");
 
   const load = useCallback(async (start: Date, end: Date) => {
@@ -989,8 +991,8 @@ export default function MetricsScreen() {
     applyPeriod(start, end);
   };
 
-  const downloadReport = async () => {
-    setGeneratingReport(true);
+  const downloadReport = async (format: "pdf" | "excel") => {
+    setGeneratingReport(format);
     setError("");
     try {
       const parameters = new URLSearchParams({
@@ -998,8 +1000,16 @@ export default function MetricsScreen() {
         end: periodEnd.toISOString(),
         productiveSpeedMpm: String(productiveSpeedMpm),
       });
-      const response = await fetch(`/api/reports/production-breaks?${parameters}`, {
-        headers: { Accept: "application/pdf" },
+      const endpoint =
+        format === "pdf"
+          ? "/api/reports/production-breaks"
+          : "/api/reports/production-breaks/excel";
+      const accept =
+        format === "pdf"
+          ? "application/pdf"
+          : "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+      const response = await fetch(`${endpoint}?${parameters}`, {
+        headers: { Accept: accept },
       });
       if (response.status === 401) {
         window.location.reload();
@@ -1013,7 +1023,7 @@ export default function MetricsScreen() {
         throw new Error(
           body?.error ??
             body?.detail ??
-            `Não foi possível gerar o relatório (${response.status}).`,
+            `Não foi possível gerar a exportação (${response.status}).`,
         );
       }
 
@@ -1022,7 +1032,10 @@ export default function MetricsScreen() {
       const simpleFileName = disposition?.match(/filename="?([^";]+)"?/i)?.[1];
       const fileName = encodedFileName
         ? decodeURIComponent(encodedFileName)
-        : simpleFileName ?? "Relatorio-Producao-Quebras.pdf";
+        : simpleFileName ??
+          (format === "pdf"
+            ? "Relatorio-Producao-Quebras.pdf"
+            : "Metricas-da-Maquina.xlsx");
       const url = URL.createObjectURL(await response.blob());
       const link = document.createElement("a");
       link.href = url;
@@ -1035,10 +1048,10 @@ export default function MetricsScreen() {
       setError(
         exception instanceof Error
           ? exception.message
-          : "Não foi possível gerar o relatório.",
+          : "Não foi possível gerar a exportação.",
       );
     } finally {
-      setGeneratingReport(false);
+      setGeneratingReport(null);
     }
   };
 
@@ -1098,21 +1111,46 @@ export default function MetricsScreen() {
           </span>
         </div>
         {user.permissions.includes("reports.generate") && (
-          <button
-            className="metrics-report-button"
-            type="button"
-            onClick={() => void downloadReport()}
-            disabled={loading || generatingReport}
-          >
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M7 3h7l4 4v14H7z" />
-              <path d="M14 3v5h5M9.5 13h6M9.5 16h6" />
-            </svg>
-            <span>
-              <b>{generatingReport ? "Gerando PDF…" : "Gerar relatório PDF"}</b>
-              <small>Produção, indicadores e quebras</small>
-            </span>
-          </button>
+          <div className="metrics-report-actions">
+            <button
+              className="metrics-report-button"
+              type="button"
+              onClick={() => void downloadReport("pdf")}
+              disabled={loading || generatingReport !== null}
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M7 3h7l4 4v14H7z" />
+                <path d="M14 3v5h5M9.5 13h6M9.5 16h6" />
+              </svg>
+              <span>
+                <b>
+                  {generatingReport === "pdf"
+                    ? "Gerando PDF…"
+                    : "Gerar relatório PDF"}
+                </b>
+                <small>Produção, indicadores e quebras</small>
+              </span>
+            </button>
+            <button
+              className="metrics-report-button"
+              type="button"
+              onClick={() => void downloadReport("excel")}
+              disabled={loading || generatingReport !== null}
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M7 3h7l4 4v14H7z" />
+                <path d="M14 3v5h5M9.5 12l5 5M14.5 12l-5 5" />
+              </svg>
+              <span>
+                <b>
+                  {generatingReport === "excel"
+                    ? "Gerando Excel…"
+                    : "Exportar para Excel"}
+                </b>
+                <small>Indicadores, horas, quebras e Pareto</small>
+              </span>
+            </button>
+          </div>
         )}
       </div>
 

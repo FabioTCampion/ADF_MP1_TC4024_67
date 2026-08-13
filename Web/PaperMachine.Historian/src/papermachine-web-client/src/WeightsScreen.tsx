@@ -354,11 +354,25 @@ export default function WeightsScreen() {
         <div className="weights-title-actions">
           {canExport && (
             <div className="weights-export-actions" aria-label="Exportar pesos capturados">
-              <button type="button" onClick={() => void downloadExport("pdf")} disabled={loading || exporting !== null}>
-                {exporting === "pdf" ? "Gerando…" : "Exportar relatório"}
+              <button className="weights-export-button" type="button" onClick={() => void downloadExport("pdf")} disabled={loading || exporting !== null}>
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M7 3h7l4 4v14H7z" />
+                  <path d="M14 3v5h5M9.5 13h6M9.5 16h6" />
+                </svg>
+                <span>
+                  <b>{exporting === "pdf" ? "Gerando PDF…" : "Gerar relatório PDF"}</b>
+                  <small>Resumo, pesos e intervalos</small>
+                </span>
               </button>
-              <button className="weights-excel-button" type="button" onClick={() => void downloadExport("excel")} disabled={loading || exporting !== null}>
-                {exporting === "excel" ? "Gerando…" : "Exportar Excel"}
+              <button className="weights-export-button" type="button" onClick={() => void downloadExport("excel")} disabled={loading || exporting !== null}>
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M7 3h7l4 4v14H7z" />
+                  <path d="M14 3v5h5M9.5 12l5 5M14.5 12l-5 5" />
+                </svg>
+                <span>
+                  <b>{exporting === "excel" ? "Gerando Excel…" : "Exportar para Excel"}</b>
+                  <small>Dados filtráveis em planilha</small>
+                </span>
               </button>
             </div>
           )}

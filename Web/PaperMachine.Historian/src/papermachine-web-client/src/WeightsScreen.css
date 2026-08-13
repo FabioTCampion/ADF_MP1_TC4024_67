@@ -9,37 +9,30 @@
 
 .weights-title-actions { flex-wrap: wrap; justify-content: flex-end; }
 
-.weights-export-actions button {
-  min-height: 36px;
-  padding: 0 13px;
-  border: 1px solid #35618d;
-  border-radius: 8px;
-  color: #cfe3fa;
-  background: #163250;
+.weights-export-button {
+  display: flex;
+  align-items: center;
+  min-width: 218px;
+  gap: 11px;
+  padding: 11px 14px;
+  border: 1px solid #397dd9;
+  border-radius: 10px;
+  color: #eef6ff;
+  background: linear-gradient(145deg, #276bc8, #205cae);
+  box-shadow: 0 10px 24px rgba(20, 84, 166, .24);
   cursor: pointer;
-  font-size: 10px;
-  font-weight: 800;
-  transition: border-color .15s, background .15s, transform .15s;
 }
 
-.weights-export-actions button:hover:not(:disabled) {
-  border-color: #5798dc;
-  background: #1d456e;
-  transform: translateY(-1px);
+.weights-export-button:hover:not(:disabled) {
+  border-color: #65a4f5;
+  background: linear-gradient(145deg, #327bdd, #2567bd);
 }
 
-.weights-export-actions .weights-excel-button {
-  border-color: #2e7258;
-  color: #b8efd6;
-  background: #123b2f;
-}
-
-.weights-export-actions .weights-excel-button:hover:not(:disabled) {
-  border-color: #4ba77e;
-  background: #174d3d;
-}
-
-.weights-export-actions button:disabled { opacity: .6; cursor: wait; }
+.weights-export-button:disabled { opacity: .65; cursor: wait; }
+.weights-export-button svg { width: 23px; height: 23px; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.7; }
+.weights-export-button span { display: flex; align-items: flex-start; flex-direction: column; gap: 2px; }
+.weights-export-button b { font-size: 10px; }
+.weights-export-button small { color: #bcd7fa; font-size: 8px; }
 
 .weights-access-badge {
   display: inline-flex;
@@ -355,7 +348,8 @@
 @media (max-width: 620px) {
   .weights-title { align-items: flex-start; }
   .weights-title-actions { width: 100%; align-items: stretch; flex-direction: column; }
-  .weights-export-actions { display: grid; grid-template-columns: 1fr 1fr; }
+  .weights-export-actions { width: 100%; align-items: stretch; flex-direction: column; }
+  .weights-export-button { width: 100%; }
   .weights-access-badge { width: fit-content; }
   .weights-summary { grid-template-columns: 1fr; }
   .weights-summary-card { min-height: 112px; }

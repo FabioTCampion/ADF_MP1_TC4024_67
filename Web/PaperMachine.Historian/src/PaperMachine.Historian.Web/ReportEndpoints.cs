@@ -53,6 +53,53 @@ public static class ReportEndpoints
             });
 
         group.MapGet(
+            "/production-breaks/excel",
+            async (
+                DateTimeOffset start,
+                DateTimeOffset end,
+                double productiveSpeedMpm,
+                ClaimsPrincipal principal,
+                IProductionBreakReportService service,
+                CancellationToken cancellationToken) =>
+            {
+                try
+                {
+                    var requestedBy = principal.FindFirstValue("display_name")
+                        ?? principal.Identity?.Name
+                        ?? "Usuário não identificado";
+                    var report = await service.GenerateExcelAsync(
+                        start,
+                        end,
+                        productiveSpeedMpm,
+                        requestedBy,
+                        cancellationToken);
+                    return Results.File(
+                        report.Content,
+                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        report.FileName);
+                }
+                catch (ArgumentException exception)
+                {
+                    return Results.BadRequest(new { error = exception.Message });
+                }
+                catch (ReportLimitExceededException exception)
+                {
+                    return Results.BadRequest(new { error = exception.Message });
+                }
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                {
+                    return Results.StatusCode(499);
+                }
+                catch (Exception exception)
+                {
+                    return Results.Problem(
+                        title: "Não foi possível exportar as métricas da máquina.",
+                        detail: exception.Message,
+                        statusCode: StatusCodes.Status503ServiceUnavailable);
+                }
+            });
+
+        group.MapGet(
             "/weights/{format}",
             async (
                 string format,

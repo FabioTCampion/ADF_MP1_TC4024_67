@@ -1,3 +1,6 @@
+using DocumentFormat.OpenXml;
+using DocumentFormat.OpenXml.Packaging;
+using DocumentFormat.OpenXml.Validation;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Data.Sqlite;
 using PaperMachine.Historian.Application;
@@ -105,6 +108,47 @@ public sealed class ProductionBreakReportServiceTests
             {
                 Directory.CreateDirectory(Path.GetDirectoryName(previewPath)!);
                 await File.WriteAllBytesAsync(previewPath, report.Content);
+            }
+
+            var excel = await service.GenerateExcelAsync(
+                start,
+                start.AddMinutes(5),
+                productiveSpeedMpm: 10,
+                requestedBy: "Validação local",
+                CancellationToken.None);
+            Assert.Equal((byte)'P', excel.Content[0]);
+            Assert.Equal((byte)'K', excel.Content[1]);
+            Assert.Equal(
+                "Metricas-da-Maquina-2026-07-25-a-2026-07-25.xlsx",
+                excel.FileName);
+            Assert.True(excel.Content.Length > 7_000);
+            using (var excelDocument = SpreadsheetDocument.Open(
+                       new MemoryStream(excel.Content),
+                       false))
+            {
+                var validationErrors = new OpenXmlValidator(
+                    FileFormatVersions.Office2019).Validate(excelDocument).ToArray();
+                Assert.Empty(validationErrors);
+                var workbookPart = excelDocument.WorkbookPart
+                    ?? throw new InvalidOperationException("A pasta de trabalho não foi encontrada.");
+                var sheets = workbookPart.Workbook
+                    .GetFirstChild<DocumentFormat.OpenXml.Spreadsheet.Sheets>()
+                    ?? throw new InvalidOperationException("As planilhas não foram encontradas.");
+                var sheetNames = sheets
+                    .Elements<DocumentFormat.OpenXml.Spreadsheet.Sheet>()
+                    .Select(sheet => sheet.Name?.Value ?? string.Empty)
+                    .ToArray();
+                Assert.Equal(
+                    ["Resumo", "Desempenho horário", "Quebras", "Pareto"],
+                    sheetNames);
+            }
+
+            var excelPreviewPath = Environment.GetEnvironmentVariable(
+                "PAPER_MACHINE_METRICS_EXCEL_PREVIEW_PATH");
+            if (!string.IsNullOrWhiteSpace(excelPreviewPath))
+            {
+                Directory.CreateDirectory(Path.GetDirectoryName(excelPreviewPath)!);
+                await File.WriteAllBytesAsync(excelPreviewPath, excel.Content);
             }
         }
         finally

@@ -1,6 +1,9 @@
 using System.IO.Compression;
 using System.Text;
 using System.Xml.Linq;
+using DocumentFormat.OpenXml;
+using DocumentFormat.OpenXml.Packaging;
+using DocumentFormat.OpenXml.Validation;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Data.Sqlite;
@@ -78,6 +81,15 @@ public sealed class WeightReportServiceTests
                 CancellationToken.None);
             Assert.Equal("PK", Encoding.ASCII.GetString(excel.Content, 0, 2));
             Assert.EndsWith(".xlsx", excel.FileName, StringComparison.OrdinalIgnoreCase);
+            using (var spreadsheet = SpreadsheetDocument.Open(
+                       new MemoryStream(excel.Content),
+                       isEditable: false))
+            {
+                var validationErrors = new OpenXmlValidator(FileFormatVersions.Office2019)
+                    .Validate(spreadsheet)
+                    .ToArray();
+                Assert.Empty(validationErrors);
+            }
             using var archive = new ZipArchive(new MemoryStream(excel.Content), ZipArchiveMode.Read);
             foreach (var entry in archive.Entries.Where(item => item.Name.EndsWith(".xml", StringComparison.OrdinalIgnoreCase)))
             {

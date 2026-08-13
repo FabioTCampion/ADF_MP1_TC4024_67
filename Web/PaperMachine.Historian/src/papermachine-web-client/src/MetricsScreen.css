@@ -30,6 +30,12 @@
   font-size: 12px;
 }
 
+.metrics-report-actions {
+  display: flex;
+  align-items: stretch;
+  gap: 10px;
+}
+
 .metrics-report-button {
   display: flex;
   align-items: center;
@@ -826,6 +832,11 @@
 
   .metrics-report-button {
     width: 100%;
+  }
+
+  .metrics-report-actions {
+    width: 100%;
+    flex-direction: column;
   }
 
   .metrics-date-action,

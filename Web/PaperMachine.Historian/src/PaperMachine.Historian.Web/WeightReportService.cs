@@ -1,12 +1,13 @@
 using System.Globalization;
-using System.IO.Compression;
 using System.Reflection;
-using System.Security;
-using System.Text;
+using DocumentFormat.OpenXml;
+using DocumentFormat.OpenXml.Packaging;
+using DocumentFormat.OpenXml.Spreadsheet;
 using MigraDoc.DocumentObjectModel;
 using MigraDoc.DocumentObjectModel.Tables;
 using MigraDoc.Rendering;
 using PaperMachine.Historian.Application;
+using Color = MigraDoc.DocumentObjectModel.Color;
 
 namespace PaperMachine.Historian.Web;
 
@@ -308,7 +309,11 @@ public sealed class WeightReportService(
         header.HeadingFormat = true;
         header.Shading.Color = Navy;
         foreach (var (label, index) in new[] { "Data e hora", "Evento", "Jumbo", "OP", "Produto", "Gramatura", "Capturado", "Considerado", "Intervalo", "Situação" }.Select((value, index) => (value, index)))
-            AddPdfCell(header.Cells[index], label, true, Colors.White);
+            AddPdfCell(
+                header.Cells[index],
+                label,
+                true,
+                MigraDoc.DocumentObjectModel.Colors.White);
         foreach (var item in rows)
         {
             var row = table.AddRow();
@@ -331,7 +336,11 @@ public sealed class WeightReportService(
         note.Format.SpaceBefore = Unit.FromPoint(4);
     }
 
-    private static void AddPdfCell(Cell cell, string text, bool bold = false, Color? color = null)
+    private static void AddPdfCell(
+        MigraDoc.DocumentObjectModel.Tables.Cell cell,
+        string text,
+        bool bold = false,
+        Color? color = null)
     {
         var paragraph = cell.AddParagraph(text);
         paragraph.Format.LeftIndent = Unit.FromMillimeter(.8);
@@ -347,90 +356,295 @@ public sealed class WeightReportService(
     private static byte[] RenderExcel(WeightReportData data)
     {
         using var output = new MemoryStream();
-        using (var archive = new ZipArchive(output, ZipArchiveMode.Create, true))
+        using (var document = SpreadsheetDocument.Create(
+                   output,
+                   SpreadsheetDocumentType.Workbook,
+                   autoSave: true))
         {
-            AddZipText(archive, "[Content_Types].xml", ContentTypesXml);
-            AddZipText(archive, "_rels/.rels", RootRelationshipsXml);
-            AddZipText(archive, "docProps/core.xml", CorePropertiesXml(data));
-            AddZipText(archive, "docProps/app.xml", AppPropertiesXml);
-            AddZipText(archive, "xl/workbook.xml", WorkbookXml);
-            AddZipText(archive, "xl/_rels/workbook.xml.rels", WorkbookRelationshipsXml);
-            AddZipText(archive, "xl/styles.xml", StylesXml);
-            AddZipText(archive, "xl/worksheets/sheet1.xml", WorksheetXml(data));
+            document.PackageProperties.Title = "Relatório de pesos capturados";
+            document.PackageProperties.Creator = data.RequestedBy;
+            document.PackageProperties.Created = data.GeneratedAt.UtcDateTime;
+
+            var workbookPart = document.AddWorkbookPart();
+            workbookPart.Workbook = new Workbook();
+            var stylesPart = workbookPart.AddNewPart<WorkbookStylesPart>();
+            stylesPart.Stylesheet = CreateExcelStylesheet();
+            stylesPart.Stylesheet.Save();
+
+            var worksheetPart = workbookPart.AddNewPart<WorksheetPart>();
+            worksheetPart.Worksheet = CreateExcelWorksheet(data);
+            worksheetPart.Worksheet.Save();
+
+            var sheets = workbookPart.Workbook.AppendChild(new Sheets());
+            sheets.Append(new Sheet
+            {
+                Id = workbookPart.GetIdOfPart(worksheetPart),
+                SheetId = 1U,
+                Name = "Pesos capturados"
+            });
+            workbookPart.Workbook.Save();
         }
         return output.ToArray();
     }
 
-    private static string WorksheetXml(WeightReportData data)
+    private static Worksheet CreateExcelWorksheet(WeightReportData data)
     {
-        var builder = new StringBuilder(64_000);
-        builder.Append("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?><worksheet xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\">");
-        builder.Append("<sheetViews><sheetView workbookViewId=\"0\"><pane ySplit=\"7\" topLeftCell=\"A8\" activePane=\"bottomLeft\" state=\"frozen\"/></sheetView></sheetViews>");
-        builder.Append("<cols><col min=\"1\" max=\"1\" width=\"20\" customWidth=\"1\"/><col min=\"2\" max=\"2\" width=\"12\" customWidth=\"1\"/><col min=\"3\" max=\"5\" width=\"16\" customWidth=\"1\"/><col min=\"6\" max=\"7\" width=\"13\" customWidth=\"1\"/><col min=\"8\" max=\"10\" width=\"16\" customWidth=\"1\"/><col min=\"11\" max=\"12\" width=\"18\" customWidth=\"1\"/><col min=\"13\" max=\"15\" width=\"22\" customWidth=\"1\"/></cols><sheetData>");
-        AddExcelRow(builder, 1, [("Relatório de pesos capturados", 1, false)]);
-        AddExcelRow(builder, 2, [($"{data.MachineName} | Período: {FormatDateTime(data.Start)} até {FormatDateTime(data.End)}", 2, false)]);
-        AddExcelRow(builder, 3, [($"Emitido em {FormatDateTime(data.GeneratedAt)} por {data.RequestedBy}" + (string.IsNullOrWhiteSpace(data.Search) ? "" : $" | Busca: {data.Search}"), 2, false)]);
-        AddExcelRow(builder, 4, [($"Capturas: {data.Summary.Count:N0} | Peso total: {FormatNumber(data.Summary.TotalWeightKg, 2)} kg | Média: {FormatWeight(data.Summary.AverageWeightKg)} | Corrigidos: {data.Summary.CorrectedCount:N0} | Fora do padrão: {data.Summary.OutsideStandardCount:N0}", 3, false)]);
-        var headers = new[] { "Data e hora", "Evento PLC", "Jumbo", "OP", "Produto", "Gramatura (g/m²)", "Largura (mm)", "Peso capturado (kg)", "Peso corrigido (kg)", "Peso considerado (kg)", "Intervalo (min)", "Situação do intervalo", "Status", "Corrigido por", "Motivo da correção" };
-        AddExcelRow(builder, 7, headers.Select(value => (value, 4, false)).ToArray());
-        var rowNumber = 8;
+        var view = new SheetView { WorkbookViewId = 0U };
+        view.Append(new Pane
+        {
+            VerticalSplit = 7D,
+            TopLeftCell = "A8",
+            ActivePane = PaneValues.BottomLeft,
+            State = PaneStateValues.Frozen
+        });
+        var sheetViews = new SheetViews(view);
+        var columns = new DocumentFormat.OpenXml.Spreadsheet.Columns(
+            CreateExcelColumn(1, 1, 20),
+            CreateExcelColumn(2, 2, 12),
+            CreateExcelColumn(3, 5, 16),
+            CreateExcelColumn(6, 7, 13),
+            CreateExcelColumn(8, 10, 16),
+            CreateExcelColumn(11, 12, 18),
+            CreateExcelColumn(13, 15, 22));
+        var sheetData = new SheetData();
+        sheetData.Append(CreateExcelRow(1, [CreateExcelTextCell("A1", "Relatório de pesos capturados", 1)]));
+        sheetData.Append(CreateExcelRow(2, [CreateExcelTextCell(
+            "A2",
+            $"{data.MachineName} | Período: {FormatDateTime(data.Start)} até {FormatDateTime(data.End)}",
+            2)]));
+        sheetData.Append(CreateExcelRow(3, [CreateExcelTextCell(
+            "A3",
+            $"Emitido em {FormatDateTime(data.GeneratedAt)} por {data.RequestedBy}" +
+            (string.IsNullOrWhiteSpace(data.Search) ? "" : $" | Busca: {data.Search}"),
+            2)]));
+        sheetData.Append(CreateExcelRow(4, [CreateExcelTextCell(
+            "A4",
+            $"Capturas: {data.Summary.Count:N0} | Peso total: {FormatNumber(data.Summary.TotalWeightKg, 2)} kg | " +
+            $"Média: {FormatWeight(data.Summary.AverageWeightKg)} | Corrigidos: {data.Summary.CorrectedCount:N0} | " +
+            $"Fora do padrão: {data.Summary.OutsideStandardCount:N0}",
+            3)]));
+
+        var headers = new[]
+        {
+            "Data e hora", "Evento PLC", "Jumbo", "OP", "Produto", "Gramatura (g/m²)",
+            "Largura (mm)", "Peso capturado (kg)", "Peso corrigido (kg)",
+            "Peso considerado (kg)", "Intervalo (min)", "Situação do intervalo", "Status",
+            "Corrigido por", "Motivo da correção"
+        };
+        sheetData.Append(CreateExcelRow(
+            7,
+            headers.Select((value, index) =>
+                CreateExcelTextCell($"{ExcelColumnName(index + 1)}7", value, 4))));
+
+        uint rowNumber = 8;
         foreach (var item in data.Rows)
         {
-            builder.Append($"<row r=\"{rowNumber}\">");
-            AddExcelNumberCell(builder, "A", rowNumber, item.Capture.CapturedAtUtc.ToLocalTime().DateTime.ToOADate(), 5);
-            AddExcelNumberCell(builder, "B", rowNumber, item.Capture.PlcEventCounter, 0);
-            AddExcelTextCell(builder, "C", rowNumber, item.Capture.ProductionExternalRunId ?? "", 0);
-            AddExcelTextCell(builder, "D", rowNumber, item.Capture.ProductionOrderCode ?? "", 0);
-            AddExcelTextCell(builder, "E", rowNumber, item.Capture.ProductCode ?? "", 0);
-            AddOptionalNumberCell(builder, "F", rowNumber, item.Capture.GrammageGsm, 6);
-            AddOptionalNumberCell(builder, "G", rowNumber, item.Capture.ProductionWidthMm, 6);
-            AddExcelNumberCell(builder, "H", rowNumber, item.Capture.WeightKg, 7);
-            AddOptionalNumberCell(builder, "I", rowNumber, item.Capture.CorrectedWeightKg, 7);
-            AddExcelNumberCell(builder, "J", rowNumber, item.EffectiveWeightKg, 7);
-            AddOptionalNumberCell(builder, "K", rowNumber, item.Interval?.TotalMinutes, 6);
-            AddExcelTextCell(builder, "L", rowNumber, item.OutsideStandardInterval ? "Fora do padrão" : item.Interval.HasValue ? "Dentro do padrão" : "Primeira no período", item.OutsideStandardInterval ? 8 : 0);
-            AddExcelTextCell(builder, "M", rowNumber, item.Capture.CaptureStatus == 20 ? "Capturado" : $"Status {item.Capture.CaptureStatus}", 0);
-            AddExcelTextCell(builder, "N", rowNumber, item.Capture.CorrectedBy ?? "", 0);
-            AddExcelTextCell(builder, "O", rowNumber, item.Capture.CorrectionReason ?? "", 0);
-            builder.Append("</row>");
+            sheetData.Append(CreateExcelRow(rowNumber,
+            [
+                CreateExcelNumberCell($"A{rowNumber}", item.Capture.CapturedAtUtc.ToLocalTime().DateTime.ToOADate(), 5),
+                CreateExcelNumberCell($"B{rowNumber}", item.Capture.PlcEventCounter, 0),
+                CreateExcelTextCell($"C{rowNumber}", item.Capture.ProductionExternalRunId ?? "", 0),
+                CreateExcelTextCell($"D{rowNumber}", item.Capture.ProductionOrderCode ?? "", 0),
+                CreateExcelTextCell($"E{rowNumber}", item.Capture.ProductCode ?? "", 0),
+                CreateOptionalExcelNumberCell($"F{rowNumber}", item.Capture.GrammageGsm, 6),
+                CreateOptionalExcelNumberCell($"G{rowNumber}", item.Capture.ProductionWidthMm, 6),
+                CreateExcelNumberCell($"H{rowNumber}", item.Capture.WeightKg, 7),
+                CreateOptionalExcelNumberCell($"I{rowNumber}", item.Capture.CorrectedWeightKg, 7),
+                CreateExcelNumberCell($"J{rowNumber}", item.EffectiveWeightKg, 7),
+                CreateOptionalExcelNumberCell($"K{rowNumber}", item.Interval?.TotalMinutes, 6),
+                CreateExcelTextCell(
+                    $"L{rowNumber}",
+                    item.OutsideStandardInterval
+                        ? "Fora do padrão"
+                        : item.Interval.HasValue ? "Dentro do padrão" : "Primeira no período",
+                    item.OutsideStandardInterval ? 8U : 0U),
+                CreateExcelTextCell(
+                    $"M{rowNumber}",
+                    item.Capture.CaptureStatus == 20 ? "Capturado" : $"Status {item.Capture.CaptureStatus}",
+                    0),
+                CreateExcelTextCell($"N{rowNumber}", item.Capture.CorrectedBy ?? "", 0),
+                CreateExcelTextCell($"O{rowNumber}", item.Capture.CorrectionReason ?? "", 0)
+            ]));
             rowNumber++;
         }
-        builder.Append("</sheetData>");
-        builder.Append("<mergeCells count=\"4\"><mergeCell ref=\"A1:O1\"/><mergeCell ref=\"A2:O2\"/><mergeCell ref=\"A3:O3\"/><mergeCell ref=\"A4:O4\"/></mergeCells>");
-        builder.Append($"<autoFilter ref=\"A7:O{Math.Max(7, rowNumber - 1)}\"/><sheetProtection sheet=\"0\" objects=\"0\" scenarios=\"0\"/><pageMargins left=\"0.25\" right=\"0.25\" top=\"0.5\" bottom=\"0.5\" header=\"0.2\" footer=\"0.2\"/></worksheet>");
-        return builder.ToString();
+
+        var lastRow = Math.Max(7U, rowNumber - 1);
+        var autoFilter = new AutoFilter { Reference = $"A7:O{lastRow}" };
+        var mergeCells = new MergeCells(
+            new MergeCell { Reference = "A1:O1" },
+            new MergeCell { Reference = "A2:O2" },
+            new MergeCell { Reference = "A3:O3" },
+            new MergeCell { Reference = "A4:O4" });
+        var margins = new PageMargins
+        {
+            Left = .25D,
+            Right = .25D,
+            Top = .5D,
+            Bottom = .5D,
+            Header = .2D,
+            Footer = .2D
+        };
+
+        return new Worksheet(sheetViews, columns, sheetData, autoFilter, mergeCells, margins);
     }
 
-    private static void AddExcelRow(StringBuilder builder, int row, IReadOnlyList<(string Text, int Style, bool Number)> cells)
+    private static Stylesheet CreateExcelStylesheet()
     {
-        builder.Append($"<row r=\"{row}\">");
-        for (var index = 0; index < cells.Count; index++)
-            AddExcelTextCell(builder, ColumnName(index + 1), row, cells[index].Text, cells[index].Style);
-        builder.Append("</row>");
+        var numberingFormats = new NumberingFormats(
+            new NumberingFormat { NumberFormatId = 164U, FormatCode = "dd/mm/yyyy hh:mm:ss" },
+            new NumberingFormat { NumberFormatId = 165U, FormatCode = "0.00" },
+            new NumberingFormat { NumberFormatId = 166U, FormatCode = "0.0" })
+        { Count = 3U };
+        var fonts = new Fonts(
+            CreateExcelFont(10),
+            CreateExcelFont(18, bold: true, color: "FF182B44"),
+            CreateExcelFont(10, color: "FF65778C"),
+            CreateExcelFont(10, bold: true, color: "FFFFFFFF"))
+        { Count = 4U };
+        var fills = new Fills(
+            new Fill(new PatternFill { PatternType = PatternValues.None }),
+            new Fill(new PatternFill { PatternType = PatternValues.Gray125 }),
+            CreateExcelFill("FF182B44"),
+            CreateExcelFill("FFE8F1FC"),
+            CreateExcelFill("FFFFE3E3"))
+        { Count = 5U };
+        var borders = new DocumentFormat.OpenXml.Spreadsheet.Borders(
+            new DocumentFormat.OpenXml.Spreadsheet.Border(),
+            new DocumentFormat.OpenXml.Spreadsheet.Border(
+                CreateExcelLeftBorder(),
+                CreateExcelRightBorder(),
+                CreateExcelTopBorder(),
+                CreateExcelBottomBorder(),
+                new DiagonalBorder()))
+        { Count = 2U };
+        var cellStyleFormats = new CellStyleFormats(new CellFormat()) { Count = 1U };
+        var cellFormats = new CellFormats(
+            new CellFormat(),
+            new CellFormat { FontId = 1U },
+            new CellFormat { FontId = 2U },
+            new CellFormat { FillId = 3U },
+            new CellFormat
+            {
+                FontId = 3U,
+                FillId = 2U,
+                BorderId = 1U,
+                ApplyAlignment = true,
+                Alignment = new Alignment
+                {
+                    Horizontal = HorizontalAlignmentValues.Center,
+                    Vertical = VerticalAlignmentValues.Center,
+                    WrapText = true
+                }
+            },
+            CreateExcelNumberCellFormat(164U),
+            CreateExcelNumberCellFormat(166U),
+            CreateExcelNumberCellFormat(165U),
+            new CellFormat { FillId = 4U, BorderId = 1U })
+        { Count = 9U };
+        var cellStyles = new CellStyles(
+            new CellStyle { Name = "Normal", FormatId = 0U, BuiltinId = 0U })
+        { Count = 1U };
+        return new Stylesheet(
+            numberingFormats,
+            fonts,
+            fills,
+            borders,
+            cellStyleFormats,
+            cellFormats,
+            cellStyles);
     }
 
-    private static void AddExcelTextCell(StringBuilder builder, string column, int row, string value, int style) =>
-        builder.Append($"<c r=\"{column}{row}\" s=\"{style}\" t=\"inlineStr\"><is><t xml:space=\"preserve\">{Xml(value)}</t></is></c>");
-
-    private static void AddExcelNumberCell(StringBuilder builder, string column, int row, double value, int style) =>
-        builder.Append($"<c r=\"{column}{row}\" s=\"{style}\"><v>{value.ToString("R", CultureInfo.InvariantCulture)}</v></c>");
-
-    private static void AddOptionalNumberCell(StringBuilder builder, string column, int row, double? value, int style)
+    private static DocumentFormat.OpenXml.Spreadsheet.Font CreateExcelFont(
+        double size,
+        bool bold = false,
+        string? color = null)
     {
-        if (value.HasValue)
-            AddExcelNumberCell(builder, column, row, value.Value, style);
-        else
-            AddExcelTextCell(builder, column, row, "", style);
+        var font = new DocumentFormat.OpenXml.Spreadsheet.Font();
+        if (bold) font.Append(new Bold());
+        font.Append(new FontSize { Val = size });
+        if (color is not null) font.Append(new DocumentFormat.OpenXml.Spreadsheet.Color { Rgb = color });
+        font.Append(new FontName { Val = "Calibri" });
+        return font;
     }
 
-    private static string ColumnName(int index) => ((char)('A' + index - 1)).ToString();
-    private static string Xml(string value) => SecurityElement.Escape(new string(value.Where(character => character is '\t' or '\n' or '\r' || character >= ' ').ToArray())) ?? "";
-    private static void AddZipText(ZipArchive archive, string path, string content)
+    private static Fill CreateExcelFill(string color) =>
+        new(new PatternFill(
+            new ForegroundColor { Rgb = color },
+            new BackgroundColor { Indexed = 64U })
+        { PatternType = PatternValues.Solid });
+
+    private static LeftBorder CreateExcelLeftBorder() =>
+        new(new DocumentFormat.OpenXml.Spreadsheet.Color { Rgb = "FFD4DEE8" })
+        { Style = BorderStyleValues.Thin };
+    private static RightBorder CreateExcelRightBorder() =>
+        new(new DocumentFormat.OpenXml.Spreadsheet.Color { Rgb = "FFD4DEE8" })
+        { Style = BorderStyleValues.Thin };
+    private static TopBorder CreateExcelTopBorder() =>
+        new(new DocumentFormat.OpenXml.Spreadsheet.Color { Rgb = "FFD4DEE8" })
+        { Style = BorderStyleValues.Thin };
+    private static BottomBorder CreateExcelBottomBorder() =>
+        new(new DocumentFormat.OpenXml.Spreadsheet.Color { Rgb = "FFD4DEE8" })
+        { Style = BorderStyleValues.Thin };
+
+    private static CellFormat CreateExcelNumberCellFormat(uint numberFormatId) =>
+        new()
+        {
+            NumberFormatId = numberFormatId,
+            BorderId = 1U,
+            ApplyNumberFormat = true
+        };
+
+    private static DocumentFormat.OpenXml.Spreadsheet.Column CreateExcelColumn(
+        uint min,
+        uint max,
+        double width) =>
+        new() { Min = min, Max = max, Width = width, CustomWidth = true };
+
+    private static DocumentFormat.OpenXml.Spreadsheet.Row CreateExcelRow(
+        uint rowIndex,
+        IEnumerable<DocumentFormat.OpenXml.Spreadsheet.Cell> cells)
     {
-        var entry = archive.CreateEntry(path, CompressionLevel.Fastest);
-        using var writer = new StreamWriter(entry.Open(), new UTF8Encoding(false));
-        writer.Write(content);
+        var row = new DocumentFormat.OpenXml.Spreadsheet.Row { RowIndex = rowIndex };
+        row.Append(cells);
+        return row;
     }
+
+    private static DocumentFormat.OpenXml.Spreadsheet.Cell CreateExcelTextCell(
+        string reference,
+        string value,
+        uint styleIndex) =>
+        new()
+        {
+            CellReference = reference,
+            StyleIndex = styleIndex,
+            DataType = CellValues.InlineString,
+            InlineString = new InlineString(
+                new DocumentFormat.OpenXml.Spreadsheet.Text(value)
+                { Space = SpaceProcessingModeValues.Preserve })
+        };
+
+    private static DocumentFormat.OpenXml.Spreadsheet.Cell CreateExcelNumberCell(
+        string reference,
+        double value,
+        uint styleIndex) =>
+        new()
+        {
+            CellReference = reference,
+            StyleIndex = styleIndex,
+            DataType = CellValues.Number,
+            CellValue = new CellValue(value.ToString("R", CultureInfo.InvariantCulture))
+        };
+
+    private static DocumentFormat.OpenXml.Spreadsheet.Cell CreateOptionalExcelNumberCell(
+        string reference,
+        double? value,
+        uint styleIndex) =>
+        value.HasValue
+            ? CreateExcelNumberCell(reference, value.Value, styleIndex)
+            : CreateExcelTextCell(reference, "", styleIndex);
+
+    private static string ExcelColumnName(int index) =>
+        ((char)('A' + index - 1)).ToString();
 
     private static string GetEmbeddedImageDataUri(string resourceName)
     {
@@ -453,35 +667,6 @@ public sealed class WeightReportService(
         return $"{minutes} min";
     }
 
-    private const string ContentTypesXml = """
-        <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-        <Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/><Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/><Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/></Types>
-        """;
-    private const string RootRelationshipsXml = """
-        <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-        <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="docProps/core.xml"/><Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/extended-properties" Target="docProps/app.xml"/></Relationships>
-        """;
-    private const string AppPropertiesXml = """
-        <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-        <Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties" xmlns:vt="http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes"><Application>CPNTeck Paper Machine Historian</Application></Properties>
-        """;
-    private const string WorkbookXml = """
-        <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-        <workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="Pesos capturados" sheetId="1" r:id="rId1"/></sheets></workbook>
-        """;
-    private const string WorkbookRelationshipsXml = """
-        <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-        <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>
-        """;
-    private const string StylesXml = """
-        <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-        <styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><numFmts count="3"><numFmt numFmtId="164" formatCode="dd/mm/yyyy hh:mm:ss"/><numFmt numFmtId="165" formatCode="0.00"/><numFmt numFmtId="166" formatCode="0.0"/></numFmts><fonts count="4"><font><sz val="10"/><name val="Calibri"/></font><font><b/><sz val="18"/><color rgb="FF182B44"/><name val="Calibri"/></font><font><sz val="10"/><color rgb="FF65778C"/><name val="Calibri"/></font><font><b/><sz val="10"/><color rgb="FFFFFFFF"/><name val="Calibri"/></font></fonts><fills count="5"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FF182B44"/><bgColor indexed="64"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFE8F1FC"/><bgColor indexed="64"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFFFE3E3"/><bgColor indexed="64"/></patternFill></fill></fills><borders count="2"><border><left/><right/><top/><bottom/><diagonal/></border><border><left style="thin"><color rgb="FFD4DEE8"/></left><right style="thin"><color rgb="FFD4DEE8"/></right><top style="thin"><color rgb="FFD4DEE8"/></top><bottom style="thin"><color rgb="FFD4DEE8"/></bottom><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="9"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="2" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="0" fillId="3" borderId="0" xfId="0"/><xf numFmtId="0" fontId="3" fillId="2" borderId="1" xfId="0" applyAlignment="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf><xf numFmtId="164" fontId="0" fillId="0" borderId="1" xfId="0"/><xf numFmtId="166" fontId="0" fillId="0" borderId="1" xfId="0"/><xf numFmtId="165" fontId="0" fillId="0" borderId="1" xfId="0"/><xf numFmtId="0" fontId="0" fillId="4" borderId="1" xfId="0"/></cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>
-        """;
-
-    private static string CorePropertiesXml(WeightReportData data) => $"""
-        <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-        <cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><dc:title>Relatório de pesos capturados</dc:title><dc:creator>{Xml(data.RequestedBy)}</dc:creator><dcterms:created xsi:type="dcterms:W3CDTF">{data.GeneratedAt.UtcDateTime:yyyy-MM-ddTHH:mm:ssZ}</dcterms:created></cp:coreProperties>
-        """;
 }
 
 internal sealed record WeightReportData(
