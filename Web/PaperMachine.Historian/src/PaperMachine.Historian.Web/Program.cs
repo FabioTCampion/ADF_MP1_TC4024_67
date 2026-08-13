@@ -82,6 +82,7 @@ builder.Services.AddSingleton<
     IUserGraphLayoutRepository,
     SqliteUserGraphLayoutRepository>();
 builder.Services.AddSingleton<IProductionBreakReportService, ProductionBreakReportService>();
+builder.Services.AddSingleton<IWeightReportService, WeightReportService>();
 builder.Services.AddSingleton<IPasswordHasher<ApplicationUser>, PasswordHasher<ApplicationUser>>();
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddSingleton<HistorianProcessor>();

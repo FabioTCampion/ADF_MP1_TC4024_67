@@ -51,5 +51,53 @@ public static class ReportEndpoints
                         statusCode: StatusCodes.Status503ServiceUnavailable);
                 }
             });
+
+        group.MapGet(
+            "/weights/{format}",
+            async (
+                string format,
+                DateTimeOffset start,
+                DateTimeOffset end,
+                string? search,
+                ClaimsPrincipal principal,
+                IWeightReportService service,
+                CancellationToken cancellationToken) =>
+            {
+                try
+                {
+                    var requestedBy = principal.FindFirstValue("display_name")
+                        ?? principal.Identity?.Name
+                        ?? "Usuário não identificado";
+                    var report = format.ToLowerInvariant() switch
+                    {
+                        "pdf" => await service.GeneratePdfAsync(
+                            start, end, search, requestedBy, cancellationToken),
+                        "excel" or "xlsx" => await service.GenerateExcelAsync(
+                            start, end, search, requestedBy, cancellationToken),
+                        _ => null
+                    };
+                    if (report is null)
+                        return Results.BadRequest(new { error = "Formato inválido. Use pdf ou excel." });
+                    var contentType = format.Equals("pdf", StringComparison.OrdinalIgnoreCase)
+                        ? "application/pdf"
+                        : "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+                    return Results.File(report.Content, contentType, report.FileName);
+                }
+                catch (ArgumentException exception)
+                {
+                    return Results.BadRequest(new { error = exception.Message });
+                }
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                {
+                    return Results.StatusCode(499);
+                }
+                catch (Exception exception)
+                {
+                    return Results.Problem(
+                        title: "Não foi possível exportar os pesos capturados.",
+                        detail: exception.Message,
+                        statusCode: StatusCodes.Status503ServiceUnavailable);
+                }
+            });
     }
 }

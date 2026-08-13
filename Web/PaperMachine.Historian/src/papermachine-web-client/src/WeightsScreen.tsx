@@ -64,7 +64,7 @@ function formatInterval(milliseconds: number | null) {
 
 export default function WeightsScreen() {
   const { user } = useAuth();
-  const period = useHistoryPeriod("7d", 366);
+  const period = useHistoryPeriod("today", 366);
   const [search, setSearch] = useState("");
   const [appliedSearch, setAppliedSearch] = useState("");
   const [captures, setCaptures] = useState<WeightCapture[]>([]);
@@ -75,10 +75,12 @@ export default function WeightsScreen() {
   const [deletionReason, setDeletionReason] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [exporting, setExporting] = useState<"pdf" | "excel" | null>(null);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const canEdit = user.permissions.includes("weights.edit");
   const canDelete = user.permissions.includes("weights.delete");
+  const canExport = user.permissions.includes("reports.generate");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -231,6 +233,54 @@ export default function WeightsScreen() {
     setNotice("");
   };
 
+  const downloadExport = async (format: "pdf" | "excel") => {
+    setExporting(format);
+    setError("");
+    setNotice("");
+    try {
+      const query = new URLSearchParams({
+        start: new Date(period.applied.from).toISOString(),
+        end: new Date(period.applied.to).toISOString(),
+      });
+      if (appliedSearch.trim()) query.set("search", appliedSearch.trim());
+      const response = await fetch(`/api/reports/weights/${format}?${query}`, {
+        cache: "no-store",
+        headers: {
+          Accept: format === "pdf"
+            ? "application/pdf"
+            : "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        },
+      });
+      if (response.status === 401) {
+        window.location.reload();
+        return;
+      }
+      if (!response.ok)
+        throw new Error(await readError(response, "Não foi possível exportar as pesagens."));
+      const disposition = response.headers.get("Content-Disposition") ?? "";
+      const encodedName = disposition.match(/filename\*=UTF-8''([^;]+)/i)?.[1];
+      const simpleName = disposition.match(/filename="?([^";]+)"?/i)?.[1];
+      const fileName = encodedName
+        ? decodeURIComponent(encodedName)
+        : simpleName ?? (format === "pdf" ? "Relatorio-Pesos.pdf" : "Pesos-Capturados.xlsx");
+      const url = URL.createObjectURL(await response.blob());
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+      setNotice(format === "pdf"
+        ? "Relatório PDF gerado com os filtros aplicados."
+        : "Planilha Excel gerada com os filtros aplicados.");
+    } catch (exception) {
+      setError(exception instanceof Error ? exception.message : "Falha ao exportar pesagens.");
+    } finally {
+      setExporting(null);
+    }
+  };
+
   const saveCorrection = async () => {
     if (!editing) return;
     const normalizedWeight = correctedWeight.trim();
@@ -301,9 +351,21 @@ export default function WeightsScreen() {
           <h1>Pesos capturados</h1>
           <span>Consulte as pesagens registradas pelo PLC e confira as correções realizadas.</span>
         </div>
-        <div className={`weights-access-badge${canEdit ? " weights-access-badge--edit" : ""}`}>
-          <i />
-          <span>{canEdit ? "Edição de supervisor" : "Somente consulta"}</span>
+        <div className="weights-title-actions">
+          {canExport && (
+            <div className="weights-export-actions" aria-label="Exportar pesos capturados">
+              <button type="button" onClick={() => void downloadExport("pdf")} disabled={loading || exporting !== null}>
+                {exporting === "pdf" ? "Gerando…" : "Exportar relatório"}
+              </button>
+              <button className="weights-excel-button" type="button" onClick={() => void downloadExport("excel")} disabled={loading || exporting !== null}>
+                {exporting === "excel" ? "Gerando…" : "Exportar Excel"}
+              </button>
+            </div>
+          )}
+          <div className={`weights-access-badge${canEdit ? " weights-access-badge--edit" : ""}`}>
+            <i />
+            <span>{canEdit ? "Edição de supervisor" : "Somente consulta"}</span>
+          </div>
         </div>
       </div>
 
