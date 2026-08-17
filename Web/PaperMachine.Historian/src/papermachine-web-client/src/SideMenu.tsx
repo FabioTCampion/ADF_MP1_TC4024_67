@@ -1,4 +1,4 @@
-export type PageId = "dashboard" | "metrics" | "weights" | "breaks" | "status" | "graphs" | "alarms" | "commands" | "history" | "users" | "updates";
+export type PageId = "dashboard" | "metrics" | "conditions" | "weights" | "breaks" | "status" | "graphs" | "alarms" | "commands" | "history" | "users" | "updates";
 
 export type NavigationItem = {
   id: PageId;

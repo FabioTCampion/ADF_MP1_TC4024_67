@@ -1605,6 +1605,133 @@ public sealed class SqliteHistorianRepository : IHistorianRepository
         return rows;
     }
 
+    public async Task<IReadOnlyList<ComparableProductionQualityRow>> GetComparableProductionQualitiesAsync(
+        DateTimeOffset fromUtc,
+        DateTimeOffset toUtc,
+        CancellationToken cancellationToken)
+    {
+        if (fromUtc >= toUtc)
+            throw new ArgumentException("The comparable production start must be earlier than its end.");
+
+        await using var connection = await OpenAsync(cancellationToken);
+        await using var command = connection.CreateCommand();
+        command.CommandText = """
+            SELECT TRIM(ProductCode), ROUND(GrammageGsm, 3),
+                   MIN(StartedAtUtc), MAX(COALESCE(EndedAtUtc, @ToUtc)), COUNT(*)
+            FROM ProductionQualityPeriods
+            WHERE IsMixedQuality = 0
+              AND ProductCode IS NOT NULL
+              AND TRIM(ProductCode) <> ''
+              AND GrammageGsm IS NOT NULL
+              AND GrammageGsm > 0
+              AND StartedAtUtc < @ToUtc
+              AND (EndedAtUtc IS NULL OR EndedAtUtc > @FromUtc)
+            GROUP BY TRIM(ProductCode) COLLATE NOCASE, ROUND(GrammageGsm, 3)
+            ORDER BY TRIM(ProductCode) COLLATE NOCASE, ROUND(GrammageGsm, 3);
+            """;
+        command.Parameters.AddWithValue("@FromUtc", ToDatabaseTimestamp(fromUtc));
+        command.Parameters.AddWithValue("@ToUtc", ToDatabaseTimestamp(toUtc));
+
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        var rows = new List<ComparableProductionQualityRow>();
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            rows.Add(new ComparableProductionQualityRow(
+                reader.GetString(0),
+                reader.GetDouble(1),
+                ParseDatabaseTimestamp(reader.GetString(2)),
+                ParseDatabaseTimestamp(reader.GetString(3)),
+                reader.GetInt32(4)));
+        }
+        return rows;
+    }
+
+    public async Task<IReadOnlyList<BestConditionMinuteRow>> GetBestConditionMinuteSamplesAsync(
+        string productCode,
+        double grammageGsm,
+        DateTimeOffset fromUtc,
+        DateTimeOffset toUtc,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(productCode) || productCode.Length > 120)
+            throw new ArgumentException("A valid product code is required.", nameof(productCode));
+        if (!double.IsFinite(grammageGsm) || grammageGsm is <= 0 or > 10_000)
+            throw new ArgumentOutOfRangeException(nameof(grammageGsm));
+        if (fromUtc >= toUtc)
+            throw new ArgumentException("The best-condition start must be earlier than its end.");
+
+        var parameterFields = BestConditionsCatalog.TelemetryFields
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
+        var parameterColumns = string.Join(
+            ", ",
+            parameterFields.Select(field => $"t.{QuoteIdentifier(field)}"));
+        var speedField = QuoteIdentifier(TelemetryCatalog.MachineSpeedField);
+        var effectivePaperField = QuoteIdentifier(TelemetryCatalog.EffectivePaperPresenceField);
+        var legacyPaperField = QuoteIdentifier(TelemetryCatalog.PaperPresenceField);
+
+        await using var connection = await OpenAsync(cancellationToken);
+        await using var command = connection.CreateCommand();
+        command.CommandText = $"""
+            SELECT p.Id, p.RunId, r.ProductionOrderCode, TRIM(p.ProductCode),
+                   p.GrammageGsm, p.StartedAtUtc, p.EndedAtUtc,
+                   t.BucketUnixMs, t.SampleCount, t.{speedField},
+                   t.MachineSpeedMaximum,
+                   COALESCE(t.{effectivePaperField}, t.{legacyPaperField}),
+                   (SELECT COUNT(*) FROM PaperBreakEvents b
+                    WHERE b.StartedAtUnixMs < t.BucketUnixMs + 60000
+                      AND COALESCE(b.EndedAtUnixMs, @ToUnixMs) > t.BucketUnixMs),
+                   t.Quality, {parameterColumns}
+            FROM ProductionQualityPeriods p
+            INNER JOIN ExternalProductionRuns r ON r.Id = p.RunId
+            INNER JOIN TelemetryMinuteAggregates t
+                ON t.BucketUnixMs >= CAST(strftime('%s', p.StartedAtUtc) AS INTEGER) * 1000
+               AND t.BucketUnixMs < CAST(strftime('%s', COALESCE(p.EndedAtUtc, @ToUtc)) AS INTEGER) * 1000
+            WHERE p.IsMixedQuality = 0
+              AND TRIM(p.ProductCode) = TRIM(@ProductCode) COLLATE NOCASE
+              AND ABS(p.GrammageGsm - @GrammageGsm) < 0.001
+              AND t.BucketUnixMs >= @FromUnixMs
+              AND t.BucketUnixMs < @ToUnixMs
+            ORDER BY p.Id, t.BucketUnixMs;
+            """;
+        command.Parameters.AddWithValue("@ProductCode", productCode.Trim());
+        command.Parameters.AddWithValue("@GrammageGsm", grammageGsm);
+        command.Parameters.AddWithValue("@FromUnixMs", fromUtc.ToUnixTimeMilliseconds());
+        command.Parameters.AddWithValue("@ToUnixMs", toUtc.ToUnixTimeMilliseconds());
+        command.Parameters.AddWithValue("@ToUtc", ToDatabaseTimestamp(toUtc));
+
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        var rows = new List<BestConditionMinuteRow>();
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            var numericValues = new Dictionary<string, double?>(StringComparer.Ordinal);
+            for (var index = 0; index < parameterFields.Length; index++)
+            {
+                var ordinal = 14 + index;
+                numericValues[parameterFields[index]] = reader.IsDBNull(ordinal)
+                    ? null
+                    : reader.GetDouble(ordinal);
+            }
+            rows.Add(new BestConditionMinuteRow(
+                reader.GetInt64(0),
+                reader.GetInt64(1),
+                reader.IsDBNull(2) ? null : reader.GetString(2),
+                reader.GetString(3),
+                reader.GetDouble(4),
+                ParseDatabaseTimestamp(reader.GetString(5)),
+                reader.IsDBNull(6) ? null : ParseDatabaseTimestamp(reader.GetString(6)),
+                DateTimeOffset.FromUnixTimeMilliseconds(reader.GetInt64(7)),
+                reader.GetInt32(8),
+                reader.IsDBNull(9) ? null : reader.GetDouble(9),
+                reader.IsDBNull(10) ? null : reader.GetDouble(10),
+                reader.IsDBNull(11) ? null : reader.GetDouble(11),
+                reader.GetInt32(12),
+                numericValues,
+                reader.GetString(13)));
+        }
+        return rows;
+    }
+
     public async Task<IReadOnlyList<CommandEventRow>> GetCommandEventsAsync(
         DateTimeOffset? fromUtc,
         DateTimeOffset? toUtc,

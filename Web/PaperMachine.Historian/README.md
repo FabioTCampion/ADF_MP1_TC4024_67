@@ -77,6 +77,14 @@ O documento usa a velocidade, o sensor de papel do terceiro grupo e
 `PaperBreakEvents` como fonte das quebras, causas e análises. Períodos acima de
 12 horas consultam os agregados de um minuto.
 
+A página **Melhores condições** compara trechos produtivos contínuos do mesmo
+produto e gramatura. A largura não participa do agrupamento porque a máquina usa
+a largura total da caixa de entrada. O ranking pode priorizar equilíbrio,
+estabilidade ou velocidade e apresenta as faixas realmente observadas dos
+parâmetros durante cada trecho. A análise combina `ProductionQualityPeriods`,
+`TelemetryMinuteAggregates` e `PaperBreakEvents`; uma quebra registrada sempre
+interrompe o período, mesmo quando a média do minuto ainda indica papel presente.
+
 O histórico legado em JSON é convertido progressivamente em agregados por minuto
 antes de ser removido pela retenção. A limpeza ocorre em pequenos lotes e só é
 habilitada depois de existir pelo menos 24 horas de telemetria no formato novo.
@@ -253,6 +261,7 @@ fluxo completo de publicação da Release e instalação inicial do atualizador.
 - `GET /api/production/weights`;
 - `GET /api/production/weights/latest`;
 - `GET /api/production/weights/export-status`;
+- `GET /api/production/best-conditions`;
 - `GET /api/storage`;
 - `GET /api/updates/status`;
 - `POST /api/updates/check`;
@@ -260,6 +269,9 @@ fluxo completo de publicação da Release e instalação inicial do atualizador.
 - `POST /api/updates/install`.
 
 Os históricos aceitam `fromUtc`, `toUtc` e `limit`. Alarmes também aceitam `active=true|false`.
+O endpoint de melhores condições aceita `periodDays` entre 1 e 180. `productCode`
+e `grammageGsm` são opcionais em conjunto; quando omitidos, a produção atual é
+selecionada automaticamente, se houver contexto ERP válido.
 O endpoint de motores aceita `fromUtc`, `toUtc` e `maxPoints` entre 100 e 2.000,
 descobre os pares de velocidade/torque do status e limita a consulta a 31 dias.
 Na interface, os acionamentos são organizados por grupo funcional. Os motores

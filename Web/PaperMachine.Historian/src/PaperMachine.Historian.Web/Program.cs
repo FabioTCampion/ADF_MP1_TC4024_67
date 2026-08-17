@@ -230,6 +230,7 @@ app.MapProcessTrends();
 app.MapHistorianUpdates();
 app.MapReportEndpoints();
 app.MapProductionIntegration();
+app.MapBestConditions();
 app.MapJumboWeightCaptures();
 
 var api = app.MapGroup("/api").RequireAuthorization();

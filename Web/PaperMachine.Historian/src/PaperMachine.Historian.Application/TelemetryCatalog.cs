@@ -117,6 +117,7 @@ public static class TelemetryCatalog
         .SelectMany(motor => new[] { motor.SpeedField, motor.TorqueField })
         .Concat(SteamPressures.Select(item => item.Field))
         .Concat(StockPumpNumericFields)
+        .Concat(BestConditionsCatalog.TelemetryFields)
         .Distinct(StringComparer.Ordinal)
         .ToArray();
 

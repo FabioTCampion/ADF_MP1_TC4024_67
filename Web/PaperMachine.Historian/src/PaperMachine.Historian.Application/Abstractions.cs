@@ -99,6 +99,16 @@ public interface IHistorianRepository
         DateTimeOffset fromUtc,
         DateTimeOffset toUtc,
         CancellationToken cancellationToken);
+    Task<IReadOnlyList<ComparableProductionQualityRow>> GetComparableProductionQualitiesAsync(
+        DateTimeOffset fromUtc,
+        DateTimeOffset toUtc,
+        CancellationToken cancellationToken);
+    Task<IReadOnlyList<BestConditionMinuteRow>> GetBestConditionMinuteSamplesAsync(
+        string productCode,
+        double grammageGsm,
+        DateTimeOffset fromUtc,
+        DateTimeOffset toUtc,
+        CancellationToken cancellationToken);
     Task<IReadOnlyList<CommandEventRow>> GetCommandEventsAsync(
         DateTimeOffset? fromUtc,
         DateTimeOffset? toUtc,
@@ -247,6 +257,30 @@ public sealed record MachineProductivitySampleRow(
     DateTimeOffset CapturedAtUtc,
     double? SpeedMpm,
     bool? PaperPresent,
+    string Quality);
+
+public sealed record ComparableProductionQualityRow(
+    string ProductCode,
+    double GrammageGsm,
+    DateTimeOffset FirstObservedAtUtc,
+    DateTimeOffset LastObservedAtUtc,
+    int ProductionPeriodCount);
+
+public sealed record BestConditionMinuteRow(
+    long ProductionPeriodId,
+    long ProductionRunId,
+    string? ProductionOrderCode,
+    string ProductCode,
+    double GrammageGsm,
+    DateTimeOffset ProductionPeriodStartUtc,
+    DateTimeOffset? ProductionPeriodEndUtc,
+    DateTimeOffset CapturedAtUtc,
+    int SampleCount,
+    double? SpeedMpm,
+    double? MachineSpeedMaximumMpm,
+    double? PaperPresentProbability,
+    int PaperBreakCount,
+    IReadOnlyDictionary<string, double?> NumericValues,
     string Quality);
 
 public sealed record JumboWeightCaptureRow(

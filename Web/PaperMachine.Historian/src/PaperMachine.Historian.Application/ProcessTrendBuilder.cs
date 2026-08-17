@@ -27,6 +27,15 @@ public static class ProcessTrendBuilder
                         row.NumericValues.GetValueOrDefault(field)))
                     .Where(point => point.Value.HasValue)
                     .ToArray();
+                if (points.Count == 0)
+                {
+                    points = snapshots
+                        .Select(row => new ProcessTrendPoint(
+                            row.CapturedAtUtc,
+                            row.Values.GetValueOrDefault(field)))
+                        .Where(point => point.Value.HasValue)
+                        .ToArray();
+                }
             }
             else if (booleanTelemetryFields.Contains(field))
             {

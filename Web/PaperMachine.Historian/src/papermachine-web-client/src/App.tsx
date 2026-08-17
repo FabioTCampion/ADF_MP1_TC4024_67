@@ -18,6 +18,7 @@ import { ServerClockProvider } from "./ServerClock";
 
 const InteractiveChart = lazy(() => import("./InteractiveChart"));
 const MetricsScreen = lazy(() => import("./MetricsScreen"));
+const BestConditionsScreen = lazy(() => import("./BestConditionsScreen"));
 const WeightsScreen = lazy(() => import("./WeightsScreen"));
 const BreakAnalysisScreen = lazy(() => import("./BreakAnalysisScreen"));
 const GraphWorkspace = lazy(() => import("./GraphWorkspace"));
@@ -177,6 +178,7 @@ type MotorTrend = {
 const navigation: readonly NavigationItem[] = [
   { id: "dashboard", label: "Visão geral", icon: "dashboard" },
   { id: "metrics", label: "Métricas", icon: "metrics" },
+  { id: "conditions", label: "Melhores condições", icon: "metrics" },
   { id: "weights", label: "Pesos", icon: "weights" },
   { id: "breaks", label: "Análise de quebras", icon: "breaks" },
   { id: "status", label: "Status atual", icon: "status" },
@@ -574,6 +576,11 @@ export default function App() {
           {page === "metrics" && (
             <Suspense fallback={<EmptyState text="Preparando métricas…" />}>
               <MetricsScreen />
+            </Suspense>
+          )}
+          {page === "conditions" && (
+            <Suspense fallback={<EmptyState text="Preparando melhores condições…" />}>
+              <BestConditionsScreen />
             </Suspense>
           )}
           {page === "weights" && (

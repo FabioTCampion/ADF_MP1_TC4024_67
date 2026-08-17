@@ -64,7 +64,9 @@ public static partial class ProcessTrendEndpoints
             .Concat(TelemetryCatalog.BooleanFields)
             .ToHashSet(StringComparer.Ordinal);
         var requiresTelemetry = requestedFields.Any(telemetryFields.Contains);
-        var requiresSnapshots = requestedFields.Any(field => !telemetryFields.Contains(field));
+        var requiresSnapshots = requestedFields.Any(field =>
+            !telemetryFields.Contains(field) ||
+            BestConditionsCatalog.LegacySnapshotFallbackFields.Contains(field));
 
         var telemetryRows = requiresTelemetry
             ? await repository.GetTelemetryTrendSamplesAsync(
