@@ -89,7 +89,7 @@ if (-not $ValidateOnly) {
     }
 }
 
-$secureKey = Read-Host 'Chave somente leitura atual da API ERP' -AsSecureString
+$secureKey = Read-Host 'Chave atual da API PaperSystem (leitura e pesagens)' -AsSecureString
 $pointer = [IntPtr]::Zero
 $temporaryKeyPath = Join-Path `
     $connectorSecretsRoot `
@@ -155,6 +155,17 @@ try {
     $integration.Value.PollIntervalSeconds = 60
     $integration.Value.ApiKeyHeaderName = 'x-cpnteck-connector-token'
     $integration.Value.ApiKeyFilePath = $clientTokenPath
+
+    $weightExport = $configuration.PSObject.Properties['WeightExport']
+    if ($null -eq $weightExport -or $null -eq $weightExport.Value) {
+        throw 'A configuracao do Historian nao possui a secao WeightExport.'
+    }
+    $weightExport.Value.Enabled = $true
+    $weightExport.Value.MachineId = 'MP1'
+    $weightExport.Value.BaseUrl = 'http://127.0.0.1:5091'
+    $weightExport.Value.EndpointPath = '/v1/production/weights'
+    $weightExport.Value.ApiKeyHeaderName = 'x-cpnteck-connector-token'
+    $weightExport.Value.ApiKeyFilePath = $clientTokenPath
 
     $temporaryHistorianConfigPath = Join-Path `
         (Split-Path -Parent $historianConfigPath) `

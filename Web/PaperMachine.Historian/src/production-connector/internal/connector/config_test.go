@@ -50,6 +50,14 @@ func TestConfigRejectsUnexpectedUpstream(t *testing.T) {
 	}
 }
 
+func TestConfigRejectsUnexpectedWeightUpstream(t *testing.T) {
+	config := DefaultConfig()
+	config.WeightUpstreamURL = "https://example.com/pesagens"
+	if err := config.Validate(); err == nil {
+		t.Fatal("expected unsafe weight upstream to be rejected")
+	}
+}
+
 func TestLoadConfigAcceptsUtf8BomFromWindowsPowerShell(t *testing.T) {
 	config := DefaultConfig()
 	data, err := json.Marshal(config)

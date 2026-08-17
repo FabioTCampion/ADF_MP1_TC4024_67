@@ -63,12 +63,19 @@ var productionIntegrationOptions = builder.Configuration
 productionIntegrationOptions.ResolvePaths(Path.GetDirectoryName(databaseOptions.FilePath)!);
 productionIntegrationOptions.Validate();
 
+var weightExportOptions = builder.Configuration
+    .GetSection(WeightExportOptions.SectionName)
+    .Get<WeightExportOptions>() ?? new WeightExportOptions();
+weightExportOptions.ResolvePaths(Path.GetDirectoryName(databaseOptions.FilePath)!);
+weightExportOptions.Validate();
+
 builder.Services.AddSingleton(adsOptions);
 builder.Services.AddSingleton(historianOptions);
 builder.Services.AddSingleton(databaseOptions);
 builder.Services.AddSingleton(updateOptions);
 builder.Services.AddSingleton(reportingOptions);
 builder.Services.AddSingleton(productionIntegrationOptions);
+builder.Services.AddSingleton(weightExportOptions);
 builder.Services.AddSingleton<IPaperMachineReader, AdsPaperMachineReader>();
 builder.Services.AddSingleton<IHistorianRepository, SqliteHistorianRepository>();
 builder.Services.AddSingleton<
@@ -98,9 +105,19 @@ builder.Services.AddHttpClient<IProductionSourceClient, PaperSystemProductionSou
     AllowAutoRedirect = false,
     UseProxy = false
 });
+builder.Services.AddHttpClient<IWeightExportClient, PaperSystemWeightExportClient>(client =>
+{
+    client.Timeout = TimeSpan.FromSeconds(weightExportOptions.RequestTimeoutSeconds);
+})
+.ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
+{
+    AllowAutoRedirect = false,
+    UseProxy = false
+});
 builder.Services.AddHostedService<HistorianWorker>();
 builder.Services.AddHostedService<JumboWeightCaptureWorker>();
 builder.Services.AddHostedService<ProductionIntegrationWorker>();
+builder.Services.AddHostedService<WeightExportWorker>();
 builder.Services.AddHostedService<UpdateCheckWorker>();
 builder.Services.AddHealthChecks();
 var keyPath = Path.Combine(

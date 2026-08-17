@@ -56,6 +56,24 @@ public interface IHistorianRepository
         string deletedBy,
         DateTimeOffset deletedAtUtc,
         CancellationToken cancellationToken);
+    Task<WeightExportOutboxItem?> GetNextWeightExportAsync(
+        DateTimeOffset nowUtc,
+        CancellationToken cancellationToken);
+    Task MarkWeightExportDeliveredAsync(
+        long outboxId,
+        string? receiptId,
+        DateTimeOffset deliveredAtUtc,
+        CancellationToken cancellationToken);
+    Task RecordWeightExportFailureAsync(
+        long outboxId,
+        string sanitizedError,
+        DateTimeOffset attemptedAtUtc,
+        DateTimeOffset? retryAtUtc,
+        CancellationToken cancellationToken);
+    Task<WeightExportQueueStatus> GetWeightExportQueueStatusAsync(
+        bool enabled,
+        bool configured,
+        CancellationToken cancellationToken);
     Task PersistCycleAsync(HistorianCycle cycle, CancellationToken cancellationToken);
     Task AddCommandEventAsync(
         FieldChange change,

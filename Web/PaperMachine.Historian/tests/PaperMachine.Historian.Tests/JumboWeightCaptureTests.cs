@@ -2,6 +2,7 @@ using Microsoft.Data.Sqlite;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
+using System.Text.Json;
 using PaperMachine.Historian.Application;
 using PaperMachine.Historian.Domain;
 using PaperMachine.Historian.Infrastructure.Database;
@@ -11,6 +12,118 @@ namespace PaperMachine.Historian.Tests;
 
 public sealed class JumboWeightCaptureTests
 {
+    [Fact]
+    public async Task QueuesVersionedWeightEventsInTheSameDatabase()
+    {
+        var testDirectory = Path.Combine(
+            Path.GetTempPath(),
+            "PaperMachine.Historian.Tests",
+            Guid.NewGuid().ToString("N"));
+        var databasePath = Path.Combine(testDirectory, "historian.db");
+
+        try
+        {
+            var exportOptions = new WeightExportOptions
+            {
+                Enabled = true,
+                MachineId = "MP1"
+            };
+            var repository = new SqliteHistorianRepository(
+                new DatabaseOptions { FilePath = databasePath },
+                exportOptions);
+            await repository.InitializeAsync(CancellationToken.None);
+            var runId = await InsertProductionRunAsync(databasePath);
+            var capturedAt = new DateTimeOffset(2026, 8, 17, 14, 25, 30, TimeSpan.Zero);
+            var fileTime = capturedAt.UtcDateTime.ToFileTimeUtc();
+            var capture = new JumboWeightCapture(
+                1_524,
+                fileTime,
+                capturedAt,
+                capturedAt.AddSeconds(1),
+                320,
+                20,
+                "test-v3",
+                new JumboWeightProductionContext(
+                    runId,
+                    "PaperSystem",
+                    "12345",
+                    "98765",
+                    null,
+                    null,
+                    null,
+                    null,
+                    capturedAt.AddSeconds(-10)));
+
+            Assert.True(await repository.AddJumboWeightCaptureAsync(capture, CancellationToken.None));
+            var created = await repository.GetNextWeightExportAsync(
+                capturedAt.AddMinutes(1),
+                CancellationToken.None);
+            Assert.NotNull(created);
+            Assert.Equal($"MP1:{fileTime}:1524", created.EventId);
+            Assert.Equal("captured", created.EventType);
+            Assert.Equal(1, created.Revision);
+            using (var document = JsonDocument.Parse(created.PayloadJson))
+            {
+                Assert.Equal("12345", document.RootElement.GetProperty("productionMapId").GetString());
+                Assert.Equal("98765", document.RootElement.GetProperty("productionOrder").GetString());
+                Assert.Equal(320, document.RootElement.GetProperty("weightKg").GetDouble());
+                Assert.EndsWith("Z", document.RootElement.GetProperty("capturedAtUtc").GetString());
+            }
+
+            await repository.MarkWeightExportDeliveredAsync(
+                created.Id,
+                created.EventId,
+                capturedAt.AddMinutes(1),
+                CancellationToken.None);
+            var persisted = Assert.Single(await repository.GetJumboWeightCapturesAsync(
+                null,
+                null,
+                10,
+                CancellationToken.None));
+            var correctedAt = capturedAt.AddMinutes(2);
+            Assert.True(await repository.CorrectJumboWeightCaptureAsync(
+                persisted.Id,
+                321.5,
+                "Peso conferido",
+                "Supervisor",
+                correctedAt,
+                CancellationToken.None));
+            var corrected = await repository.GetNextWeightExportAsync(
+                correctedAt,
+                CancellationToken.None);
+            Assert.NotNull(corrected);
+            Assert.Equal("corrected", corrected.EventType);
+            Assert.Equal(2, corrected.Revision);
+
+            await repository.MarkWeightExportDeliveredAsync(
+                corrected.Id,
+                corrected.EventId,
+                correctedAt,
+                CancellationToken.None);
+            var deletedAt = capturedAt.AddMinutes(3);
+            Assert.True(await repository.DeleteJumboWeightCaptureAsync(
+                persisted.Id,
+                "Apontamento anulado",
+                "Supervisor",
+                deletedAt,
+                CancellationToken.None));
+            var voided = await repository.GetNextWeightExportAsync(
+                deletedAt,
+                CancellationToken.None);
+            Assert.NotNull(voided);
+            Assert.Equal("voided", voided.EventType);
+            Assert.Equal(3, voided.Revision);
+            using var voidedDocument = JsonDocument.Parse(voided.PayloadJson);
+            Assert.Equal(321.5, voidedDocument.RootElement.GetProperty("weightKg").GetDouble());
+        }
+        finally
+        {
+            SqliteConnection.ClearAllPools();
+            if (Directory.Exists(testDirectory))
+                Directory.Delete(testDirectory, recursive: true);
+        }
+    }
+
     [Fact]
     public async Task MapsWeightEndpointsIncludingDeleteRequestBody()
     {

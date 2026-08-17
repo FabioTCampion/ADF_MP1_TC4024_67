@@ -59,6 +59,9 @@ O arquivo, seu WAL e arquivos temporários estão ignorados pelo Git. O banco us
 - `JumboWeightCaptures`: cada pesagem aceita pelo CLP, identificada pelo contador
   e pelo FILETIME retidos, com peso, status, versão do mapeamento e uma cópia do
   contexto ERP vigente (OP, produto, gramatura e largura) quando ele está válido;
+- `WeightExportOutbox`: eventos idempotentes de captura, correção e anulação,
+  persistidos na mesma transação da pesagem e reenviados ao PaperSystem pelo
+  conector TLS 1.3 em loopback;
 - `SchemaMigrations`: versão aplicada ao banco.
 
 Datas são armazenadas em UTC. Alarmes encontrados ativos na primeira leitura ficam marcados como `ActiveAtStartup`, pois o horário real de ativação anterior ao início do serviço é desconhecido.
@@ -249,6 +252,7 @@ fluxo completo de publicação da Release e instalação inicial do atualizador.
 - `GET /api/reports/production-breaks`;
 - `GET /api/production/weights`;
 - `GET /api/production/weights/latest`;
+- `GET /api/production/weights/export-status`;
 - `GET /api/storage`;
 - `GET /api/updates/status`;
 - `POST /api/updates/check`;

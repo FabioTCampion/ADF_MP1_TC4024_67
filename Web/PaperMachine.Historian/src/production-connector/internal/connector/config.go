@@ -16,12 +16,14 @@ import (
 
 const (
 	defaultUpstreamURL  = "https://api.papersystem.com.br/apontamentos/cpnteck/jupia/mp"
+	defaultWeightURL    = "https://api.papersystem.com.br/apontamentos/cpnteck/jupia/mp/pesagens"
 	defaultUpstreamHost = "api.papersystem.com.br"
 )
 
 type Config struct {
 	ListenAddress         string `json:"listenAddress"`
 	UpstreamURL           string `json:"upstreamUrl"`
+	WeightUpstreamURL     string `json:"weightUpstreamUrl"`
 	AllowedUpstreamHost   string `json:"allowedUpstreamHost"`
 	APIKeyHeaderName      string `json:"apiKeyHeaderName"`
 	APIKeyFilePath        string `json:"apiKeyFilePath"`
@@ -30,6 +32,7 @@ type Config struct {
 	RequestTimeoutSeconds int    `json:"requestTimeoutSeconds"`
 	CacheTTLSeconds       int    `json:"cacheTtlSeconds"`
 	MaximumResponseBytes  int64  `json:"maximumResponseBytes"`
+	MaximumRequestBytes   int64  `json:"maximumRequestBytes"`
 }
 
 func DefaultConfigPath() string {
@@ -57,6 +60,7 @@ func DefaultConfig() Config {
 	return Config{
 		ListenAddress:         "127.0.0.1:5091",
 		UpstreamURL:           defaultUpstreamURL,
+		WeightUpstreamURL:     defaultWeightURL,
 		AllowedUpstreamHost:   defaultUpstreamHost,
 		APIKeyHeaderName:      "x-api-key",
 		APIKeyFilePath:        filepath.Join(dataRoot, "secrets", "erp-api-key.txt"),
@@ -65,6 +69,7 @@ func DefaultConfig() Config {
 		RequestTimeoutSeconds: 10,
 		CacheTTLSeconds:       55,
 		MaximumResponseBytes:  1_048_576,
+		MaximumRequestBytes:   65_536,
 	}
 }
 
@@ -96,15 +101,11 @@ func (c Config) Validate() error {
 	if ip == nil || !ip.IsLoopback() {
 		return errors.New("listenAddress must use a loopback IP")
 	}
-	upstream, err := url.Parse(c.UpstreamURL)
-	if err != nil || upstream.Scheme != "https" || upstream.Host == "" || upstream.User != nil {
-		return errors.New("upstreamUrl must be an absolute HTTPS URL without credentials")
+	if err := validateUpstreamURL("upstreamUrl", c.UpstreamURL, c.AllowedUpstreamHost); err != nil {
+		return err
 	}
-	if !strings.EqualFold(upstream.Hostname(), c.AllowedUpstreamHost) {
-		return errors.New("upstreamUrl host does not match allowedUpstreamHost")
-	}
-	if upstream.Fragment != "" {
-		return errors.New("upstreamUrl must not contain a fragment")
+	if err := validateUpstreamURL("weightUpstreamUrl", c.WeightUpstreamURL, c.AllowedUpstreamHost); err != nil {
+		return err
 	}
 	if !validHeaderName(c.APIKeyHeaderName) || !validHeaderName(c.ClientTokenHeaderName) {
 		return errors.New("configured HTTP header name is invalid")
@@ -120,6 +121,23 @@ func (c Config) Validate() error {
 	}
 	if c.MaximumResponseBytes < 1_024 || c.MaximumResponseBytes > 10_485_760 {
 		return errors.New("maximumResponseBytes must be between 1024 and 10485760")
+	}
+	if c.MaximumRequestBytes < 1_024 || c.MaximumRequestBytes > 1_048_576 {
+		return errors.New("maximumRequestBytes must be between 1024 and 1048576")
+	}
+	return nil
+}
+
+func validateUpstreamURL(name string, value string, allowedHost string) error {
+	upstream, err := url.Parse(value)
+	if err != nil || upstream.Scheme != "https" || upstream.Host == "" || upstream.User != nil {
+		return fmt.Errorf("%s must be an absolute HTTPS URL without credentials", name)
+	}
+	if !strings.EqualFold(upstream.Hostname(), allowedHost) {
+		return fmt.Errorf("%s host does not match allowedUpstreamHost", name)
+	}
+	if upstream.Fragment != "" {
+		return fmt.Errorf("%s must not contain a fragment", name)
 	}
 	return nil
 }

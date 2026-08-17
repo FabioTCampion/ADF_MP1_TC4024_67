@@ -3,11 +3,17 @@
 ## Objetivo e limites
 
 O Historian consulta o PaperSystem a cada 60 segundos, independentemente do
-coletor ADS. A integração é somente leitura: não altera ERP nem PLC. Nesta
-entrega, o painel mostra OP, mapa, qualidade, clientes, pedidos e jumbos. O
+coletor ADS. A leitura do mapa não altera PaperSystem nem PLC. Nesta entrega, o
+painel mostra OP, mapa, qualidade, clientes, pedidos e jumbos. O
 histórico dedicado e a correlação estatística entre qualidade, processo e
 períodos sem quebra continuam previstos pelo schema, mas ficam para a próxima
 entrega.
+
+O mesmo conector também envia as pesagens aceitas para o endpoint
+`POST /apontamentos/cpnteck/jupia/mp/pesagens`. O Historian continua sem acesso
+direto à internet: ele grava uma outbox transacional no SQLite e faz `POST`
+somente para `127.0.0.1:5091/v1/production/weights`. O conector reutiliza a
+mesma `x-api-key` do PaperSystem usada na leitura do mapa de produção.
 
 ## Arquitetura TLS multiplataforma
 
@@ -34,6 +40,34 @@ remoto. O conector:
 - exige um token local próprio, diferente da chave ERP;
 - nunca registra chave, token ou corpo completo da resposta;
 - mantém cache de 55 segundos para evitar consultas externas duplicadas.
+
+Para pesagens, o conector valida o contrato JSON, exige que
+`Idempotency-Key` seja igual ao `eventId`, limita a requisição a 64 KiB e
+encaminha somente ao host fixado. Captura, correção e anulação usam o mesmo
+`eventId` e revisões crescentes. Falhas temporárias permanecem na outbox com
+espera progressiva; rejeições permanentes ficam suspensas e visíveis no status.
+
+## Contrato de pesagens
+
+```json
+{
+  "eventId": "MP1:133998234000000000:1524",
+  "eventType": "captured",
+  "revision": 1,
+  "machineId": "MP1",
+  "capturedAtUtc": "2026-08-17T14:25:30Z",
+  "weightKg": 320,
+  "productionMapId": "12345",
+  "productionOrder": "98765",
+  "captureStatus": 20
+}
+```
+
+Somente capturas com status aceito, peso dentro do intervalo configurado e mapa
+de produção associado entram na fila. Eventos antigos não são enviados
+retroativamente ao habilitar a integração. O status operacional fica disponível
+em `GET /api/production/weights/export-status`, protegido pela autenticação do
+Historian.
 
 O código não usa CGO nem DLL nativa. O mesmo fonte gera binários para Windows
 x64, Linux x64 e Linux ARM64. Consulte [MULTIPLATFORM.md](MULTIPLATFORM.md) para
@@ -84,12 +118,13 @@ powershell.exe -ExecutionPolicy Bypass -File `
 
 O script valida a chave antes da troca. Somente após sucesso ele faz a
 substituição atômica, habilita `ProductionIntegration` com o endpoint local e
-reinicia conector e Historian. Se TLS, autenticação ou JSON falharem, a chave
+habilita `WeightExport` usando a mesma chave, depois reinicia conector e
+Historian. Se TLS, autenticação ou JSON falharem, a chave
 anterior é preservada.
 
 Uma chave exposta em captura, terminal compartilhado ou canal externo deve ser
-revogada no ERP. O fato de ser somente leitura reduz impacto, mas não elimina o
-risco de acesso a dados de produção.
+revogada no ERP. Como a mesma chave também autoriza o envio das pesagens, sua
+proteção e rotação são obrigatórias.
 
 ## Isolamento operacional
 

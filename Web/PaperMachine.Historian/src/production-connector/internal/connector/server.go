@@ -8,7 +8,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
+	"mime"
 	"net"
 	"net/http"
 	"strings"
@@ -39,6 +41,7 @@ func (g *Gateway) Run(ctx context.Context) error {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/health", g.handleHealth)
 	mux.HandleFunc("/v1/production/current", g.handleCurrentProduction)
+	mux.HandleFunc("/v1/production/weights", g.handleWeight)
 	server := &http.Server{
 		Addr:              g.config.ListenAddress,
 		Handler:           g.securityHeaders(mux),
@@ -73,6 +76,88 @@ func (g *Gateway) Run(ctx context.Context) error {
 		return nil
 	case err := <-serveErrors:
 		return err
+	}
+}
+
+func (g *Gateway) handleWeight(response http.ResponseWriter, request *http.Request) {
+	correlationID := correlationID(request)
+	if request.Method != http.MethodPost {
+		response.Header().Set("Allow", http.MethodPost)
+		writeError(response, http.StatusMethodNotAllowed, "method_not_allowed")
+		return
+	}
+	if !g.authorized(request) {
+		g.logger.Warn("local weight request rejected", "correlationId", correlationID)
+		writeError(response, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+	mediaType, _, err := mime.ParseMediaType(request.Header.Get("Content-Type"))
+	if err != nil || mediaType != "application/json" {
+		writeError(response, http.StatusUnsupportedMediaType, "json_required")
+		return
+	}
+
+	request.Body = http.MaxBytesReader(response, request.Body, g.config.MaximumRequestBytes)
+	body, err := io.ReadAll(request.Body)
+	if err != nil {
+		writeError(response, http.StatusRequestEntityTooLarge, "request_too_large")
+		return
+	}
+	payload, err := validateWeightPayload(body)
+	if err != nil {
+		g.logger.Warn("local weight payload rejected", "correlationId", correlationID, "error", safeError(err))
+		writeError(response, http.StatusBadRequest, "invalid_weight_payload")
+		return
+	}
+	idempotencyKey := strings.TrimSpace(request.Header.Get("Idempotency-Key"))
+	if idempotencyKey == "" || idempotencyKey != payload.EventID {
+		writeError(response, http.StatusBadRequest, "invalid_idempotency_key")
+		return
+	}
+
+	upstreamBody, receipt, err := g.upstream.SendWeightUsingKeyFile(
+		request.Context(),
+		g.config.APIKeyFilePath,
+		idempotencyKey,
+		body)
+	if err != nil {
+		status := weightGatewayErrorStatus(err)
+		g.logger.Warn(
+			"PaperSystem weight request failed",
+			"correlationId", correlationID,
+			"eventId", payload.EventID,
+			"error", safeError(err))
+		writeError(response, status, "weight_upstream_rejected")
+		return
+	}
+
+	response.Header().Set("Content-Type", "application/json; charset=utf-8")
+	response.Header().Set("X-Correlation-ID", correlationID)
+	response.WriteHeader(http.StatusOK)
+	_, _ = response.Write(upstreamBody)
+	g.logger.Info(
+		"weight event delivered to PaperSystem",
+		"correlationId", correlationID,
+		"eventId", receipt.EventID,
+		"eventType", payload.EventType,
+		"revision", payload.Revision)
+}
+
+func weightGatewayErrorStatus(err error) int {
+	var upstreamError *UpstreamHTTPError
+	if !errors.As(err, &upstreamError) {
+		return http.StatusBadGateway
+	}
+	switch upstreamError.StatusCode {
+	case http.StatusBadRequest,
+		http.StatusNotFound,
+		http.StatusConflict,
+		http.StatusUnprocessableEntity:
+		return upstreamError.StatusCode
+	case http.StatusTooManyRequests:
+		return http.StatusServiceUnavailable
+	default:
+		return http.StatusBadGateway
 	}
 }
 

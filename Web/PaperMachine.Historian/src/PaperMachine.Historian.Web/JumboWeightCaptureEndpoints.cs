@@ -57,6 +57,17 @@ internal static class JumboWeightCaptureEndpoints
                     : Results.Ok(captures[0]);
             });
 
+        group.MapGet(
+            "/export-status",
+            async (
+                [FromServices] WeightExportOptions options,
+                IHistorianRepository repository,
+                CancellationToken cancellationToken) =>
+                Results.Ok(await repository.GetWeightExportQueueStatusAsync(
+                    options.Enabled,
+                    File.Exists(options.ApiKeyFilePath),
+                    cancellationToken)));
+
         group.MapPut(
             "/{id:long}",
             async (

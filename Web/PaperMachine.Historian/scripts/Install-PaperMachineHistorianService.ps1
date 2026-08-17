@@ -601,6 +601,34 @@ $productionProperty.Value.EndpointPath = '/v1/production/current'
 $productionProperty.Value.ApiKeyHeaderName = 'x-cpnteck-connector-token'
 $productionProperty.Value.ApiKeyFilePath = $connectorClientTokenPath
 
+$weightExportProperty = $configuration.PSObject.Properties['WeightExport']
+$packageWeightExportProperty = $packageConfiguration.PSObject.Properties['WeightExport']
+if ($null -eq $packageWeightExportProperty -or $null -eq $packageWeightExportProperty.Value) {
+    throw "A configuracao do pacote nao possui a secao obrigatoria 'WeightExport'."
+}
+if ($null -eq $weightExportProperty -or $null -eq $weightExportProperty.Value) {
+    $configuration |
+        Add-Member `
+            -NotePropertyName WeightExport `
+            -NotePropertyValue $packageWeightExportProperty.Value `
+            -Force
+    $weightExportProperty = $configuration.PSObject.Properties['WeightExport']
+    # Em upgrades, ativa o envio quando a integracao PaperSystem ja estava ativa.
+    $weightExportProperty.Value.Enabled = [bool]$productionProperty.Value.Enabled
+}
+else {
+    foreach ($property in $packageWeightExportProperty.Value.PSObject.Properties) {
+        if ($null -eq $weightExportProperty.Value.PSObject.Properties[$property.Name]) {
+            $weightExportProperty.Value |
+                Add-Member -NotePropertyName $property.Name -NotePropertyValue $property.Value
+        }
+    }
+}
+$weightExportProperty.Value.BaseUrl = "http://127.0.0.1:$connectorPort"
+$weightExportProperty.Value.EndpointPath = '/v1/production/weights'
+$weightExportProperty.Value.ApiKeyHeaderName = 'x-cpnteck-connector-token'
+$weightExportProperty.Value.ApiKeyFilePath = $connectorClientTokenPath
+
 if ([string]::IsNullOrWhiteSpace([string]$configuration.Ads.AmsNetId)) {
     throw 'AMS Net ID vazio. Informe -AmsNetId ou PAPERHISTORIAN_AMS_NET_ID.'
 }

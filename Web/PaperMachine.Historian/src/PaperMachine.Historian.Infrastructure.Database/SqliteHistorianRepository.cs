@@ -1,4 +1,6 @@
 using System.Globalization;
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 using Microsoft.Data.Sqlite;
 using PaperMachine.Historian.Application;
@@ -8,12 +10,15 @@ namespace PaperMachine.Historian.Infrastructure.Database;
 
 public sealed class SqliteHistorianRepository : IHistorianRepository
 {
-    private const int SchemaVersion = 15;
+    private const int SchemaVersion = 16;
     private readonly string _databasePath;
     private readonly string _connectionString;
+    private readonly WeightExportOptions _weightExportOptions;
     private readonly SemaphoreSlim _writeGate = new(1, 1);
 
-    public SqliteHistorianRepository(DatabaseOptions options)
+    public SqliteHistorianRepository(
+        DatabaseOptions options,
+        WeightExportOptions? weightExportOptions = null)
     {
         options.Validate();
         SQLitePCL.Batteries_V2.Init();
@@ -25,6 +30,7 @@ public sealed class SqliteHistorianRepository : IHistorianRepository
             Cache = SqliteCacheMode.Shared,
             ForeignKeys = true
         }.ToString();
+        _weightExportOptions = weightExportOptions ?? new WeightExportOptions();
     }
 
     public async Task InitializeAsync(CancellationToken cancellationToken)
@@ -182,6 +188,8 @@ public sealed class SqliteHistorianRepository : IHistorianRepository
             VALUES (14, @AppliedAtUtc);
             INSERT OR IGNORE INTO SchemaMigrations (Version, AppliedAtUtc)
             VALUES (15, @AppliedAtUtc);
+            INSERT OR IGNORE INTO SchemaMigrations (Version, AppliedAtUtc)
+            VALUES (16, @AppliedAtUtc);
             """,
             cancellationToken,
             ("@AppliedAtUtc", ToDatabaseTimestamp(DateTimeOffset.UtcNow)));
@@ -408,6 +416,32 @@ public sealed class SqliteHistorianRepository : IHistorianRepository
             );
             CREATE INDEX IF NOT EXISTS IX_JumboWeightCorrections_Capture_Corrected
                 ON JumboWeightCorrections (JumboWeightCaptureId, CorrectedAtUtc DESC);
+
+            CREATE TABLE IF NOT EXISTS WeightExportOutbox (
+                Id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+                JumboWeightCaptureId INTEGER NOT NULL,
+                EventId TEXT NOT NULL,
+                EventType TEXT NOT NULL,
+                Revision INTEGER NOT NULL,
+                PayloadJson TEXT NOT NULL,
+                PayloadHash TEXT NOT NULL,
+                CreatedAtUtc TEXT NOT NULL,
+                Attempts INTEGER NOT NULL DEFAULT 0,
+                NextAttemptAtUtc TEXT NOT NULL,
+                LastAttemptAtUtc TEXT NULL,
+                DeliveredAtUtc TEXT NULL,
+                ReceiptId TEXT NULL,
+                LastError TEXT NULL,
+                SuspendedAtUtc TEXT NULL,
+                FOREIGN KEY (JumboWeightCaptureId) REFERENCES JumboWeightCaptures (Id)
+                    ON DELETE CASCADE,
+                UNIQUE (EventId, Revision)
+            );
+            CREATE INDEX IF NOT EXISTS IX_WeightExportOutbox_Pending
+                ON WeightExportOutbox (NextAttemptAtUtc, Id)
+                WHERE DeliveredAtUtc IS NULL AND SuspendedAtUtc IS NULL;
+            CREATE INDEX IF NOT EXISTS IX_WeightExportOutbox_Capture
+                ON WeightExportOutbox (JumboWeightCaptureId, Revision);
             """,
             cancellationToken);
     }
@@ -426,7 +460,10 @@ public sealed class SqliteHistorianRepository : IHistorianRepository
         try
         {
             await using var connection = await OpenAsync(cancellationToken);
+            await using var transaction =
+                (SqliteTransaction)await connection.BeginTransactionAsync(cancellationToken);
             await using var command = connection.CreateCommand();
+            command.Transaction = transaction;
             command.CommandText = """
                 INSERT OR IGNORE INTO JumboWeightCaptures (
                     PlcEventCounter, CapturedAtFileTime, CapturedAtUtc, ObservedAtUtc,
@@ -440,7 +477,7 @@ public sealed class SqliteHistorianRepository : IHistorianRepository
                     @ProductionSourceSystem, @ProductionExternalRunId, @ProductionOrderCode,
                     @QualityKey, @ProductCode, @GrammageGsm, @ProductionWidthMm,
                     @ProductionLastSynchronizedAtUtc);
-                """;
+            """;
             var production = capture.Production;
             command.Parameters.AddWithValue("@PlcEventCounter", capture.PlcEventCounter);
             command.Parameters.AddWithValue("@CapturedAtFileTime", capture.CapturedAtFileTime);
@@ -480,7 +517,34 @@ public sealed class SqliteHistorianRepository : IHistorianRepository
                 production is null
                     ? DBNull.Value
                     : ToDatabaseTimestamp(production.LastSynchronizedAtUtc));
-            return await command.ExecuteNonQueryAsync(cancellationToken) == 1;
+            if (await command.ExecuteNonQueryAsync(cancellationToken) != 1)
+            {
+                await transaction.RollbackAsync(cancellationToken);
+                return false;
+            }
+
+            var captureId = await ScalarAsync<long>(
+                connection,
+                transaction,
+                "SELECT last_insert_rowid();",
+                cancellationToken);
+            await TryEnqueueWeightExportAsync(
+                connection,
+                transaction,
+                new WeightExportCaptureSnapshot(
+                    captureId,
+                    capture.PlcEventCounter,
+                    capture.CapturedAtFileTime,
+                    capture.CapturedAtUtc,
+                    capture.WeightKg,
+                    capture.CaptureStatus,
+                    production?.ExternalRunId,
+                    production?.ProductionOrderCode),
+                "captured",
+                capture.ObservedAtUtc,
+                cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+            return true;
         }
         finally
         {
@@ -570,16 +634,12 @@ public sealed class SqliteHistorianRepository : IHistorianRepository
             await using var connection = await OpenAsync(cancellationToken);
             await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
 
-            await using var currentCommand = connection.CreateCommand();
-            currentCommand.Transaction = (SqliteTransaction)transaction;
-            currentCommand.CommandText = """
-                SELECT COALESCE(CorrectedWeightKg, WeightKg)
-                FROM JumboWeightCaptures
-                WHERE Id = @Id AND DeletedAtUtc IS NULL;
-                """;
-            currentCommand.Parameters.AddWithValue("@Id", id);
-            var currentValue = await currentCommand.ExecuteScalarAsync(cancellationToken);
-            if (currentValue is null or DBNull)
+            var currentCapture = await ReadWeightExportCaptureAsync(
+                connection,
+                (SqliteTransaction)transaction,
+                id,
+                cancellationToken);
+            if (currentCapture is null)
             {
                 await transaction.RollbackAsync(cancellationToken);
                 return false;
@@ -596,7 +656,7 @@ public sealed class SqliteHistorianRepository : IHistorianRepository
                     @Reason, @CorrectedBy, @CorrectedAtUtc);
                 """;
             auditCommand.Parameters.AddWithValue("@Id", id);
-            auditCommand.Parameters.AddWithValue("@PreviousWeightKg", Convert.ToDouble(currentValue));
+            auditCommand.Parameters.AddWithValue("@PreviousWeightKg", currentCapture.WeightKg);
             auditCommand.Parameters.AddWithValue("@CorrectedWeightKg", correctedWeightKg);
             auditCommand.Parameters.AddWithValue("@Reason", reason.Trim());
             auditCommand.Parameters.AddWithValue("@CorrectedBy", correctedBy.Trim());
@@ -619,6 +679,14 @@ public sealed class SqliteHistorianRepository : IHistorianRepository
             updateCommand.Parameters.AddWithValue("@CorrectedBy", correctedBy.Trim());
             updateCommand.Parameters.AddWithValue("@CorrectedAtUtc", ToDatabaseTimestamp(correctedAtUtc));
             await updateCommand.ExecuteNonQueryAsync(cancellationToken);
+
+            await TryEnqueueWeightExportAsync(
+                connection,
+                (SqliteTransaction)transaction,
+                currentCapture with { WeightKg = correctedWeightKg },
+                "corrected",
+                correctedAtUtc,
+                cancellationToken);
 
             await transaction.CommitAsync(cancellationToken);
             return true;
@@ -645,7 +713,21 @@ public sealed class SqliteHistorianRepository : IHistorianRepository
         try
         {
             await using var connection = await OpenAsync(cancellationToken);
+            await using var transaction =
+                (SqliteTransaction)await connection.BeginTransactionAsync(cancellationToken);
+            var currentCapture = await ReadWeightExportCaptureAsync(
+                connection,
+                transaction,
+                id,
+                cancellationToken);
+            if (currentCapture is null)
+            {
+                await transaction.RollbackAsync(cancellationToken);
+                return false;
+            }
+
             await using var command = connection.CreateCommand();
+            command.Transaction = transaction;
             command.CommandText = """
                 UPDATE JumboWeightCaptures
                 SET DeletedAtUtc = @DeletedAtUtc,
@@ -657,13 +739,295 @@ public sealed class SqliteHistorianRepository : IHistorianRepository
             command.Parameters.AddWithValue("@DeletedAtUtc", ToDatabaseTimestamp(deletedAtUtc));
             command.Parameters.AddWithValue("@DeletedBy", deletedBy.Trim());
             command.Parameters.AddWithValue("@DeletionReason", reason.Trim());
-            return await command.ExecuteNonQueryAsync(cancellationToken) == 1;
+            if (await command.ExecuteNonQueryAsync(cancellationToken) != 1)
+            {
+                await transaction.RollbackAsync(cancellationToken);
+                return false;
+            }
+
+            await TryEnqueueWeightExportAsync(
+                connection,
+                transaction,
+                currentCapture,
+                "voided",
+                deletedAtUtc,
+                cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+            return true;
         }
         finally
         {
             _writeGate.Release();
         }
     }
+
+    public async Task<WeightExportOutboxItem?> GetNextWeightExportAsync(
+        DateTimeOffset nowUtc,
+        CancellationToken cancellationToken)
+    {
+        await using var connection = await OpenAsync(cancellationToken);
+        await using var command = connection.CreateCommand();
+        command.CommandText = """
+            SELECT Id, JumboWeightCaptureId, EventId, EventType, Revision,
+                   PayloadJson, Attempts, NextAttemptAtUtc
+            FROM WeightExportOutbox
+            WHERE DeliveredAtUtc IS NULL
+              AND SuspendedAtUtc IS NULL
+              AND NextAttemptAtUtc <= @NowUtc
+            ORDER BY NextAttemptAtUtc, Id
+            LIMIT 1;
+            """;
+        command.Parameters.AddWithValue("@NowUtc", ToDatabaseTimestamp(nowUtc));
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        if (!await reader.ReadAsync(cancellationToken))
+            return null;
+        return new WeightExportOutboxItem(
+            reader.GetInt64(0),
+            reader.GetInt64(1),
+            reader.GetString(2),
+            reader.GetString(3),
+            reader.GetInt32(4),
+            reader.GetString(5),
+            reader.GetInt32(6),
+            ParseDatabaseTimestamp(reader.GetString(7)));
+    }
+
+    public async Task MarkWeightExportDeliveredAsync(
+        long outboxId,
+        string? receiptId,
+        DateTimeOffset deliveredAtUtc,
+        CancellationToken cancellationToken)
+    {
+        if (outboxId <= 0)
+            throw new ArgumentOutOfRangeException(nameof(outboxId));
+
+        await _writeGate.WaitAsync(cancellationToken);
+        try
+        {
+            await using var connection = await OpenAsync(cancellationToken);
+            await ExecuteAsync(
+                connection,
+                null,
+                """
+                UPDATE WeightExportOutbox
+                SET DeliveredAtUtc = @DeliveredAtUtc,
+                    ReceiptId = @ReceiptId,
+                    LastAttemptAtUtc = @DeliveredAtUtc,
+                    LastError = NULL
+                WHERE Id = @Id
+                  AND DeliveredAtUtc IS NULL
+                  AND SuspendedAtUtc IS NULL;
+                """,
+                cancellationToken,
+                ("@Id", outboxId),
+                ("@DeliveredAtUtc", ToDatabaseTimestamp(deliveredAtUtc)),
+                ("@ReceiptId", string.IsNullOrWhiteSpace(receiptId) ? null : receiptId.Trim()));
+        }
+        finally
+        {
+            _writeGate.Release();
+        }
+    }
+
+    public async Task RecordWeightExportFailureAsync(
+        long outboxId,
+        string sanitizedError,
+        DateTimeOffset attemptedAtUtc,
+        DateTimeOffset? retryAtUtc,
+        CancellationToken cancellationToken)
+    {
+        if (outboxId <= 0)
+            throw new ArgumentOutOfRangeException(nameof(outboxId));
+        ArgumentException.ThrowIfNullOrWhiteSpace(sanitizedError);
+
+        await _writeGate.WaitAsync(cancellationToken);
+        try
+        {
+            await using var connection = await OpenAsync(cancellationToken);
+            await ExecuteAsync(
+                connection,
+                null,
+                """
+                UPDATE WeightExportOutbox
+                SET Attempts = Attempts + 1,
+                    LastAttemptAtUtc = @AttemptedAtUtc,
+                    NextAttemptAtUtc = COALESCE(@RetryAtUtc, NextAttemptAtUtc),
+                    LastError = @LastError,
+                    SuspendedAtUtc = CASE
+                        WHEN @RetryAtUtc IS NULL THEN @AttemptedAtUtc
+                        ELSE NULL
+                    END
+                WHERE Id = @Id AND DeliveredAtUtc IS NULL;
+                """,
+                cancellationToken,
+                ("@Id", outboxId),
+                ("@AttemptedAtUtc", ToDatabaseTimestamp(attemptedAtUtc)),
+                ("@RetryAtUtc", retryAtUtc.HasValue
+                    ? ToDatabaseTimestamp(retryAtUtc.Value)
+                    : null),
+                ("@LastError", sanitizedError));
+        }
+        finally
+        {
+            _writeGate.Release();
+        }
+    }
+
+    public async Task<WeightExportQueueStatus> GetWeightExportQueueStatusAsync(
+        bool enabled,
+        bool configured,
+        CancellationToken cancellationToken)
+    {
+        await using var connection = await OpenAsync(cancellationToken);
+        await using var command = connection.CreateCommand();
+        command.CommandText = """
+            SELECT
+                SUM(CASE WHEN DeliveredAtUtc IS NULL AND SuspendedAtUtc IS NULL THEN 1 ELSE 0 END),
+                SUM(CASE WHEN SuspendedAtUtc IS NOT NULL THEN 1 ELSE 0 END),
+                MIN(CASE WHEN DeliveredAtUtc IS NULL AND SuspendedAtUtc IS NULL THEN CreatedAtUtc END),
+                MAX(DeliveredAtUtc)
+            FROM WeightExportOutbox;
+            """;
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        await reader.ReadAsync(cancellationToken);
+        var pending = reader.IsDBNull(0) ? 0 : reader.GetInt64(0);
+        var suspended = reader.IsDBNull(1) ? 0 : reader.GetInt64(1);
+        DateTimeOffset? oldestPending = reader.IsDBNull(2)
+            ? null
+            : ParseDatabaseTimestamp(reader.GetString(2));
+        DateTimeOffset? lastDelivered = reader.IsDBNull(3)
+            ? null
+            : ParseDatabaseTimestamp(reader.GetString(3));
+        await reader.DisposeAsync();
+
+        await using var errorCommand = connection.CreateCommand();
+        errorCommand.CommandText = """
+            SELECT LastError
+            FROM WeightExportOutbox
+            WHERE LastError IS NOT NULL
+            ORDER BY LastAttemptAtUtc DESC, Id DESC
+            LIMIT 1;
+            """;
+        var lastError = await errorCommand.ExecuteScalarAsync(cancellationToken) as string;
+        return new WeightExportQueueStatus(
+            enabled,
+            configured,
+            pending,
+            suspended,
+            oldestPending,
+            lastDelivered,
+            lastError);
+    }
+
+    private async Task TryEnqueueWeightExportAsync(
+        SqliteConnection connection,
+        SqliteTransaction transaction,
+        WeightExportCaptureSnapshot capture,
+        string eventType,
+        DateTimeOffset createdAtUtc,
+        CancellationToken cancellationToken)
+    {
+        if (!_weightExportOptions.Enabled ||
+            capture.CaptureStatus != _weightExportOptions.AcceptedCaptureStatus ||
+            !double.IsFinite(capture.WeightKg) ||
+            capture.WeightKg < _weightExportOptions.MinimumWeightKg ||
+            capture.WeightKg > _weightExportOptions.MaximumWeightKg ||
+            string.IsNullOrWhiteSpace(capture.ProductionMapId))
+        {
+            return;
+        }
+
+        var eventId = $"{_weightExportOptions.MachineId}:{capture.CapturedAtFileTime}:{capture.PlcEventCounter}";
+        await using var revisionCommand = connection.CreateCommand();
+        revisionCommand.Transaction = transaction;
+        revisionCommand.CommandText = """
+            SELECT COALESCE(MAX(Revision), 0)
+            FROM WeightExportOutbox
+            WHERE EventId = @EventId;
+            """;
+        revisionCommand.Parameters.AddWithValue("@EventId", eventId);
+        var currentRevision = Convert.ToInt32(
+            await revisionCommand.ExecuteScalarAsync(cancellationToken),
+            CultureInfo.InvariantCulture);
+        if (!string.Equals(eventType, "captured", StringComparison.Ordinal) && currentRevision == 0)
+            return;
+        var revision = checked(currentRevision + 1);
+
+        var payload = new PaperSystemWeightPayload(
+            eventId,
+            eventType,
+            revision,
+            _weightExportOptions.MachineId,
+            capture.CapturedAtUtc.ToUniversalTime()
+                .ToString("yyyy-MM-dd'T'HH:mm:ss.fffffff'Z'", CultureInfo.InvariantCulture),
+            capture.WeightKg,
+            capture.ProductionMapId,
+            capture.ProductionOrder,
+            capture.CaptureStatus);
+        var payloadJson = JsonSerializer.Serialize(payload);
+        var payloadHash = Convert.ToHexString(
+            SHA256.HashData(Encoding.UTF8.GetBytes(payloadJson)));
+        await ExecuteAsync(
+            connection,
+            transaction,
+            """
+            INSERT INTO WeightExportOutbox (
+                JumboWeightCaptureId, EventId, EventType, Revision,
+                PayloadJson, PayloadHash, CreatedAtUtc, NextAttemptAtUtc)
+            VALUES (
+                @CaptureId, @EventId, @EventType, @Revision,
+                @PayloadJson, @PayloadHash, @CreatedAtUtc, @NextAttemptAtUtc);
+            """,
+            cancellationToken,
+            ("@CaptureId", capture.CaptureId),
+            ("@EventId", eventId),
+            ("@EventType", eventType),
+            ("@Revision", revision),
+            ("@PayloadJson", payloadJson),
+            ("@PayloadHash", payloadHash),
+            ("@CreatedAtUtc", ToDatabaseTimestamp(createdAtUtc)),
+            ("@NextAttemptAtUtc", ToDatabaseTimestamp(createdAtUtc)));
+    }
+
+    private static async Task<WeightExportCaptureSnapshot?> ReadWeightExportCaptureAsync(
+        SqliteConnection connection,
+        SqliteTransaction transaction,
+        long captureId,
+        CancellationToken cancellationToken)
+    {
+        await using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText = """
+            SELECT Id, PlcEventCounter, CapturedAtFileTime, CapturedAtUtc,
+                   COALESCE(CorrectedWeightKg, WeightKg), CaptureStatus,
+                   ProductionExternalRunId, ProductionOrderCode
+            FROM JumboWeightCaptures
+            WHERE Id = @Id AND DeletedAtUtc IS NULL;
+            """;
+        command.Parameters.AddWithValue("@Id", captureId);
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        if (!await reader.ReadAsync(cancellationToken))
+            return null;
+        return new WeightExportCaptureSnapshot(
+            reader.GetInt64(0),
+            reader.GetInt64(1),
+            reader.GetInt64(2),
+            ParseDatabaseTimestamp(reader.GetString(3)),
+            reader.GetDouble(4),
+            reader.GetInt32(5),
+            reader.IsDBNull(6) ? null : reader.GetString(6),
+            reader.IsDBNull(7) ? null : reader.GetString(7));
+    }
+
+    private sealed record WeightExportCaptureSnapshot(
+        long CaptureId,
+        long PlcEventCounter,
+        long CapturedAtFileTime,
+        DateTimeOffset CapturedAtUtc,
+        double WeightKg,
+        int CaptureStatus,
+        string? ProductionMapId,
+        string? ProductionOrder);
 
     private static async Task EnsureColumnAsync(
         SqliteConnection connection,
@@ -3219,6 +3583,19 @@ public sealed class SqliteHistorianRepository : IHistorianRepository
         CancellationToken cancellationToken)
     {
         await using var command = connection.CreateCommand();
+        command.CommandText = sql;
+        var value = await command.ExecuteScalarAsync(cancellationToken);
+        return (T)Convert.ChangeType(value!, typeof(T), CultureInfo.InvariantCulture);
+    }
+
+    private static async Task<T> ScalarAsync<T>(
+        SqliteConnection connection,
+        SqliteTransaction transaction,
+        string sql,
+        CancellationToken cancellationToken)
+    {
+        await using var command = connection.CreateCommand();
+        command.Transaction = transaction;
         command.CommandText = sql;
         var value = await command.ExecuteScalarAsync(cancellationToken);
         return (T)Convert.ChangeType(value!, typeof(T), CultureInfo.InvariantCulture);

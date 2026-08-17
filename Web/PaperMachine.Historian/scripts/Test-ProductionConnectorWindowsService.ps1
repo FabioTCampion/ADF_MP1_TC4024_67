@@ -66,6 +66,7 @@ try {
     $config = [ordered]@{
         listenAddress = "127.0.0.1:$Port"
         upstreamUrl = 'https://api.papersystem.com.br/apontamentos/cpnteck/jupia/mp'
+        weightUpstreamUrl = 'https://api.papersystem.com.br/apontamentos/cpnteck/jupia/mp/pesagens'
         allowedUpstreamHost = 'api.papersystem.com.br'
         apiKeyHeaderName = 'x-api-key'
         apiKeyFilePath = (Join-Path $testRoot 'erp-api-key.txt')
@@ -74,6 +75,7 @@ try {
         requestTimeoutSeconds = 10
         cacheTtlSeconds = 55
         maximumResponseBytes = 1048576
+        maximumRequestBytes = 65536
     }
     $json = $config | ConvertTo-Json -Depth 10
     $utf8WithoutBom = New-Object Text.UTF8Encoding($false)

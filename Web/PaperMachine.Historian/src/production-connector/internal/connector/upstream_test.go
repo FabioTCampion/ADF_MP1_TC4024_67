@@ -23,8 +23,46 @@ func tls13TestClient(t *testing.T, handler http.Handler) (*httptest.Server, *Ups
 	pool.AddCert(server.Certificate())
 	config := DefaultConfig()
 	config.UpstreamURL = server.URL
+	config.WeightUpstreamURL = server.URL
 	config.AllowedUpstreamHost = "127.0.0.1"
 	return server, newUpstreamClient(config, pool)
+}
+
+func TestSendWeightUsesPostAPIKeyAndIdempotency(t *testing.T) {
+	eventID := "MP1:133998234000000000:1524"
+	_, client := tls13TestClient(t, http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
+		if request.Method != http.MethodPost {
+			t.Errorf("method = %s, want POST", request.Method)
+		}
+		if request.Header.Get("x-api-key") != "same-secret" {
+			t.Error("API key header was not forwarded")
+		}
+		if request.Header.Get("Idempotency-Key") != eventID {
+			t.Error("idempotency key was not forwarded")
+		}
+		response.Header().Set("Content-Type", "application/json")
+		_, _ = response.Write([]byte(`{"eventId":"` + eventID + `","aplicado":true,"peso":320}`))
+	}))
+	payload := []byte(`{"eventId":"` + eventID + `","eventType":"captured","revision":1,"machineId":"MP1","capturedAtUtc":"2026-08-17T14:25:30Z","weightKg":320,"productionMapId":"12345","productionOrder":"98765","captureStatus":20}`)
+	body, receipt, err := client.SendWeight(context.Background(), "same-secret", eventID, payload)
+	if err != nil {
+		t.Fatalf("send weight failed: %v", err)
+	}
+	if receipt.EventID != eventID || receipt.Applied == nil || !*receipt.Applied ||
+		!strings.Contains(string(body), `"peso":320`) {
+		t.Fatalf("unexpected receipt: %+v", receipt)
+	}
+}
+
+func TestSendWeightRejectsMismatchedIdempotencyKey(t *testing.T) {
+	_, client := tls13TestClient(t, http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
+		t.Fatal("upstream must not be called for an invalid local request")
+	}))
+	payload := []byte(`{"eventId":"MP1:1:1","eventType":"captured","revision":1,"machineId":"MP1","capturedAtUtc":"2026-08-17T14:25:30Z","weightKg":320,"productionMapId":"12345","productionOrder":"98765","captureStatus":20}`)
+	if _, _, err := client.SendWeight(context.Background(), "secret", "different", payload); err == nil ||
+		!strings.Contains(err.Error(), "idempotency") {
+		t.Fatalf("expected idempotency rejection, got %v", err)
+	}
 }
 
 func TestFetchRequiresTLS13AndValidatesPayload(t *testing.T) {
