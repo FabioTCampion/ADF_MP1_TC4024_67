@@ -12,11 +12,11 @@ type RankedRun = ConditionRun & { score: number };
 
 const categoryOptions: { id: "all" | ParameterCategory; label: string }[] = [
   { id: "all", label: "Todos" },
-  { id: "traction", label: "Trações" },
   { id: "stock", label: "Massa" },
-  { id: "drying", label: "Secagem" },
   { id: "headbox", label: "Caixa de entrada" },
-  { id: "finishing", label: "Água e enroladeira" },
+  { id: "forming", label: "Formação" },
+  { id: "traction", label: "Passes" },
+  { id: "drying", label: "Secagem" },
 ];
 
 const profileLabels: Record<RankingProfile, { label: string; help: string }> = {
@@ -67,7 +67,11 @@ function formatDuration(minutes: number) {
 
 function formatValue(value: number | null | undefined, decimals: number, unit: string) {
   if (value === null || value === undefined || !Number.isFinite(value)) return "—";
-  return `${value.toLocaleString("pt-BR", { minimumFractionDigits: decimals, maximumFractionDigits: decimals })} ${unit}`;
+  const formatted = value.toLocaleString("pt-BR", {
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
+  });
+  return unit ? `${formatted} ${unit}` : formatted;
 }
 
 function statusClass(current: number | null | undefined, low: number | null, high: number | null) {

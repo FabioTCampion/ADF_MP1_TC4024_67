@@ -9,6 +9,15 @@ public static class TelemetryCatalog
     public const string StockPumpStateField = "stockPumpState";
     public const int StockPumpRunningState = 1;
     public const string EffectivePaperPresenceField = "effectivePaperPresence";
+    public const string MixPumpRatioField = "mixPumpRatio";
+    public const double MixPumpRatioMinimum = 0.5;
+    public const double MixPumpRatioMaximum = 2.0;
+
+    public static IReadOnlySet<string> BaselineCommandFields { get; } =
+        new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            MixPumpRatioField
+        };
 
     public static IReadOnlyList<TelemetryMotorDefinition> Motors { get; } =
     [
@@ -121,17 +130,30 @@ public static class TelemetryCatalog
         .Distinct(StringComparer.Ordinal)
         .ToArray();
 
-    public static TelemetryValues Extract(JsonElement status)
+    public static TelemetryValues Extract(JsonElement status, JsonElement? commands = null)
     {
         var properties = status.EnumerateObject()
             .ToDictionary(item => item.Name, item => item.Value, StringComparer.OrdinalIgnoreCase);
+        var commandProperties = commands.HasValue && commands.Value.ValueKind == JsonValueKind.Object
+            ? commands.Value.EnumerateObject().ToDictionary(
+                item => item.Name,
+                item => item.Value,
+                StringComparer.OrdinalIgnoreCase)
+            : null;
         var numeric = new Dictionary<string, double?>(StringComparer.Ordinal);
         foreach (var field in NumericFields)
         {
+            var source = string.Equals(field, MixPumpRatioField, StringComparison.Ordinal) &&
+                         commandProperties is not null
+                ? commandProperties
+                : properties;
             numeric[field] =
-                properties.TryGetValue(field, out var value) &&
+                source.TryGetValue(field, out var value) &&
                 value.ValueKind == JsonValueKind.Number &&
-                value.TryGetDouble(out var number)
+                value.TryGetDouble(out var number) &&
+                double.IsFinite(number) &&
+                (!string.Equals(field, MixPumpRatioField, StringComparison.Ordinal) ||
+                 number is >= MixPumpRatioMinimum and <= MixPumpRatioMaximum)
                     ? number
                     : null;
         }

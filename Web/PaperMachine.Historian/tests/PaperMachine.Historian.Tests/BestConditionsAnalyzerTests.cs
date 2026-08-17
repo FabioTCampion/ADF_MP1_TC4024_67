@@ -82,6 +82,39 @@ public sealed class BestConditionsAnalyzerTests
             Assert.Contains(field, TelemetryCatalog.NumericFields);
     }
 
+    [Fact]
+    public void CatalogContainsOnlyTheApprovedOperationalParameters()
+    {
+        Assert.Equal(17, BestConditionsCatalog.Parameters.Count);
+        Assert.Contains(BestConditionsCatalog.Parameters, parameter => parameter.Key == "jetWireRatio");
+        Assert.Contains(BestConditionsCatalog.Parameters, parameter => parameter.Key == "tractionRollTorque");
+        Assert.Contains(BestConditionsCatalog.Parameters, parameter => parameter.Key == "drying3Torque");
+        Assert.DoesNotContain(BestConditionsCatalog.Parameters, parameter =>
+            parameter.Key.Contains("winder", StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain(BestConditionsCatalog.Parameters, parameter => parameter.Key == "dryMass");
+        Assert.DoesNotContain(BestConditionsCatalog.Parameters, parameter => parameter.Key == "whiteWater");
+    }
+
+    [Fact]
+    public void DryingGroupTorqueAveragesOnlyActiveDrives()
+    {
+        var parameter = Assert.Single(BestConditionsCatalog.Parameters, item =>
+            item.Key == "drying1Torque");
+        var numeric = new Dictionary<string, double?>
+        {
+            ["dryingSectionGroup1UpperMasterTorque"] = 50,
+            ["dryingSectionGroup1UpperMasterSpeedMPM"] = 350,
+            ["dryingSectionGroup1UpperSlave1Torque"] = 80,
+            ["dryingSectionGroup1UpperSlave1SpeedMPM"] = 0,
+            ["dryingSectionGroup1LowerMasterTorque"] = 54,
+            ["dryingSectionGroup1LowerMasterSpeedMPM"] = 351
+        };
+
+        var value = BestConditionsCatalog.CalculateValue(parameter, numeric);
+
+        Assert.Equal(52, value);
+    }
+
     private static BestConditionMinuteRow Sample(
         DateTimeOffset capturedAt,
         double speed,

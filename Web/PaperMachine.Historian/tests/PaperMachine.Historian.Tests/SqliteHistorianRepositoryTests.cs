@@ -82,7 +82,7 @@ public sealed class SqliteHistorianRepositoryTests
                 processor.Process(HistorianProcessorTests.CreateSnapshot(
                     firstAt,
                     """{"speed":10.0,"dryingSectionGroup3UpperMasterSpeedMPM":336.7,"dryingSectionGroup3PaperPresence":true,"stockPumpState":1,"stockPumpFlowM3h":42.8,"stockPumpAutomaticActive":true,"refinedStockTankConsistencyFilteredPct":4.18,"refinedStockTankConsistencySignalInvalid":false,"mixingPumpFaultCode":0,"mixingPumpFaultTorque":0.0,"mixingPumpFaultEventCounter":0}""",
-                    """{"start":false}""",
+                    """{"start":false,"mixPumpRatio":1.025}""",
                     """{"mixingPumpFaultAlarm":false}""")),
                 CancellationToken.None);
             await repository.AddCommandEventAsync(
@@ -97,14 +97,14 @@ public sealed class SqliteHistorianRepositoryTests
                 processor.Process(HistorianProcessorTests.CreateSnapshot(
                     firstAt.AddSeconds(1),
                     """{"speed":11.0,"dryingSectionGroup3UpperMasterSpeedMPM":335.0,"dryingSectionGroup3PaperPresence":false,"stockPumpState":1,"headBoxMMH2O":245.5,"headboxLipsPosition_mm":8.2,"mixingPumpFaultCode":12832,"mixingPumpFaultTorque":12.3,"mixingPumpFaultEventCounter":1}""",
-                    """{"start":true}""",
+                    """{"start":true,"mixPumpRatio":1.025}""",
                     """{"mixingPumpFaultAlarm":true}""")),
                 CancellationToken.None);
             await repository.PersistCycleAsync(
                 processor.Process(HistorianProcessorTests.CreateSnapshot(
                     firstAt.AddSeconds(2),
                     """{"speed":11.0,"dryingSectionGroup3UpperMasterSpeedMPM":334.0,"dryingSectionGroup3PaperPresence":true,"stockPumpState":1,"headBoxMMH2O":246.0,"headboxLipsPosition_mm":8.2,"mixingPumpFaultCode":12832,"mixingPumpFaultTorque":12.3,"mixingPumpFaultEventCounter":1}""",
-                    """{"start":false}""",
+                    """{"start":false,"mixPumpRatio":1.025}""",
                     """{"mixingPumpFaultAlarm":false}""")),
                 CancellationToken.None);
 
@@ -128,6 +128,9 @@ public sealed class SqliteHistorianRepositoryTests
                     TelemetryCatalog.MachineSpeedField]);
             Assert.Equal(42.8, optimizedTrend[0].NumericValues["stockPumpFlowM3h"]);
             Assert.Equal(
+                1.025,
+                optimizedTrend[0].NumericValues[TelemetryCatalog.MixPumpRatioField]);
+            Assert.Equal(
                 4.18,
                 optimizedTrend[0].NumericValues["refinedStockTankConsistencyFilteredPct"]);
             Assert.True(optimizedTrend[0].BooleanValues["stockPumpAutomaticActive"]);
@@ -142,10 +145,16 @@ public sealed class SqliteHistorianRepositoryTests
             Assert.True(productivitySample.PaperPresent);
             var commandEvents =
                 await repository.GetCommandEventsAsync(null, null, 10, CancellationToken.None);
-            Assert.Equal(3, commandEvents.Count);
+            Assert.Equal(4, commandEvents.Count);
             Assert.Contains(
                 commandEvents,
                 item => item.CommandName == "pulse" && item.Origin == "AdsOnChange");
+            Assert.Contains(
+                commandEvents,
+                item => item.CommandName == TelemetryCatalog.MixPumpRatioField &&
+                        item.PreviousValueJson is null &&
+                        item.CurrentValueJson == "1.025" &&
+                        item.Origin == "PlcObserved");
             var commandPage = await repository.SearchCommandEventsAsync(
                 firstAt.AddMinutes(-1),
                 firstAt.AddMinutes(1),
@@ -163,7 +172,7 @@ public sealed class SqliteHistorianRepositoryTests
                 0,
                 1,
                 CancellationToken.None);
-            Assert.Equal(3, firstCommandPage.Total);
+            Assert.Equal(4, firstCommandPage.Total);
             Assert.True(firstCommandPage.HasMore);
 
             var statusPage = await repository.SearchStatusChangesAsync(

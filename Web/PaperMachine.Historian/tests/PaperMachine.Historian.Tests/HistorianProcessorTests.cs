@@ -38,6 +38,25 @@ public sealed class HistorianProcessorTests
     }
 
     [Fact]
+    public void InitialObservationPersistsMixPumpRatioCommandBaseline()
+    {
+        var processor = CreateProcessor();
+        var capturedAt = new DateTimeOffset(2026, 8, 17, 12, 0, 0, TimeSpan.Zero);
+
+        var cycle = processor.Process(CreateSnapshot(
+            capturedAt,
+            """{"mixPumpRatio":0}""",
+            """{"mixPumpRatio":1.025,"start":false}""",
+            """{}"""));
+
+        var baseline = Assert.Single(cycle.CommandChanges);
+        Assert.Equal("mixPumpRatio", baseline.FieldName);
+        Assert.Null(baseline.PreviousValueJson);
+        Assert.Equal("1.025", baseline.CurrentValueJson);
+        Assert.Equal(capturedAt, baseline.ObservedAtUtc);
+    }
+
+    [Fact]
     public void ChangedFieldsBecomeStatusCommandAndAlarmEvents()
     {
         var processor = CreateProcessor();

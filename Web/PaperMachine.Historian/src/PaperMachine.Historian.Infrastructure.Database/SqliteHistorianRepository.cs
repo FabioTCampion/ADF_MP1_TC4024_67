@@ -1127,7 +1127,9 @@ public sealed class SqliteHistorianRepository : IHistorianRepository
 
             if (cycle.SaveTelemetrySample)
             {
-                var telemetry = TelemetryCatalog.Extract(cycle.Snapshot.Status);
+                var telemetry = TelemetryCatalog.Extract(
+                    cycle.Snapshot.Status,
+                    cycle.Snapshot.Commands);
                 await InsertTelemetrySampleAsync(
                     connection,
                     transaction,

@@ -5,7 +5,7 @@ export type ParameterCategory =
   | "stock"
   | "drying"
   | "headbox"
-  | "finishing";
+  | "forming";
 
 export type ProductionQuality = {
   id: string;

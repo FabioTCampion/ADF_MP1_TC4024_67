@@ -6,6 +6,20 @@ namespace PaperMachine.Historian.Tests;
 public sealed class ProcessTrendBuilderTests
 {
     [Fact]
+    public void MixPumpRatioUsesCommandValueAndRejectsInvalidCommandBaseline()
+    {
+        using var status = JsonDocument.Parse("""{"mixPumpRatio":0}""");
+        using var validCommands = JsonDocument.Parse("""{"mixPumpRatio":1.025}""");
+        using var invalidCommands = JsonDocument.Parse("""{"mixPumpRatio":0}""");
+
+        var valid = TelemetryCatalog.Extract(status.RootElement, validCommands.RootElement);
+        var invalid = TelemetryCatalog.Extract(status.RootElement, invalidCommands.RootElement);
+
+        Assert.Equal(1.025, valid.Numeric[TelemetryCatalog.MixPumpRatioField]);
+        Assert.Null(invalid.Numeric[TelemetryCatalog.MixPumpRatioField]);
+    }
+
+    [Fact]
     public void ExtractsAndCatalogsNewStockPumpProcessVariables()
     {
         using var document = JsonDocument.Parse(

@@ -115,7 +115,10 @@ internal static class BestConditionsEndpoints
                 MinimumRunMinutes);
         }
 
-        var currentValues = ReadCurrentValues(runtimeState.GetSnapshot()?.Status);
+        var currentSnapshot = runtimeState.GetSnapshot();
+        var currentValues = ReadCurrentValues(
+            currentSnapshot?.Status,
+            currentSnapshot?.Commands);
         return Results.Ok(new BestConditionsResponse(
             now,
             currentQualityId,
@@ -149,24 +152,13 @@ internal static class BestConditionsEndpoints
                 "Presença efetiva de papel + velocidade mínima, com interrupção por perda de produção ou lacuna de telemetria.")));
     }
 
-    private static IReadOnlyDictionary<string, double?> ReadCurrentValues(JsonElement? status)
+    private static IReadOnlyDictionary<string, double?> ReadCurrentValues(
+        JsonElement? status,
+        JsonElement? commands)
     {
-        var properties = status.HasValue && status.Value.ValueKind == JsonValueKind.Object
-            ? status.Value.EnumerateObject().ToDictionary(
-                property => property.Name,
-                property => property.Value,
-                StringComparer.OrdinalIgnoreCase)
-            : new Dictionary<string, JsonElement>(StringComparer.OrdinalIgnoreCase);
-        var numeric = new Dictionary<string, double?>(StringComparer.Ordinal);
-        foreach (var field in BestConditionsCatalog.TelemetryFields)
-        {
-            numeric[field] = properties.TryGetValue(field, out var value) &&
-                value.ValueKind == JsonValueKind.Number &&
-                value.TryGetDouble(out var number) &&
-                double.IsFinite(number)
-                    ? number
-                    : null;
-        }
+        var numeric = status.HasValue && status.Value.ValueKind == JsonValueKind.Object
+            ? TelemetryCatalog.Extract(status.Value, commands).Numeric
+            : new Dictionary<string, double?>(StringComparer.Ordinal);
         return BestConditionsCatalog.Parameters.ToDictionary(
             parameter => parameter.Key,
             parameter => BestConditionsCatalog.CalculateValue(parameter, numeric),

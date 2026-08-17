@@ -49,7 +49,7 @@ public sealed class HistorianProcessor
                 snapshot.CapturedAtUtc,
                 TelemetryCatalog.IsDiscreteStatusField);
         var commandChanges = initialObservation
-            ? []
+            ? CaptureInitialCommandValues(snapshot.Commands, snapshot.CapturedAtUtc)
             : FindChanges(
                 _lastCommands!.Value,
                 snapshot.Commands,
@@ -95,6 +95,18 @@ public sealed class HistorianProcessor
             paperBreakTransitions,
             paperBreakDiagnostics);
     }
+
+    private static IReadOnlyList<FieldChange> CaptureInitialCommandValues(
+        JsonElement commands,
+        DateTimeOffset observedAtUtc) =>
+        commands.EnumerateObject()
+            .Where(item => TelemetryCatalog.BaselineCommandFields.Contains(item.Name))
+            .Select(item => new FieldChange(
+                item.Name,
+                null,
+                item.Value.GetRawText(),
+                observedAtUtc))
+            .ToArray();
 
     private void AddPaperBreakDiagnosticSample(PaperMachineSnapshot snapshot)
     {

@@ -85,6 +85,10 @@ parâmetros durante cada trecho. A análise combina `ProductionQualityPeriods`,
 `TelemetryMinuteAggregates` e `PaperBreakEvents`; uma quebra registrada sempre
 interrompe o período, mesmo quando a média do minuto ainda indica papel presente.
 
+O ratio usado nessa análise vem de `paperMachineHmiCommands.mixPumpRatio`. O
+baseline é auditado na primeira leitura e o valor válido é amostrado junto da
+telemetria para compor os agregados por minuto.
+
 O histórico legado em JSON é convertido progressivamente em agregados por minuto
 antes de ser removido pela retenção. A limpeza ocorre em pequenos lotes e só é
 habilitada depois de existir pelo menos 24 horas de telemetria no formato novo.
